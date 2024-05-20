@@ -1,0 +1,3 @@
+*.log
+.graph_dumps
+hl-smi_log.txt
