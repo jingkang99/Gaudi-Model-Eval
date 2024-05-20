@@ -16,6 +16,10 @@ export SCIKIT_LEARN_DATA=$DATASET
 
 export PYTHON_LLM_VEN=/opt/python-llm
 
+export PYTHONPATH=/usr/lib/habanalabs:/sox/habana-intel/Model-References
+
+export TZ='America/Los_Angeles'
+
 # pytorch env, installed with required modules
 [ ! -d "$PYTHON_LLM_VEN" ] && ln -s /sox/python-llm /opt/python-llm
 
@@ -40,6 +44,36 @@ alias hl-='hl-smi -Q temperature.aip -f csv,noheader'
 alias apy='source $PYTHON_LLM_VEN/bin/activate'
 alias jns='jupyter notebook --ip 0.0.0.0 --port 8888 --allow-root'
 
+function lsg(){
+        find . -mindepth 2 -maxdepth 2 -type d -ls | grep $1
+}
+function dush(){
+    du -h --max-depth=1 $1
+}
+
+M_SIZE=$(echo $(grep MemTotal /proc/meminfo | awk '{print $2}')/1024/1014 + 1| bc)
+CPU_TP=$(grep "model name" /proc/cpuinfo| head -n 1 |awk -F':' '{print $2}' | xargs)
+CPU_CT=$(grep processor /proc/cpuinfo|wc -l)
+
+function sys_info(){
+        echo $M_SIZE'GB' $CPU_CT'Core' $CPU_TP | toilet -f term -F border --gay
+        df -h | grep /dev/ | grep -v snap | grep -v tmpfs | sort | toilet -f term -F border --gay
+}
+
+function print_prd_banner() {
+
+    dmesg | grep 0000:44:00.0 > /dev/null
+    if [ $? -eq 0 ]; then
+        echo "    Supermicro Gaudi    " | toilet -f term -F border --gay
+        sys_info
+
+	hlsim=$(hl-smi -v|head -n 1)
+        echo $hlsim | toilet -f term -F border --gay
+
+        return 0
+    fi
+    sys_info
+}
 
 # reference nodets
 #	https://huggingface.co/blog/pretraining-bert
