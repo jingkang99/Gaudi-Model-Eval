@@ -409,8 +409,6 @@ watch -n 30 "ps -Ao user,pcpu,pid,command --sort=pcpu | grep python | head -n 50
 mpstat 30 | tee $OUTPUT_DIR/_mpstat.log  &>/dev/null & 
 free -g -s 30 | grep Mem | tee $OUTPUT_DIR/_memmon.log &>/dev/null &
 
-sleep 3
-
 set -x
 time $MPIRUN_CMD python3 $SCRIPT_DIR/run_pretraining.py \
     --config_file $SCRIPT_DIR/bert_config.json \
@@ -448,12 +446,17 @@ time $MPIRUN_CMD python3 $SCRIPT_DIR/run_pretraining.py \
 retval="$?"
 set +x
 
+pkill watch
+pkill mpstat
+pkill hl-smi
+pkill free
+
 # log system info
 end_time=$(date +%s)
 #date -d @1718326649
 
 MLOG=$OUTPUT_DIR/_module.log
-pip check > $MLOG; pip list | grep -P 'habana|tensor|torch' >> $MLOG; apt list --installed | grep habana >> $MLOG &>/dev/null; lsmod | grep habana >> $MLOG
+pip check > $MLOG; pip list | grep -P 'habana|tensor|torch' >> $MLOG; dpkg-query -W | grep habana >> $MLOG; lsmod | grep habana >> $MLOG
 echo '-------' >> $MLOG
 
 #IFS='\n' arr=($(ipmitool fru | grep Board | awk -F ': ' '{print $2}'))
@@ -480,6 +483,9 @@ echo "memcnt:" $(lsmem | grep "online memory" | awk '{print $4}') >> $MLOG
 echo "" >> $MLOG
 echo "osintl:" $(stat --format=%w /) >> $MLOG
 
+echo "govnor:" $(cat /sys/devices/system/cpu/cpu0/cpufreq/scaling_governor) >> $MLOG
+echo "hgpage:" $(grep _hugepages /etc/sysctl.conf) >> $MLOG
+
 hostip=$(ifconfig | grep broadcast | grep -v 172.17 | awk '{print $2}')
 echo "kernel:" $(uname -a) >> $MLOG
 echo "hostip:" ${hostip}   >> $MLOG
@@ -497,19 +503,14 @@ echo "" >> $MLOG
 lspci -d :1020: -nn >> $MLOG
 hl-smi | grep HL-225 | awk '{print $2,$6}' >> $MLOG
 
-pkill watch
-pkill mpstat
-pkill hl-smi
-pkill free
-
-ttt=$(for nn in {0..7} ; do grep 'run_start\|run_stop' $OUTPUT_DIR/train.log | grep worker${nn} | awk '{print $5}' | tr -d ',' | paste -sd " " - | awk '{print ($2 - $1) / 1000 / 60}' ; done | awk '{s+=$1}END{print s/NR}')
-
 # time to train
+ttt=$(for nn in {0..7} ; do grep 'run_start\|run_stop' $OUTPUT_DIR/train.log | grep worker${nn} | awk '{print $5}' | tr -d ',' | paste -sd " " - | awk '{print ($2 - $1) / 1000 / 60}' ; done | awk '{s+=$1}END{print s/NR}')
 echo -e "${YLW}Time To Train: ${ttt} min${NCL}" | tee -a $TRAIN_LOG_FILE
 arr=$(for nn in {0..7} ; do grep 'run_start\|run_stop' $OUTPUT_DIR/train.log | grep worker${nn} | awk '{print $5}' | tr -d ',' | paste -sd " " - | awk '{print ($2 - $1) / 1000 / 60}' ; done)
 i=0; for t in $arr ; do echo "  worker:"${i} ${t}; let i++; done
 echo
 
+# max power reading
 hpw=$(sort $OUTPUT_DIR/_powerr.log | sort -n | tail -n 1)
 echo -e "${YLW}Maximum Power: ${hpw} watts${NCL}" | tee -a $TRAIN_LOG_FILE
 

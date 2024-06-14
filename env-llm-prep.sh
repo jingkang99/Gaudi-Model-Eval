@@ -8,17 +8,26 @@ export HF_TOKEN=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
 
 # rw
 export HF_TOKEN=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
-
 export HF_HOME=/sox/huggingface
 
 export DATASET=/sox/data-ml
 export SCIKIT_LEARN_DATA=$DATASET
-
 export PYTHON_LLM_VEN=/opt/python-llm
-
 export PYTHONPATH=/usr/lib/habanalabs:/sox/habana-intel/Model-References
-
 export TZ='America/Los_Angeles'
+
+export MLPERF_ROOT=/sox/mlperf
+export SCRATCH_DIR=$MLPERF_ROOT/scratch
+export DATASETS_DIR=$DATASET
+export MLPERF_DIR=/sox/habana-intel/Model-References/MLPERF3.1/Training
+export PYTORCH_BERT_DATA=$DATASET/ptbert-data
+export BERT_IMPLEMENTATIONS=/sox/habana-intel/Model-References/MLPERF3.1/Training/benchmarks/bert/implementations
+
+export CONTAINER_NAME=mlperf3_1
+export DOCKER_IMAGE=vault.habana.ai/gaudi-docker/1.16.0/ubuntu22.04/habanalabs/pytorch-installer-2.2.2:latest
+
+export PATH=/opt/habanalabs/openmpi-4.1.5/bin:$PATH
+export PT_HPU_LAZY_MODE=1
 
 # pytorch env, installed with required modules
 [ ! -d "$PYTHON_LLM_VEN" ] && ln -s /sox/python-llm /opt/python-llm
@@ -40,7 +49,7 @@ alias gw='git clone --depth=1'
 alias gck="/opt/habanalabs/qual/gaudi2/bin/manage_network_ifs.sh --status"
 alias gup="/opt/habanalabs/qual/gaudi2/bin/manage_network_ifs.sh --up"
 alias pws='ipmitool sdr | grep PW'
-alias hl-='hl-smi -Q temperature.aip -f csv,noheader'
+alias hl-='hl-smi -Q timestamp,index,serial,memory.used,temperature.aip,utilization.aip,power.draw -f csv,noheader -l 10'
 alias apy='source $PYTHON_LLM_VEN/bin/activate'
 alias jns='jupyter notebook --ip 0.0.0.0 --port 8888 --allow-root'
 
@@ -75,5 +84,3 @@ function print_prd_banner() {
     sys_info
 }
 
-# reference nodets
-#	https://huggingface.co/blog/pretraining-bert
