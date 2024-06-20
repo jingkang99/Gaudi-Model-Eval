@@ -53,6 +53,13 @@ alias hl-='hl-smi -Q timestamp,index,serial,memory.used,temperature.aip,utilizat
 alias apy='source $PYTHON_LLM_VEN/bin/activate'
 alias jns='jupyter notebook --ip 0.0.0.0 --port 8888 --allow-root'
 
+RED='\033[0;31m'
+YLW='\033[0;33m'
+BLU='\033[0;34m'
+BCY='\033[1;36m'
+CYA='\033[0;36m'
+NCL='\033[0m'
+
 function lsg(){
         find . -mindepth 2 -maxdepth 2 -type d -ls | grep $1
 }
@@ -70,8 +77,7 @@ function sys_info(){
 }
 
 function print_prd_banner() {
-
-    dmesg | grep 0000:44:00.0 > /dev/null
+    lspci -d :1020: -nn | grep -P '\S+' > /dev/null
     if [ $? -eq 0 ]; then
         echo "    Supermicro Gaudi    " | toilet -f term -F border --gay
         sys_info
