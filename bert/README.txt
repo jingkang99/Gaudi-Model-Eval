@@ -1,3 +1,32 @@
+--- mlperf 3.1 ---
+
+101GB test suite
+
+-rw-r--r-- 1 spm spm          106 Jun 21 23:29 baseline-1-md5.txt
+-rw-r--r-- 1 spm spm 107376680960 Jun 21 23:19 bert-mlperf-31.tar
+-rw-r--r-- 1 spm spm    827417506 Jun 21 23:21 python-gd-1.16.tgz
+
+scp spm@172.24.189.10:/home/spm/mlperf31-bert/baseline-1-md5.txt .
+
+scp spm@172.24.189.10:/home/spm/mlperf31-bert/python-gd-1.16.tgz .
+
+scp spm@172.24.189.10:/home/spm/mlperf31-bert/bert-mlperf-31.tar .
+
+# prepare python environment
+cd /opt
+tar xvzf python-gd-1.16.tgz
+
+export PYTHON_LLM_VEN=/opt/python-llm
+alias apy='source $PYTHON_LLM_VEN/bin/activate'
+apy
+
+# prepare bert test suite
+tar xvzf bert-mlperf-31.tar
+cd bert
+./perf-test-mlperf-3.1.sh
+
+--- notes ---
+
 Just common used commands and checkpoints for BERT Training, which merged to the main script.
 
 cd /sox/habana-intel/Model-References/MLPERF3.1/Training/benchmarks/bert/implementations/HLS-Gaudi2-PT
