@@ -49,9 +49,11 @@ alias gw='git clone --depth=1'
 alias gck="/opt/habanalabs/qual/gaudi2/bin/manage_network_ifs.sh --status"
 alias gup="/opt/habanalabs/qual/gaudi2/bin/manage_network_ifs.sh --up"
 alias pws='ipmitool sdr | grep PW'
-alias hl-='hl-smi -Q timestamp,index,serial,memory.used,temperature.aip,utilization.aip,power.draw -f csv,noheader -l 10'
+alias hl-='hl-smi -Q timestamp,index,serial,bus_id,memory.used,temperature.aip,utilization.aip,power.draw -f csv,noheader -l 10'
 alias apy='source $PYTHON_LLM_VEN/bin/activate'
 alias jns='jupyter notebook --ip 0.0.0.0 --port 8888 --allow-root'
+
+alias upp='nmap -sn 172.24.189.11/27| grep 172'
 
 RED='\033[0;31m'
 YLW='\033[0;33m'
@@ -84,6 +86,8 @@ function print_prd_banner() {
 
 	hlsim=$(hl-smi -v|head -n 1)
         echo $hlsim | toilet -f term -F border --gay
+
+	ifconfig | grep 'inet ' | grep -v -P '0.1\b' | awk '{print $2}' | toilet -f term -F border --gay
 
         return 0
     fi

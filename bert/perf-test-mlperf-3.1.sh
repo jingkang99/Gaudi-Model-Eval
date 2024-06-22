@@ -6,26 +6,25 @@
 RED='\033[0;31m'
 YLW='\033[0;33m'
 BLU='\033[0;34m'
+GRN='\033[0;32m'
 BCY='\033[1;36m'
 CYA='\033[0;36m'
 NCL='\033[0m' 
 
-start_time=$(date +%s)
-
-pip list | grep habana &>/dev/null
-if [ $? -eq 0 ]
-then
-	echo -e "  ${YLW}Start MLPerf 3.1 Bert Testing${NCL} ${start_time}"
-	echo
-	sleep 1
-else
-	echo -e "  ${RED}ERROR: habana python module not found${NCL}"
-	exit 1
-fi
-
-export PATH=/opt/python-llm/bin:/opt/habanalabs/openmpi-4.1.5/bin:$PATH
-export PT_HPU_LAZY_MODE=1
-SECONDS=0
+function check_internal_ports()
+{	# check Gaudi interal ports
+	UP_PORTS=$(hl-smi -Q bus_id -f csv,noheader | xargs -I % hl-smi -i % -n link | grep UP | wc -l)
+	if [ $UP_PORTS != 168 ]
+	then
+		echo -e "${RED}ERROR: Gaudi internal ports Not All Up${NCL}"
+		echo -e "${GRN}  /opt/habanalabs/qual/gaudi2/bin/manage_network_ifs.sh --up${NCL}"
+		echo -e "${GRN}  reboot or reload habana driver${NCL}"
+		echo -e "${GRN}  rmmod habanalabs${NCL}"
+		echo -e "${GRN}  modprobe habanalabs${NCL}\n"
+		echo -e "${GRN}  $(basename $0) --check-ports${NCL}\n"
+		exit 1
+	fi
+}
 
 function print_synopsis()
 {
@@ -92,7 +91,12 @@ function parse_args()
     while true; do
         case "$1" in
             -h | --help )
-                print_synopsis
+				print_synopsis
+                exit 0 ;;
+            -cp | --check-ports)
+                UP_PORTS=$(hl-smi -Q bus_id -f csv,noheader | xargs -I % hl-smi -i % -n link | grep UP | wc -l)
+				echo -e "${YLW}Gaudi internal ports UP count: ${UP_PORTS}${NCL}"
+				[ $UP_PORTS == 168 ] && (echo -e "${GRN}OK${NCL}") || (echo -e "${RED}NG${NCL}") 
                 exit 0 ;;
             -hf | --hosts-file )
                 REMOTE_HOSTS=$(generate_hosts_list "$2" 8)
@@ -150,8 +154,35 @@ USE_AUTOCAST=true
 PT_HPU_AUTOCAST_LOWER_PRECISION_OPS_LIST=$SCRIPT_DIR/ops_bf16_bert_pt.txt
 PT_HPU_AUTOCAST_FP32_OPS_LIST=$SCRIPT_DIR/ops_fp32_bert_pt.txt
 
-# parse arguments, possibly overwriting the default settings
+# parse arguments, possibly overwriting the default settings, print help
 parse_args "$@"
+
+# --- jk check before test
+start_time=$(date +%s)
+
+check_internal_ports
+
+echo '' > /var/log/kern.log
+
+which ipmitool &>/dev/null
+[ $? != 0 ] && (echo -e "${RED}ERROR: need ipmitool${NCL}"; exit 2)
+
+pip list | grep habana &>/dev/null
+if [ $? -eq 0 ]
+then
+	echo -e "  ${YLW}Start MLPerf 3.1 Bert Testing${NCL} ${start_time}"
+	echo -e "  ${YLW}Gaudi internal ports UP count ${UP_PORTS}${NCL}"
+	echo
+	sleep 3
+else
+	echo -e "${RED}ERROR: habana python module not found${NCL}"
+	exit 1
+fi
+
+export PATH=/opt/python-llm/bin:/opt/habanalabs/openmpi-4.1.5/bin:$PATH
+export PT_HPU_LAZY_MODE=1
+SECONDS=0
+# --- jk end
 
 # output files for console logging for train/eval
 DESC_FILE=$OUTPUT_DIR/desc.txt
@@ -400,11 +431,13 @@ fi
 echo "start mon:" $(date)
 
 watch -n 10 "ipmitool dcmi power reading | grep Instantaneous | awk '{print \$4}' | tee -a $OUTPUT_DIR/_powerr.log" &>/dev/null &
-hl-smi -Q timestamp,index,serial,memory.used,temperature.aip,utilization.aip,power.draw -f csv,noheader -l 10 | tee $OUTPUT_DIR/_hl-s10.log &>/dev/null &
+watch -n 30 "ipmitool sdr   | tee -a $OUTPUT_DIR/_im-sdr.log" &>/dev/null &
+watch -n 30 "ipmitool sensor| tee -a $OUTPUT_DIR/_im-ssr.log" &>/dev/null &
 
-watch -n 30 "ipmitool sdr | tee -a $OUTPUT_DIR/_im-sdr.log" &>/dev/null &
+hl-smi -Q timestamp,index,serial,bus_id,memory.used,temperature.aip,utilization.aip,power.draw -f csv,noheader -l 10 | tee $OUTPUT_DIR/_hl-smi.log &>/dev/null &
+
 watch -n 30 "S_COLORS=always iostat -xm | grep -v loop | tee -a $OUTPUT_DIR/_iostat.log" &>/dev/null &
-watch -n 30 "ps -Ao user,pcpu,pid,command --sort=pcpu | grep python | head -n 50 | tee $OUTPUT_DIR/_python.log" &>/dev/null &
+watch -n 30 "ps -Ao user,pcpu,pid,command --sort=pcpu | grep python | head -n 50 | tee -a $OUTPUT_DIR/_python.log" &>/dev/null &
 
 mpstat 30 | tee $OUTPUT_DIR/_mpstat.log  &>/dev/null & 
 free -g -s 30 | grep Mem | tee $OUTPUT_DIR/_memmon.log &>/dev/null &
@@ -500,12 +533,15 @@ echo "elapse:" $(($end_time-$start_time)) >> $MLOG
 echo "testts:" $(date) >> $MLOG
 
 echo "" >> $MLOG
-lspci -d :1020: -nn >> $MLOG
-hl-smi | grep HL-225 | awk '{print $2,$6}' >> $MLOG
+hl-smi -Q timestamp,index,serial,bus_id,memory.used,temperature.aip,utilization.aip,power.draw -f csv,noheader >> $MLOG
+hl-smi | grep HL-225 | awk '{print "gpu busidr- " $2,$6}' >> $MLOG
 
+ipmitool dcmi power reading >> $MLOG
+
+# -------------
 # time to train
 ttt=$(for nn in {0..7} ; do grep 'run_start\|run_stop' $OUTPUT_DIR/train.log | grep worker${nn} | awk '{print $5}' | tr -d ',' | paste -sd " " - | awk '{print ($2 - $1) / 1000 / 60}' ; done | awk '{s+=$1}END{print s/NR}')
-echo -e "${YLW}Time To Train: ${ttt} min${NCL}" | tee -a $TRAIN_LOG_FILE
+echo -e "${YLW}Time To Train: ${ttt} min${NCL}, < 16 min" | tee -a $TRAIN_LOG_FILE
 arr=$(for nn in {0..7} ; do grep 'run_start\|run_stop' $OUTPUT_DIR/train.log | grep worker${nn} | awk '{print $5}' | tr -d ',' | paste -sd " " - | awk '{print ($2 - $1) / 1000 / 60}' ; done)
 i=0; for t in $arr ; do echo "  worker:"${i} ${t}; let i++; done
 echo
@@ -516,14 +552,14 @@ echo -e "${YLW}Maximum Power: ${hpw} watts${NCL}" | tee -a $TRAIN_LOG_FILE
 
 # delete model checkpoint files
 find $OUTPUT_DIR -name *.pt -type f -delete &>/dev/null
-rm -rf .graph_dump
+rm -rf  ./.graph_dumps
 
 # print top 10 stat
 cnt=10
-mapfile -t mem < <( awk '{print $9}'  $OUTPUT_DIR/_hl-s10.log | sort -n | uniq -c | tail -n $cnt )
-mapfile -t utl < <( awk '{print $13}' $OUTPUT_DIR/_hl-s10.log | sort -n | uniq -c | tail -n $cnt )
-mapfile -t tmp < <( awk '{print $11}' $OUTPUT_DIR/_hl-s10.log | sort -n | uniq -c | tail -n $cnt )
-mapfile -t pow < <( awk '{print $15}' $OUTPUT_DIR/_hl-s10.log | sort -n | uniq -c | tail -n $cnt )
+mapfile -t mem < <( awk '{print $10}' $OUTPUT_DIR/_hl-smi.log | sort -n | uniq -c | tail -n $cnt )
+mapfile -t utl < <( awk '{print $14}' $OUTPUT_DIR/_hl-smi.log | sort -n | uniq -c | tail -n $cnt )
+mapfile -t tmp < <( awk '{print $12}' $OUTPUT_DIR/_hl-smi.log | sort -n | uniq -c | tail -n $cnt )
+mapfile -t pow < <( awk '{print $16}' $OUTPUT_DIR/_hl-smi.log | sort -n | uniq -c | tail -n $cnt )
 
 echo -e "  ${CYA}GPU Top 10 Stats${NCL}" | tee -a $TRAIN_LOG_FILE
 echo -e "  ${CYA}cnt PowerDraw   cnt AIP-Util   cnt Temprature  cnt Memory-Usage${NCL}" | tee -a $TRAIN_LOG_FILE
@@ -532,12 +568,33 @@ do
     echo -e "    ${BCY}${pow[$i]}     ${utl[$i]}       ${tmp[$i]}     ${mem[$i]}${NCL}" | tee -a $TRAIN_LOG_FILE
 done
 echo | tee -a $TRAIN_LOG_FILE
-echo -e "max         550 W    	   100 %                            98304 MB" | tee -a $TRAIN_LOG_FILE
+echo -e "max         550 W    	   100 %                            98304 MB\n" | tee -a $TRAIN_LOG_FILE
 
-echo | tee -a $TRAIN_LOG_FILE
+echo -e "        ${CYA}average_perf_per_step, Higher is Better. data processed/training, 20 steps/training, total steps:6700 ${NCL}${BCY}" | tee -a $TRAIN_LOG_FILE;
+grep "average_perf_per_step : " $OUTPUT_DIR/train.log | awk -F "average_perf_per_step : " '{print $2}' | awk -F "." '{print $1}' | sort | uniq -c | tee -a $TRAIN_LOG_FILE
+echo -e "${NCL}"
 
-echo -e "${BLU}Test Complete: ${SECONDS} sec${NCL}" | tee -a $TRAIN_LOG_FILE
+avg_tts=$(grep "average_perf_per_step : " $OUTPUT_DIR/train.log | awk -F "average_training_time_step : " '{print $2}' | awk '{ sum += $1; n++ } END { if (n > 0) print sum / n; }' )
+echo -e "        ${CYA}average_training_time_step: ${NCL}${YLW}${avg_tts}${NCL} < 0.18	\n" | tee -a $TRAIN_LOG_FILE;
+
+if [[ $avg_tts < 0.18 ]]
+then
+	echo -e "avgtrain time: ${GRN}PASS${NCL}"
+else
+	echo -e "avgtrain time: ${RED}FAIL${NCL}"
+fi
+
+if [[ $ttt < 16 ]]
+then
+	echo -e "time to train: ${GRN}PASS${NCL}"
+else
+	echo -e "time to train: ${RED}FAIL${NCL}"
+fi
+
+echo -e "${BLU}Test Complete: ${SECONDS} sec${NCL}\n" | tee -a $TRAIN_LOG_FILE
+
+cp /var/log/kern.log $OUTPUT_DIR/_kernal.log
+TS=$(date +"%b %d")
+grep -P "^${TS}.+accel accel" /var/log/syslog | tail -n 2000 > $OUTPUT_DIR/_logsys.log
 
 mv $OUTPUT_DIR $OUTPUT_DIR-${end_time}-${SECONDS}-${ttt}
-
-echo
