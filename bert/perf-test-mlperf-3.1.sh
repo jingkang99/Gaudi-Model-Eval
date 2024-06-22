@@ -579,16 +579,16 @@ echo -e "        ${CYA}average_training_time_step: ${NCL}${YLW}${avg_tts}${NCL} 
 
 if [[ $avg_tts < 0.18 ]]
 then
-	echo -e "avgtrain time: ${GRN}PASS${NCL}"
+	echo -e "avgtrain time: ${GRN}PASS${NCL}" | tee -a $TRAIN_LOG_FILE
 else
-	echo -e "avgtrain time: ${RED}FAIL${NCL}"
+	echo -e "avgtrain time: ${RED}FAIL${NCL}" | tee -a $TRAIN_LOG_FILE
 fi
 
 if [[ $ttt < 16 ]]
 then
-	echo -e "time to train: ${GRN}PASS${NCL}"
+	echo -e "time to train: ${GRN}PASS${NCL}" | tee -a $TRAIN_LOG_FILE
 else
-	echo -e "time to train: ${RED}FAIL${NCL}"
+	echo -e "time to train: ${RED}FAIL${NCL}" | tee -a $TRAIN_LOG_FILE
 fi
 
 echo -e "${BLU}Test Complete: ${SECONDS} sec${NCL}\n" | tee -a $TRAIN_LOG_FILE
