@@ -442,6 +442,7 @@ watch -n 30 "ps -Ao user,pcpu,pid,command --sort=pcpu | grep python | head -n 50
 mpstat 30 | tee $OUTPUT_DIR/_mpstat.log  &>/dev/null & 
 free -g -s 30 | grep Mem | tee $OUTPUT_DIR/_memmon.log &>/dev/null &
 
+# change log_freq from 20 to 200
 set -x
 time $MPIRUN_CMD python3 $SCRIPT_DIR/run_pretraining.py \
     --config_file $SCRIPT_DIR/bert_config.json \
@@ -465,7 +466,7 @@ time $MPIRUN_CMD python3 $SCRIPT_DIR/run_pretraining.py \
     --gradient_accumulation_steps $NUM_ACCUM_STEPS \
     --num_steps_per_checkpoint $SAVE_CHECKPOINTS_STEPS \
     --phase2 \
-    --log_freq 20 \
+    --log_freq 200 \
     --init_checkpoint $PHASE_1_CKPT \
     --eval_dir $EVAL_DIR \
     --eval_batch_size $EVAL_BATCH_SIZE \
@@ -543,7 +544,7 @@ ipmitool dcmi power reading >> $MLOG
 ttt=$(for nn in {0..7} ; do grep 'run_start\|run_stop' $OUTPUT_DIR/train.log | grep worker${nn} | awk '{print $5}' | tr -d ',' | paste -sd " " - | awk '{print ($2 - $1) / 1000 / 60}' ; done | awk '{s+=$1}END{print s/NR}')
 echo -e "${YLW}Time To Train: ${ttt} min${NCL}, < 16 min" | tee -a $TRAIN_LOG_FILE
 arr=$(for nn in {0..7} ; do grep 'run_start\|run_stop' $OUTPUT_DIR/train.log | grep worker${nn} | awk '{print $5}' | tr -d ',' | paste -sd " " - | awk '{print ($2 - $1) / 1000 / 60}' ; done)
-i=0; for t in $arr ; do echo "  worker:"${i} ${t}; let i++; done
+i=0; for t in $arr ; do echo "  worker:"${i} ${t} | tee -a $TRAIN_LOG_FILE; let i++; done
 echo
 
 # max power reading
@@ -568,14 +569,19 @@ do
     echo -e "    ${BCY}${pow[$i]}     ${utl[$i]}       ${tmp[$i]}     ${mem[$i]}${NCL}" | tee -a $TRAIN_LOG_FILE
 done
 echo | tee -a $TRAIN_LOG_FILE
-echo -e "max         550 W    	   100 %                            98304 MB\n" | tee -a $TRAIN_LOG_FILE
+echo -e "  max       550 W    	    100 %                           98304 MB\n" | tee -a $TRAIN_LOG_FILE
 
-echo -e "        ${CYA}average_perf_per_step, Higher is Better. data processed/training, 20 steps/training, total steps:6700 ${NCL}${BCY}" | tee -a $TRAIN_LOG_FILE;
-grep "average_perf_per_step : " $OUTPUT_DIR/train.log | awk -F "average_perf_per_step : " '{print $2}' | awk -F "." '{print $1}' | sort | uniq -c | tee -a $TRAIN_LOG_FILE
+echo -e "  ${CYA}average_perf_per_step, Higher is Better. data processed/training, 20 steps/training, total steps:6700 ${NCL}${BCY}" | tee -a $TRAIN_LOG_FILE;
+mapfile -t aaa < <(grep "average_perf_per_step : " $OUTPUT_DIR/train.log | awk -F "average_perf_per_step : " '{print $2}' | awk -F "." '{print $1}' | sort | uniq -c)
+echo -n -e ${BCY}
+for (( i=0; i<${#aaa[@]}; i=$(($i + 2)) ));
+do
+	printf "%11s %s\n" ${aaa[$i]} ${aaa[ $(($i + 1)) ]} | tee -a $TRAIN_LOG_FILE
+done
 echo -e "${NCL}"
 
 avg_tts=$(grep "average_perf_per_step : " $OUTPUT_DIR/train.log | awk -F "average_training_time_step : " '{print $2}' | awk '{ sum += $1; n++ } END { if (n > 0) print sum / n; }' )
-echo -e "        ${CYA}average_training_time_step: ${NCL}${YLW}${avg_tts}${NCL} < 0.18	\n" | tee -a $TRAIN_LOG_FILE;
+echo -e "  ${CYA}average_training_time_step: ${NCL}${YLW}${avg_tts}${NCL} < 0.18	\n" | tee -a $TRAIN_LOG_FILE;
 
 if [[ $avg_tts < 0.18 ]]
 then
