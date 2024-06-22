@@ -146,7 +146,7 @@ INPUT_DIR=$DATA_ROOT/packed
 PHASE_1_CKPT=$DATA_ROOT/model.ckpt-28252.pt
 EVAL_DIR=$DATA_ROOT/eval_varlength/
 
-OUTPUT_DIR=../bert-perf-result/result-perf
+OUTPUT_DIR=../bert-perf-result/perf
 ENABLE_EVALUATION=true
 USE_AUTOCAST=true
 
@@ -442,7 +442,7 @@ watch -n 30 "ps -Ao user,pcpu,pid,command --sort=pcpu | grep python | head -n 50
 mpstat 30 | tee $OUTPUT_DIR/_mpstat.log  &>/dev/null & 
 free -g -s 30 | grep Mem | tee $OUTPUT_DIR/_memmon.log &>/dev/null &
 
-# change log_freq from 20 to 200
+# change log_freq from 20 to 100
 set -x
 time $MPIRUN_CMD python3 $SCRIPT_DIR/run_pretraining.py \
     --config_file $SCRIPT_DIR/bert_config.json \
@@ -466,7 +466,7 @@ time $MPIRUN_CMD python3 $SCRIPT_DIR/run_pretraining.py \
     --gradient_accumulation_steps $NUM_ACCUM_STEPS \
     --num_steps_per_checkpoint $SAVE_CHECKPOINTS_STEPS \
     --phase2 \
-    --log_freq 200 \
+    --log_freq 100 \
     --init_checkpoint $PHASE_1_CKPT \
     --eval_dir $EVAL_DIR \
     --eval_batch_size $EVAL_BATCH_SIZE \
@@ -569,7 +569,7 @@ do
     echo -e "    ${BCY}${pow[$i]}     ${utl[$i]}       ${tmp[$i]}     ${mem[$i]}${NCL}" | tee -a $TRAIN_LOG_FILE
 done
 echo | tee -a $TRAIN_LOG_FILE
-echo -e "  max       550 W    	    100 %                           98304 MB\n" | tee -a $TRAIN_LOG_FILE
+echo -e "${GRN}  max       550 W    	    100 %                           98304 MB${NCL}\n" | tee -a $TRAIN_LOG_FILE
 
 echo -e "  ${CYA}average_perf_per_step, Higher is Better. data processed/training, 20 steps/training, total steps:6700 ${NCL}${BCY}" | tee -a $TRAIN_LOG_FILE;
 mapfile -t aaa < <(grep "average_perf_per_step : " $OUTPUT_DIR/train.log | awk -F "average_perf_per_step : " '{print $2}' | awk -F "." '{print $1}' | sort | uniq -c)
@@ -581,16 +581,19 @@ done
 echo -e "${NCL}"
 
 avg_tts=$(grep "average_perf_per_step : " $OUTPUT_DIR/train.log | awk -F "average_training_time_step : " '{print $2}' | awk '{ sum += $1; n++ } END { if (n > 0) print sum / n; }' )
-echo -e "  ${CYA}average_training_time_step: ${NCL}${YLW}${avg_tts}${NCL} < 0.18	\n" | tee -a $TRAIN_LOG_FILE;
+echo -e "  ${CYA}average_training_time_step: ${NCL}${YLW}${avg_tts}${NCL} < 0.165	\n" | tee -a $TRAIN_LOG_FILE;
 
-if [[ $avg_tts < 0.18 ]]
+grep training_sequences_per_second $OUTPUT_DIR/train.log | awk -F ':' '{for (i=5; i<NF; i++) printf $i":"; print $NF}' | tee -a $TRAIN_LOG_FILE;
+echo
+
+if [[ $avg_tts > 0.1 && $avg_tts < 0.18 ]]
 then
 	echo -e "avgtrain time: ${GRN}PASS${NCL}" | tee -a $TRAIN_LOG_FILE
 else
 	echo -e "avgtrain time: ${RED}FAIL${NCL}" | tee -a $TRAIN_LOG_FILE
 fi
 
-if [[ $ttt < 16 ]]
+if [[ $ttt > 10 && $ttt < 16 ]]
 then
 	echo -e "time to train: ${GRN}PASS${NCL}" | tee -a $TRAIN_LOG_FILE
 else
@@ -603,4 +606,10 @@ cp /var/log/kern.log $OUTPUT_DIR/_kernal.log
 TS=$(date +"%b %d")
 grep -P "^${TS}.+accel accel" /var/log/syslog | tail -n 2000 > $OUTPUT_DIR/_logsys.log
 
-mv $OUTPUT_DIR $OUTPUT_DIR-${end_time}-${SECONDS}-${ttt}
+ipp=$(ifconfig | grep 'inet ' | grep -v -P '27.0|172.17' | awk '{print $2}')
+fff=$OUTPUT_DIR-${ipp}-${end_time}-${SECONDS}-${ttt}
+
+mv $OUTPUT_DIR $fff
+
+scp -r $fff spm@172.24.189.10:/home/spm/mlperf31-bert-test-result/ &>/dev/null
+
