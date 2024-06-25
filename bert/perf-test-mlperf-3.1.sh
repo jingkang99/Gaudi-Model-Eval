@@ -519,7 +519,7 @@ echo "osintl:" $(stat --format=%w /) >> $MLOG
 echo "machid:" $(cat /etc/machine-id)>> $MLOG
 
 echo "govnor:" $(cat /sys/devices/system/cpu/cpu0/cpufreq/scaling_governor) >> $MLOG
-echo "hgpage:" $(grep _hugepages /etc/sysctl.conf) >> $MLOG
+echo "hgpage:" $(grep HugePages_Total /proc/meminfo | awk '{print $2}') >> $MLOG
 
 hostip=$(ifconfig | grep broadcast | grep -v 172.17 | awk '{print $2}')
 echo "kernel:" $(uname -a) >> $MLOG
