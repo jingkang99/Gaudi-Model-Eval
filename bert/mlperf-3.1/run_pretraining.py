@@ -1431,6 +1431,9 @@ def main():
 
     if args.do_eval:
 
+        eval_s_time = time.time()
+        print("eval start time: ", eval_s_time)
+
         block_number = 1
         block_timestamp = lambda block_number : block_timestamps[int(block_number)-1] if block_timestamps is not None else 0
 
@@ -1479,6 +1482,10 @@ def main():
                     mllogger.end(key=mllog.constants.RUN_STOP, value=eval_avg_mlm_accuracy, time_ms=block_timestamp(block_number), metadata={'epoch_num': int((block_number)*args.samples_between_eval), 'epoch_count': int(block_number), 'status': 'fail'})
         else:
             mllogger.end(key=mllog.constants.RUN_STOP, value=eval_avg_mlm_accuracy,time_ms=block_timestamp(block_number), metadata=None)
+
+        eval_e_time = time.time()
+        print("eval stop time: ", eval_e_time)
+        print("eval used time: ", eval_e_time - eval_s_time)
 
     dllogger.flush()
 

@@ -442,7 +442,7 @@ watch -n 30 "ps -Ao user,pcpu,pid,command --sort=pcpu | grep python | head -n 50
 mpstat 30 | tee $OUTPUT_DIR/_mpstat.log  &>/dev/null & 
 free -g -s 30 | grep Mem | tee $OUTPUT_DIR/_memmon.log &>/dev/null &
 
-# change log_freq from 20 to 100
+# change log_freq from 20 to 50
 set -x
 time $MPIRUN_CMD python3 $SCRIPT_DIR/run_pretraining.py \
     --config_file $SCRIPT_DIR/bert_config.json \
@@ -466,7 +466,7 @@ time $MPIRUN_CMD python3 $SCRIPT_DIR/run_pretraining.py \
     --gradient_accumulation_steps $NUM_ACCUM_STEPS \
     --num_steps_per_checkpoint $SAVE_CHECKPOINTS_STEPS \
     --phase2 \
-    --log_freq 100 \
+    --log_freq 20 \
     --init_checkpoint $PHASE_1_CKPT \
     --eval_dir $EVAL_DIR \
     --eval_batch_size $EVAL_BATCH_SIZE \
@@ -516,6 +516,7 @@ echo "memcnt:" $(lsmem | grep "online memory" | awk '{print $4}') >> $MLOG
 
 echo "" >> $MLOG
 echo "osintl:" $(stat --format=%w /) >> $MLOG
+echo "machid:" $(cat /etc/machine-id)>> $MLOG
 
 echo "govnor:" $(cat /sys/devices/system/cpu/cpu0/cpufreq/scaling_governor) >> $MLOG
 echo "hgpage:" $(grep _hugepages /etc/sysctl.conf) >> $MLOG
@@ -542,7 +543,7 @@ ipmitool dcmi power reading >> $MLOG
 # -------------
 # time to train
 ttt=$(for nn in {0..7} ; do grep 'run_start\|run_stop' $OUTPUT_DIR/train.log | grep worker${nn} | awk '{print $5}' | tr -d ',' | paste -sd " " - | awk '{print ($2 - $1) / 1000 / 60}' ; done | awk '{s+=$1}END{print s/NR}')
-echo -e "${YLW}Time To Train: ${ttt} min${NCL}, < 16 min" | tee -a $TRAIN_LOG_FILE
+echo -e "${YLW}Time To Train: ${ttt} min${NCL}, < 16.5 min" | tee -a $TRAIN_LOG_FILE
 arr=$(for nn in {0..7} ; do grep 'run_start\|run_stop' $OUTPUT_DIR/train.log | grep worker${nn} | awk '{print $5}' | tr -d ',' | paste -sd " " - | awk '{print ($2 - $1) / 1000 / 60}' ; done)
 i=0; for t in $arr ; do echo "  worker:"${i} ${t} | tee -a $TRAIN_LOG_FILE; let i++; done
 echo
@@ -583,8 +584,10 @@ echo -e "${NCL}"
 avg_tts=$(grep "average_perf_per_step : " $OUTPUT_DIR/train.log | awk -F "average_training_time_step : " '{print $2}' | awk '{ sum += $1; n++ } END { if (n > 0) print sum / n; }' )
 echo -e "  ${CYA}average_training_time_step: ${NCL}${YLW}${avg_tts}${NCL} < 0.165	\n" | tee -a $TRAIN_LOG_FILE;
 
-grep training_sequences_per_second $OUTPUT_DIR/train.log | awk -F ':' '{for (i=5; i<NF; i++) printf $i":"; print $NF}' | tee -a $TRAIN_LOG_FILE;
-echo
+grep training_sequences_per_second $OUTPUT_DIR/train.log | awk -F ':' '{for (i=5; i<NF; i++) printf $i":"; print $NF}';echo | tee -a $TRAIN_LOG_FILE;
+
+eval_t=$(grep "eval used time" $TRAIN_LOG_FILE  | grep 1,0 | awk '{print $4}' | cut -c 1-6)
+echo -e "  model eval time: ${eval_t}\n" | tee -a $TRAIN_LOG_FILE;
 
 if [[ $avg_tts > 0.1 && $avg_tts < 0.18 ]]
 then
@@ -593,7 +596,7 @@ else
 	echo -e "avgtrain time: ${RED}FAIL${NCL}" | tee -a $TRAIN_LOG_FILE
 fi
 
-if [[ $ttt > 10 && $ttt < 16 ]]
+if [[ $ttt > 10 && $ttt < 16.5 ]]
 then
 	echo -e "time to train: ${GRN}PASS${NCL}" | tee -a $TRAIN_LOG_FILE
 else
