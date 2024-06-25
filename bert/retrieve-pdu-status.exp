@@ -1,0 +1,14 @@
+set server [lindex $argv 0]
+set passwd [lindex $argv 1]
+spawn ssh apc@$server
+expect "*?assword*"
+send "$passwd\n"
+expect "apc>"
+send "devReading energy\r"
+send "devReading power\r"
+send "devReading appower\r"
+send "phReading all current\r"
+send "phReading all voltage\r"
+#send "prodInfo\r"
+send "exit\n"
+expect eof
