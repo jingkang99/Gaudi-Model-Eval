@@ -98,6 +98,12 @@ function parse_args()
 				echo -e "${YLW}Gaudi internal ports UP count: ${UP_PORTS}${NCL}"
 				[ $UP_PORTS == 168 ] && (echo -e "${GRN}OK${NCL}") || (echo -e "${RED}NG${NCL}") 
                 exit 0 ;;
+            -ph | --perf-hpage)
+				echo -e "${YLW}set scaling_governor to performance${NCL}"
+				echo -e "${YLW}set vm.nr_hugepages  to 153600${NCL}"
+                echo performance | tee /sys/devices/system/cpu/cpu*/cpufreq/scaling_governor
+				sysctl -w vm.nr_hugepages=153600
+                exit 0 ;;
             -hf | --hosts-file )
                 REMOTE_HOSTS=$(generate_hosts_list "$2" 8)
                 shift 2 ;;
