@@ -605,9 +605,9 @@ then
 	engy_e=`tail -n 1 $pdu | awk '{print $1}'`
 	usedee=`echo "$engy_e $engy_s" | awk '{print $1-$2}'`
 
-	echo -e "  pdu energy used: ${YLW}${usedee}${NCL} kWh : ${engy_s} ${engy_e}"
-	printf "  ${CYA}max\n"
-	printf "  energy/kWh    power/kW    appower/kVA    current/A    voltage/V    ipmi/Watts${NCL}\n"
+	echo -e "  pdu energy used: ${YLW}${usedee}${NCL} kWh : ${engy_s} ${engy_e}" | tee -a $TRAIN_LOG_FILE;
+	printf "  ${CYA}max\n" | tee -a $TRAIN_LOG_FILE;
+	printf "  energy/kWh    power/kW    appower/kVA    current/A    voltage/V    ipmi/Watts${NCL}\n" | tee -a $TRAIN_LOG_FILE;
 
 	max_eng=`grep -P '\d+\.\d' $pdu | awk '{print $1}' | sort -n | tail -n 1`
 	max_pow=`grep -P '\d+\.\d' $pdu | awk '{print $2}' | sort -n | tail -n 1`
@@ -616,7 +616,7 @@ then
 	max_vol=`grep -P '\d+\.\d' $pdu | awk '{print $5}' | sort -n | tail -n 1`
 	max_bmc=`grep -P '\d+\.\d' $pdu | awk '{print $6}' | sort -n | tail -n 1`
 
-	printf "${BCY}%8s     %8s      %8s       %8s     %8s  %8s${NCL}\n\n" $max_eng  $max_pow  $max_app  $max_cur  $max_vol  $max_bmc
+	printf "${BCY}%8s     %8s      %8s       %8s     %8s  %8s${NCL}\n\n" $max_eng  $max_pow  $max_app  $max_cur  $max_vol  $max_bmc | tee -a $TRAIN_LOG_FILE;
 fi
 
 if [[ $avg_tts > 0.1 && $avg_tts < 0.18 ]]
