@@ -167,6 +167,9 @@ echo '' > /var/log/kern.log
 which ipmitool &>/dev/null
 [ $? != 0 ] && (echo -e "${RED}ERROR: need ipmitool${NCL}"; exit 2)
 
+which expect &>/dev/null
+[ $? != 0 ] && (echo -e "${RED}ERROR: need expect${NCL}"; exit 2)
+
 pip list | grep habana &>/dev/null
 if [ $? -eq 0 ]
 then
@@ -442,6 +445,8 @@ watch -n 30 "ps -Ao user,pcpu,pid,command --sort=pcpu | grep python | head -n 50
 mpstat 30 | tee $OUTPUT_DIR/_mpstat.log  &>/dev/null & 
 free -g -s 30 | grep Mem | tee $OUTPUT_DIR/_memmon.log &>/dev/null &
 
+bash monitor-pwrdu-status.sh | tee $OUTPUT_DIR/_pdulog.log &>/dev/null &
+
 # change log_freq from 20 to 50
 set -x
 time $MPIRUN_CMD python3 $SCRIPT_DIR/run_pretraining.py \
@@ -484,6 +489,7 @@ pkill watch
 pkill mpstat
 pkill hl-smi
 pkill free
+pkill tee
 
 # log system info
 end_time=$(date +%s)
@@ -579,7 +585,9 @@ for (( i=0; i<${#aaa[@]}; i=$(($i + 2)) ));
 do
 	printf "%11s %s\n" ${aaa[$i]} ${aaa[ $(($i + 1)) ]} | tee -a $TRAIN_LOG_FILE
 done
-echo -e "${NCL}"
+echo -e "${NCL}" | tee -a $TRAIN_LOG_FILE
+
+echo -e "  ${YLW}Time To Train: ${ttt} min${NCL}, < 16.5 min\n" | tee -a $TRAIN_LOG_FILE
 
 avg_tts=$(grep "average_perf_per_step : " $OUTPUT_DIR/train.log | awk -F "average_training_time_step : " '{print $2}' | awk '{ sum += $1; n++ } END { if (n > 0) print sum / n; }' )
 echo -e "  ${CYA}average_training_time_step: ${NCL}${YLW}${avg_tts}${NCL} < 0.165	\n" | tee -a $TRAIN_LOG_FILE;
@@ -588,6 +596,28 @@ grep training_sequences_per_second $OUTPUT_DIR/train.log | awk -F ':' '{for (i=5
 
 eval_t=$(grep "eval used time" $TRAIN_LOG_FILE  | grep 1,0 | awk '{print $4}' | cut -c 1-6)
 echo -e "  model eval time: ${eval_t}\n" | tee -a $TRAIN_LOG_FILE;
+
+# calc power usage
+pdu=$OUTPUT_DIR/_pdulog.log
+if [[ $(wc -l $pdu | awk '{print $1}' ) -gt 20 ]]
+then
+	engy_s=`head -n 2 $pdu | tail -n 1 | awk '{print $1}'`
+	engy_e=`tail -n 1 $pdu | awk '{print $1}'`
+	usedee=`echo "$engy_e $engy_s" | awk '{print $1-$2}'`
+
+	echo -e "  pdu energy used: ${YLW}${usedee}${NCL} kWh : ${engy_s} ${engy_e}"
+	printf "  ${CYA}max\n"
+	printf "  energy/kWh    power/kW    appower/kVA    current/A    voltage/V    ipmi/Watts${NCL}\n"
+
+	max_eng=`grep -P '\d+\.\d' $pdu | awk '{print $1}' | sort -n | tail -n 1`
+	max_pow=`grep -P '\d+\.\d' $pdu | awk '{print $2}' | sort -n | tail -n 1`
+	max_app=`grep -P '\d+\.\d' $pdu | awk '{print $3}' | sort -n | tail -n 1`
+	max_cur=`grep -P '\d+\.\d' $pdu | awk '{print $4}' | sort -n | tail -n 1`
+	max_vol=`grep -P '\d+\.\d' $pdu | awk '{print $5}' | sort -n | tail -n 1`
+	max_bmc=`grep -P '\d+\.\d' $pdu | awk '{print $6}' | sort -n | tail -n 1`
+
+	printf "${BCY}%8s     %8s      %8s       %8s     %8s  %8s${NCL}\n\n" $max_eng  $max_pow  $max_app  $max_cur  $max_vol  $max_bmc
+fi
 
 if [[ $avg_tts > 0.1 && $avg_tts < 0.18 ]]
 then
@@ -615,4 +645,3 @@ fff=$OUTPUT_DIR-${ipp}-${end_time}-${SECONDS}-${ttt}
 mv $OUTPUT_DIR $fff
 
 scp -r $fff spm@172.24.189.10:/home/spm/mlperf31-bert-test-result/ &>/dev/null
-

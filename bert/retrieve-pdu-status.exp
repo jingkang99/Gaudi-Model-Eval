@@ -2,7 +2,7 @@ set server [lindex $argv 0]
 set passwd [lindex $argv 1]
 spawn ssh apc@$server
 expect "*?assword*"
-send "$passwd\n"
+send "$passwd\r"
 expect "apc>"
 send "devReading energy\r"
 send "devReading power\r"
