@@ -5,7 +5,7 @@ cnf="apc-pdu.cnf"
 pdu_ip=$(head -n 1 $cnf)
 passwd=$(tail -n 1 $cnf)
 
-printf "  energy/kWh    power/kW    appower/kVA    current/A    voltage/V\n"
+printf "  energy/kWh    power/kW    appower/kVA    current/A    voltage/V    ipmi/Watts\n"
 
 while [ 1 ]
 do
@@ -16,8 +16,10 @@ do
 	app=`grep "devReading appower" _exp -A 2 | tail -n 1 | awk '{print $1}'`
 	cur=`grep "phReading all current" _exp -A 2 | tail -n 1 | awk '{print $2}'`
 	vtg=`grep "phReading all voltage" _exp -A 2 | tail -n 1 | awk '{print $2}'`
+	
+	bmc=`ipmitool dcmi power reading | grep Instantaneous | awk '{print $4}'`
 
-	printf "%8s     %8s      %8s       %8s     %8s\n" $eng  $pow  $app  $cur  $vtg
+	printf "%8s     %8s      %8s       %8s     %8s  %8s\n" $eng  $pow  $app  $cur  $vtg  $bmc
 
 	rm -rf _exp
 	sleep 10
