@@ -644,4 +644,6 @@ fff=$OUTPUT_DIR-${ipp}-${end_time}-${SECONDS}-${ttt}
 
 mv $OUTPUT_DIR $fff
 
-scp -r $fff spm@172.24.189.10:/home/spm/mlperf31-bert-test-result/ &>/dev/null
+#       scp -r $fff spm@172.24.189.10:/home/spm/mlperf31-bert-test-result/   &>/dev/null
+scp -P 7022 -r $fff spm@129.146.47.229:/home/spm/mlperf31-bert-test-result/  &>/dev/null
+
