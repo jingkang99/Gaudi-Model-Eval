@@ -3,13 +3,14 @@
 pdu_ip=${1-"172.24.189.15"}
 passwd=${2-"smc123"}
 
-printf "  energy/kWh    power/kW    appower/kVA    current/A    voltage/V    id-pdu\n"
+printf "  energy/kWh    power/kW    appower/kVA    current/A    voltage/V    id-pdu      ts\n"
 
 # PDU ID in array, order not matter
 declare -a pdu=(2 4 3 1)
 
 while [ 1 ]
 do
+	ts=$(date +"%F_%T")
 	/usr/bin/expect mon-pdu-status.exp $pdu_ip $passwd ${pdu[@]} | tee _exp &>/dev/null
 
 	for  i in ${!pdu[@]}; do
@@ -20,7 +21,7 @@ do
 		vtg=`grep "phReading  ${pdu[$i]}:all voltage" _exp -A 2 | tail -n 1 | awk '{print $2}' | grep -v phReading`
 
 		if [[ ! -z $eng ]]; then
-			printf "%8s     %8s      %8s       %8s     %8s  %6s\n" $eng  $pow  $app  $cur  $vtg  ${pdu[$i]}
+			printf "%8s     %8s      %8s       %8s     %8s  %6s          %s\n" $eng  $pow  $app  $cur  $vtg  ${pdu[$i]} $ts 
 		fi
 	done
 	rm -rf _exp
