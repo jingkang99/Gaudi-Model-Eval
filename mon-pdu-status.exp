@@ -1,0 +1,27 @@
+set server [lindex $argv 0]
+set passwd [lindex $argv 1]
+
+#foreach arg $argv { 
+#    puts "arg : $arg"   
+#}
+
+spawn ssh apc@$server
+expect "*?assword*"
+send "$passwd\r"
+
+for {set x 2 } {$x < $argc} {incr x} {
+	set i [lindex $argv $x]
+	expect "apc>"
+	
+	send "devReading $i:energy\r"
+	send "phReading  $i:all current\r"
+	send "phReading  $i:all voltage\r"
+	send "phReading  $i:all power\r"
+	send "phReading  $i:all appower\r"
+}
+
+expect "apc>"
+send "exit\n"
+expect eof
+
+#expect retrieve-pdu-status.exp 172.24.189.15 smc123 2
