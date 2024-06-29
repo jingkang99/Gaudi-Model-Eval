@@ -94,3 +94,7 @@ function print_prd_banner() {
     sys_info
 }
 
+function pip-show-version() {
+    curl -s  https://pypi.org/pypi/${1}/json | jq  -r '.releases | keys | .[]' | sort -V
+}
+
