@@ -96,7 +96,13 @@ function parse_args()
             -cp | --check-ports)
                 UP_PORTS=$(hl-smi -Q bus_id -f csv,noheader | xargs -I % hl-smi -i % -n link | grep UP | wc -l)
 				echo -e "${YLW}Gaudi internal ports UP count: ${UP_PORTS}${NCL}"
-				[ $UP_PORTS == 168 ] && (echo -e "${GRN}OK${NCL}") || (echo -e "${RED}NG${NCL}") 
+				[ $UP_PORTS == 168 ] && (echo -e "${GRN}OK${NCL}") || (echo -e "${RED}NG${NCL}")
+				
+				hpage=$(grep HugePages_Total /proc/meminfo | awk '{print $2}') 
+				echo -e "\n${YLW}Hugepages  :${NCL} ${GRN}${hpage}${NCL}"
+
+				govnor=$(cat /sys/devices/system/cpu/cpu0/cpufreq/scaling_governor)
+				echo -e "\n${YLW}CPU Scaling:${NCL} ${GRN}${govnor}${NCL}"
                 exit 0 ;;
             -ph | --perf-hpage)
 				echo -e "${YLW}set scaling_governor to performance${NCL}"
