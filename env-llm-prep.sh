@@ -54,6 +54,7 @@ alias apy='source $PYTHON_LLM_VEN/bin/activate'
 alias jns='jupyter notebook --ip 0.0.0.0 --port 8888 --allow-root'
 
 alias upp='nmap -sn 172.24.189.11/27| grep 172'
+alias cls="echo '' > /var/log/syslog; echo '' > /var/log/kern.log; rm -rf /var/log/habana_logs/*"
 
 RED='\033[0;31m'
 YLW='\033[0;33m'
