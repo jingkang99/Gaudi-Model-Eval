@@ -200,9 +200,8 @@ SECONDS=0
 # --- jk end
 
 # output files for console logging for train/eval
-DESC_FILE=$OUTPUT_DIR/desc.txt
-TRAIN_LOG_FILE=$OUTPUT_DIR/train.log
-EVAL_LOG_FILE=$OUTPUT_DIR/teval.log
+DESCR_FILE=$OUTPUT_DIR/desc.txt
+TRAIN_LOGF=$OUTPUT_DIR/train.log
 
 # output directories for train/eval
 RESULTS_DIR_FOR_TRAIN_EVAL=$OUTPUT_DIR/result
@@ -218,7 +217,6 @@ DLLOGER_OUT_TRAIN_AND_EVAL=$RESULTS_DIR_FOR_TRAIN_EVAL/dlloger.json
 # tensorboard directory for run and train
 TB_DIR_TRAIN=$OUTPUT_DIR/tb_train
 TB_DIR_INIT_EVAL=$OUTPUT_DIR/tb_init_eval
-
 
 # MASTER_ADDR and MASTER_PORT are consumed by PyTorch c10d to establish a distributed group
 if [ -z "$_multibox" ]; then
@@ -394,7 +392,7 @@ $MPIRUN_LOCAL_CMD \
 EOM
 
 # label the run (on this node)
-cat > $DESC_FILE <<- EOM
+cat > $DESCR_FILE <<- EOM
 Date                    : `date`
 
 # parameters configurable from the environment
@@ -428,7 +426,7 @@ MAX_EVAL_STEPS          : $MAX_EVAL_STEPS
 NUM_DIST_EVAL_WORKERS   : $NUM_DIST_EVAL_WORKERS
 NUM_EVAL_EXAMPLES       : $NUM_EVAL_EXAMPLES
 EOM
-cat $DESC_FILE
+cat $DESCR_FILE
 
 if [ "$ENABLE_EVALUATION" == "true" ]; then
     echo
@@ -493,7 +491,7 @@ time $MPIRUN_CMD python3 $SCRIPT_DIR/run_pretraining.py \
     --enable_packed_data_mode true \
     --checkpoint_filter model \
     $DISTRIBUTION_OPTION \
-    --tensorboard_dir $TB_DIR_TRAIN  2>&1 | tee $TRAIN_LOG_FILE
+    --tensorboard_dir $TB_DIR_TRAIN  2>&1 | tee $TRAIN_LOGF
 retval="$?"
 set +x
 
@@ -561,18 +559,18 @@ ipmitool dcmi power reading >> $MLOG
 # -------------
 # time to train
 ttt=$(for nn in {0..7} ; do grep 'run_start\|run_stop' $OUTPUT_DIR/train.log | grep worker${nn} | awk '{print $5}' | tr -d ',' | paste -sd " " - | awk '{print ($2 - $1) / 1000 / 60}' ; done | awk '{s+=$1}END{print s/NR}')
-echo -e "${YLW}Time To Train: ${ttt} min${NCL}, < 16.5 min" | tee -a $TRAIN_LOG_FILE
+echo -e "${YLW}Time To Train: ${ttt} min${NCL}, < 16.5 min" | tee -a $TRAIN_LOGF
 arr=$(for nn in {0..7} ; do grep 'run_start\|run_stop' $OUTPUT_DIR/train.log | grep worker${nn} | awk '{print $5}' | tr -d ',' | paste -sd " " - | awk '{print ($2 - $1) / 1000 / 60}' ; done)
-i=0; for t in $arr ; do echo "  worker:"${i} ${t} | tee -a $TRAIN_LOG_FILE; let i++; done
+i=0; for t in $arr ; do echo "  worker:"${i} ${t} | tee -a $TRAIN_LOGF; let i++; done
 echo
 
 # max power reading
 hpw=$(sort $OUTPUT_DIR/_powerr.log | sort -n | tail -n 1)
-echo -e "${YLW}Maximum Power: ${hpw} watts${NCL}" | tee -a $TRAIN_LOG_FILE
+echo -e "${YLW}Maximum Power: ${hpw} watts${NCL}" | tee -a $TRAIN_LOGF
 
 # delete model checkpoint files
 find $OUTPUT_DIR -name *.pt -type f -delete &>/dev/null
-rm -rf  ./.graph_dumps
+rm -rf  ./.graph_dumps _exp &>/dev/null 
 
 # print top 10 stat
 cnt=10
@@ -581,33 +579,33 @@ mapfile -t utl < <( awk '{print $14}' $OUTPUT_DIR/_hl-smi.log | sort -n | uniq -
 mapfile -t tmp < <( awk '{print $12}' $OUTPUT_DIR/_hl-smi.log | sort -n | uniq -c | tail -n $cnt )
 mapfile -t pow < <( awk '{print $16}' $OUTPUT_DIR/_hl-smi.log | sort -n | uniq -c | tail -n $cnt )
 
-echo -e "  ${CYA}GPU Top 10 Stats${NCL}" | tee -a $TRAIN_LOG_FILE
-echo -e "  ${CYA}cnt PowerDraw   cnt AIP-Util   cnt Temprature  cnt Memory-Usage${NCL}" | tee -a $TRAIN_LOG_FILE
+echo -e "  ${CYA}GPU Top 10 Stats${NCL}" | tee -a $TRAIN_LOGF
+echo -e "  ${CYA}cnt PowerDraw   cnt AIP-Util   cnt Temprature  cnt Memory-Usage${NCL}" | tee -a $TRAIN_LOGF
 for (( i=0; i<${#mem[@]}; i++ ));
 do
-    echo -e "    ${BCY}${pow[$i]}     ${utl[$i]}       ${tmp[$i]}     ${mem[$i]}${NCL}" | tee -a $TRAIN_LOG_FILE
+    echo -e "    ${BCY}${pow[$i]}     ${utl[$i]}       ${tmp[$i]}     ${mem[$i]}${NCL}" | tee -a $TRAIN_LOGF
 done
-echo | tee -a $TRAIN_LOG_FILE
-echo -e "${GRN}  max       550 W    	    100 %                           98304 MB${NCL}\n" | tee -a $TRAIN_LOG_FILE
+echo | tee -a $TRAIN_LOGF
+echo -e "${GRN}  max       550 W    	    100 %                           98304 MB${NCL}\n" | tee -a $TRAIN_LOGF
 
-echo -e "  ${CYA}average_perf_per_step, Higher is Better. data processed/training, 20 steps/training, total steps:6700 ${NCL}${BCY}" | tee -a $TRAIN_LOG_FILE;
+echo -e "  ${CYA}average_perf_per_step, Higher is Better. data processed/training, 20 steps/training, total steps:6700 ${NCL}${BCY}" | tee -a $TRAIN_LOGF;
 mapfile -t aaa < <(grep "average_perf_per_step : " $OUTPUT_DIR/train.log | awk -F "average_perf_per_step : " '{print $2}' | awk -F "." '{print $1}' | sort | uniq -c)
 echo -n -e ${BCY}
 for (( i=0; i<${#aaa[@]}; i=$(($i + 2)) ));
 do
-	printf "%11s %s\n" ${aaa[$i]} ${aaa[ $(($i + 1)) ]} | tee -a $TRAIN_LOG_FILE
+	printf "%11s %s\n" ${aaa[$i]} ${aaa[ $(($i + 1)) ]} | tee -a $TRAIN_LOGF
 done
-echo -e "${NCL}" | tee -a $TRAIN_LOG_FILE
+echo -e "${NCL}" | tee -a $TRAIN_LOGF
 
-echo -e "  ${YLW}Time To Train: ${ttt} min${NCL}, < 16.5 min\n" | tee -a $TRAIN_LOG_FILE
+echo -e "  ${YLW}Time To Train: ${ttt} min${NCL}, < 16.5 min\n" | tee -a $TRAIN_LOGF
 
 avg_tts=$(grep "average_perf_per_step : " $OUTPUT_DIR/train.log | awk -F "average_training_time_step : " '{print $2}' | awk '{ sum += $1; n++ } END { if (n > 0) print sum / n; }' )
-echo -e "  ${CYA}average_training_time_step: ${NCL}${YLW}${avg_tts}${NCL} < 0.165	\n" | tee -a $TRAIN_LOG_FILE;
+echo -e "  ${CYA}average_training_time_step: ${NCL}${YLW}${avg_tts}${NCL} < 0.165	\n" | tee -a $TRAIN_LOGF;
 
-grep training_sequences_per_second $OUTPUT_DIR/train.log | awk -F ':' '{for (i=5; i<NF; i++) printf $i":"; print $NF}';echo | tee -a $TRAIN_LOG_FILE;
+grep training_sequences_per_second $OUTPUT_DIR/train.log | awk -F ':' '{for (i=5; i<NF; i++) printf $i":"; print $NF}';echo | tee -a $TRAIN_LOGF;
 
-eval_t=$(grep "eval used time" $TRAIN_LOG_FILE  | grep 1,0 | awk '{print $4}' | cut -c 1-6)
-echo -e "  model eval time: ${eval_t}\n" | tee -a $TRAIN_LOG_FILE;
+eval_t=$(grep "eval used time" $TRAIN_LOGF  | grep 1,0 | awk '{print $4}' | cut -c 1-6)
+echo -e "  model eval time: ${eval_t}\n" | tee -a $TRAIN_LOGF;
 
 # calc power usage
 pdu=$OUTPUT_DIR/_pdulog.log
@@ -617,9 +615,9 @@ then
 	engy_e=`tail -n 1 $pdu | awk '{print $1}'`
 	usedee=`echo "$engy_e $engy_s" | awk '{print $1-$2}'`
 
-	echo -e "  pdu energy used: ${YLW}${usedee}${NCL} kWh : ${engy_s} ${engy_e}" | tee -a $TRAIN_LOG_FILE;
-	printf "  ${CYA}max\n" | tee -a $TRAIN_LOG_FILE;
-	printf "  energy/kWh    power/kW    appower/kVA    current/A    voltage/V    ipmi/Watts${NCL}\n" | tee -a $TRAIN_LOG_FILE;
+	echo -e "  pdu energy used: ${YLW}${usedee}${NCL} kWh : ${engy_s} ${engy_e}" | tee -a $TRAIN_LOGF;
+	printf "  ${CYA}max\n" | tee -a $TRAIN_LOGF;
+	printf "  energy/kWh    power/kW    appower/kVA    current/A    voltage/V    ipmi/Watts${NCL}\n" | tee -a $TRAIN_LOGF;
 
 	max_eng=`grep -P '\d+\.\d' $pdu | awk '{print $1}' | sort -n | tail -n 1`
 	max_pow=`grep -P '\d+\.\d' $pdu | awk '{print $2}' | sort -n | tail -n 1`
@@ -628,24 +626,24 @@ then
 	max_vol=`grep -P '\d+\.\d' $pdu | awk '{print $5}' | sort -n | tail -n 1`
 	max_bmc=`grep -P '\d+\.\d' $pdu | awk '{print $6}' | sort -n | tail -n 1`
 
-	printf "${BCY}%8s     %8s      %8s       %8s     %8s  %8s${NCL}\n\n" $max_eng  $max_pow  $max_app  $max_cur  $max_vol  $max_bmc | tee -a $TRAIN_LOG_FILE;
+	printf "${BCY}%8s     %8s      %8s       %8s     %8s  %8s${NCL}\n\n" $max_eng  $max_pow  $max_app  $max_cur  $max_vol  $max_bmc | tee -a $TRAIN_LOGF;
 fi
 
 if [[ $avg_tts > 0.1 && $avg_tts < 0.18 ]]
 then
-	echo -e "avgtrain time: ${GRN}PASS${NCL}" | tee -a $TRAIN_LOG_FILE
+	echo -e "avgtrain time: ${GRN}PASS${NCL}" | tee -a $TRAIN_LOGF
 else
-	echo -e "avgtrain time: ${RED}FAIL${NCL}" | tee -a $TRAIN_LOG_FILE
+	echo -e "avgtrain time: ${RED}FAIL${NCL}" | tee -a $TRAIN_LOGF
 fi
 
 if [[ $ttt > 10 && $ttt < 16.5 ]]
 then
-	echo -e "time to train: ${GRN}PASS${NCL}" | tee -a $TRAIN_LOG_FILE
+	echo -e "time to train: ${GRN}PASS${NCL}" | tee -a $TRAIN_LOGF
 else
-	echo -e "time to train: ${RED}FAIL${NCL}" | tee -a $TRAIN_LOG_FILE
+	echo -e "time to train: ${RED}FAIL${NCL}" | tee -a $TRAIN_LOGF
 fi
 
-echo -e "${BLU}Test Complete: ${SECONDS} sec${NCL}\n" | tee -a $TRAIN_LOG_FILE
+echo -e "${BLU}Test Complete: ${SECONDS} sec${NCL}\n" | tee -a $TRAIN_LOGF
 
 cp /var/log/kern.log $OUTPUT_DIR/_kernal.log
 TS=$(date +"%b %d")
