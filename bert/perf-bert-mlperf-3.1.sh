@@ -602,7 +602,13 @@ echo -e "  ${YLW}Time To Train: ${ttt} min${NCL}, < 16.5 min\n" | tee -a $TRAIN_
 avg_tts=$(grep "average_perf_per_step : " $OUTPUT_DIR/train.log | awk -F "average_training_time_step : " '{print $2}' | awk '{ sum += $1; n++ } END { if (n > 0) print sum / n; }' )
 echo -e "  ${CYA}average_training_time_step: ${NCL}${YLW}${avg_tts}${NCL} < 0.165	\n" | tee -a $TRAIN_LOGF;
 
-grep training_sequences_per_second $OUTPUT_DIR/train.log | awk -F ':' '{for (i=5; i<NF; i++) printf $i":"; print $NF}';echo | tee -a $TRAIN_LOGF;
+# training summary
+# grep training_sequences_per_second $OUTPUT_DIR/train.log | awk -F ':' '{for (i=5; i<NF; i++) printf $i":"; print $NF}';echo | tee -a $TRAIN_LOGF;
+mapfile -t rst < <( grep e2e_train_time $OUTPUT_DIR/train.log | awk '{printf("%s %s %s %s\n", $9, $12, $15, $19);}' | awk '{OFS=RS;$1=$1}1' )
+echo -e "  e2e_train_time      : ${YLW}${rst[0]} ${NCL}\n" | tee -a $TRAIN_LOGF;
+echo -e "  training_sequences/s: ${YLW}${rst[1]} ${NCL}\n" | tee -a $TRAIN_LOGF;
+echo -e "  final_loss          : ${YLW}${rst[2]} ${NCL}\n" | tee -a $TRAIN_LOGF;
+echo -e "  raw_train_time      : ${YLW}${rst[3]} ${NCL}\n" | tee -a $TRAIN_LOGF;
 
 eval_t=$(grep "eval used time" $TRAIN_LOGF  | grep 1,0 | awk '{print $4}' | cut -c 1-6)
 echo -e "  model eval time: ${eval_t}\n" | tee -a $TRAIN_LOGF;

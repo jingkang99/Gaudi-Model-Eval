@@ -138,7 +138,7 @@ function parse_args()
     done
 }
 
-# Default setting for Pytorch Resnet trainig
+# Default setting for Pytorch Resnet trainig - batch_256.cfg
 
 NUM_WORKERS_PER_HLS=8
 EVAL_OFFSET_EPOCHS=3
@@ -396,6 +396,12 @@ echo -e "${GRN}  max       550 W    	    100 %                           98304 M
 
 echo -e "  ${YLW}Time To Train: ${ttt} min${NCL}, < 16.5 min\n" | tee -a $TRAIN_LOGF
 
+#training result
+echo -e "  ${YLW}Test Converge: loss < 1.7${NCL}"
+grep 625/626 $TRAIN_LOGF | grep -P '\[0\]|\[17\]|\[34\]' | awk '{printf("  Epoch %4s lr %24s  img/s %-20s  loss \033[0;33m%7s\033[0m  acc1 %8s  acc5 %8s \n",  $2, $7, $9, $11, $14, $17);}' | tee -a $TRAIN_LOGF
+lss=$(grep 625/626 $TRAIN_LOGF | grep -P '\[34\]' | awk '{print $11}')
+echo | tee -a $TRAIN_LOGF
+
 # calc power usage
 pdu=$OUTPUT_DIR/_pdulog.log
 if [[ $(wc -l $pdu | awk '{print $1}' ) -gt 20 ]]
@@ -418,6 +424,13 @@ then
 	printf "${BCY}%8s     %8s      %8s       %8s     %8s  %8s${NCL}\n\n" $max_eng  $max_pow  $max_app  $max_cur  $max_vol  $max_bmc | tee -a $TRAIN_LOGF;
 fi
 
+if [[ $lss > 1 && $lss < 1.7 ]]
+then
+	echo -e "test converge: ${GRN}PASS${NCL}" | tee -a $TRAIN_LOGF
+else
+	echo -e "test converge: ${RED}FAIL${NCL}" | tee -a $TRAIN_LOGF
+fi
+
 if [[ $ttt > 10 && $ttt < 16.5 ]]
 then
 	echo -e "time to train: ${GRN}PASS${NCL}" | tee -a $TRAIN_LOGF
@@ -437,4 +450,4 @@ fff=$OUTPUT_DIR-${ipp}-${end_time}-${SECONDS}-${ttt}
 mv $OUTPUT_DIR $fff
 scp -P 7022 -r $fff spm@129.146.47.229:/home/spm/mlperf31-resn-test-result/ &>/dev/null
 
-exit 0
+rm -rf _exp &>/dev/null 
