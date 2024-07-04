@@ -214,7 +214,7 @@ else
 	exit 1
 fi
 
-export PATH=/opt/python-llm/bin:/opt/habanalabs/openmpi-4.1.5/bin:$PATH
+export PATH=/opt/python-llm/bin:/opt/habanalabs/openmpi-4.1.5/bin:../tool/:$PATH
 export PT_HPU_LAZY_MODE=1
 SECONDS=0
 # --- jk end
@@ -317,24 +317,31 @@ echo '-------' >> $MLOG
 
 #IFS='\n' arr=($(ipmitool fru | grep Board | awk -F ': ' '{print $2}'))
 mapfile -t arr < <( ipmitool fru | grep Board | awk -F ': ' '{print $2}' )
-
 echo "mfgdat:" ${arr[0]}  >> $MLOG
 echo "mfgvdr:" ${arr[1]}  >> $MLOG
 echo "mboard:" ${arr[2]}  >> $MLOG
 echo "serial:" ${arr[3]}  >> $MLOG
 
-mapfile -t arr < <( dmidecode | grep -i "BIOS Information" -A 3 | awk -F ': ' '{print $2}' )
-echo "biosvr:" ${arr[2]}  >> $MLOG
-echo "biosdt:" ${arr[3]}  >> $MLOG
+echo "fwvern:" $(ipmitool mc info | grep "Firmware Revision" | awk '{print $4}') >> $MLOG
+echo "fwdate:" $(ipmicfg -summary | grep "Firmware Build" | awk '{print $5}') >> $MLOG
+
+#mapfile -t arr < <( dmidecode | grep -i "BIOS Information" -A 3 | awk -F ': ' '{print $2}' )
+#echo "biosvr:" ${arr[2]}  >> $MLOG
+#echo "biosdt:" ${arr[3]}  >> $MLOG
+echo "biosvr:" $(ipmicfg -summary | grep "BIOS Version" |  awk '{print $4}') >> $MLOG
+echo "biosdt:" $(ipmicfg -summary | grep "BIOS Build" |  awk '{print $5}') >> $MLOG
 
 echo "ipmiip:" $(ipmitool lan print | grep -P "IP Address\s+: " | awk -F ': ' '{print $2}') >> $MLOG
 echo "ipmmac:" $(ipmitool lan print | grep -P "MAC Address\s+: "| awk -F ': ' '{print $2}') >> $MLOG
+echo "ipipv6:" $(ipmicfg -summary | grep "IPv6" |  awk '{print $5}') >> $MLOG
+echo "cpldvr:" $(ipmicfg -summary | grep "CPLD" |  awk '{print $4}') >> $MLOG
 
 echo "cpumdl:" $(lscpu | grep Xeon | awk -F ')' '{print $3}' | cut -c 2- | sed 's/i u/iu/' ) >> $MLOG
 echo "cpucor:" $(lscpu | grep "^CPU(s):" | awk '{print $2}') >> $MLOG
 echo "pcinfo:" $(dmidecode | grep 'PCI' | tail -n 1 | awk -F': ' '{print $2}') >> $MLOG
 
 echo "memcnt:" $(lsmem | grep "online memory" | awk '{print $4}') >> $MLOG
+echo "gpcpld:" $(ipmitool raw 0x30 0x70 0xef 4 0x70 0x40 0xe6 0x40 2 0x4a 1 0x0) >> $MLOG
 
 echo "" >> $MLOG
 echo "osintl:" $(stat --format=%w /) >> $MLOG
