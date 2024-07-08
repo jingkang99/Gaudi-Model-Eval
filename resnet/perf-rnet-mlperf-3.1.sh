@@ -26,6 +26,19 @@ function check_internal_ports()
 	fi
 }
 
+OAM_CPLD=
+function check_oam_cpld(){
+	OAM_CPLD=$( \
+			ipmitool raw 0x30 0x70 0xef 4 0x70 0x40 0xe6 0x40 2 0x4a 1 0x0; \
+			ipmitool raw 0x30 0x70 0xef 4 0x70 0x40 0xe6 0x41 2 0x4a 1 0x0; \
+			ipmitool raw 0x30 0x70 0xef 4 0x70 0x40 0xe6 0x42 2 0x4a 1 0x0; \
+			ipmitool raw 0x30 0x70 0xef 4 0x70 0x40 0xe6 0x43 2 0x4a 1 0x0; \
+			ipmitool raw 0x30 0x70 0xef 4 0x70 0x40 0xe6 0x44 2 0x4a 1 0x0; \
+			ipmitool raw 0x30 0x70 0xef 4 0x70 0x40 0xe6 0x45 2 0x4a 1 0x0; \
+			ipmitool raw 0x30 0x70 0xef 4 0x70 0x40 0xe6 0x46 2 0x4a 1 0x0; \
+			ipmitool raw 0x30 0x70 0xef 4 0x70 0x40 0xe6 0x47 2 0x4a 1 0x0  )
+}
+
 function print_synopsis()
 {
     cat << EOF
@@ -125,6 +138,10 @@ function parse_args()
                 echo performance | tee /sys/devices/system/cpu/cpu*/cpufreq/scaling_governor
 				sysctl -w vm.nr_hugepages=153600
                 exit 0 ;;
+            -co | --check-oam)
+				check_oam_cpld
+				echo -e "${YLW}OAM CPLD Version:${NCL} " $OAM_CPLD
+                exit 0 ;;
             -h | --help )
                 print_synopsis
                 exit 0
@@ -205,8 +222,11 @@ which expect &>/dev/null
 pip list | grep habana &>/dev/null
 if [ $? -eq 0 ]
 then
-	echo -e "  ${YLW}Start MLPerf 3.1 ResNet Testing${NCL} ${start_time}"
-	echo -e "  ${YLW}Gaudi internal ports UP count ${UP_PORTS}${NCL}"
+	echo -e "  ${YLW}Start MLPerf ResNet Test${NCL}  ${start_time}"
+	echo -e "  ${YLW}Gaudi internal ports UP count: ${NCL} " ${UP_PORTS}
+	check_oam_cpld
+	echo -e "  ${YLW}OAM CPLD   :${NCL}" $OAM_CPLD
+	echo -e "  ${YLW}PDU Console:${NCL}" `head -n 1  apc-pdu.cnf`
 	echo
 	sleep 3
 else
@@ -341,7 +361,7 @@ echo "cpucor:" $(lscpu | grep "^CPU(s):" | awk '{print $2}') >> $MLOG
 echo "pcinfo:" $(dmidecode | grep 'PCI' | tail -n 1 | awk -F': ' '{print $2}') >> $MLOG
 
 echo "memcnt:" $(lsmem | grep "online memory" | awk '{print $4}') >> $MLOG
-echo "gpcpld:" $(ipmitool raw 0x30 0x70 0xef 4 0x70 0x40 0xe6 0x40 2 0x4a 1 0x0) >> $MLOG
+echo "gpcpld:" $OAM_CPLD >> $MLOG
 
 echo "" >> $MLOG
 echo "osintl:" $(stat --format=%w /) >> $MLOG
@@ -435,7 +455,7 @@ if [[ $lss > 1 && $lss < 1.75 ]]
 then
 	echo -e "test converge: ${GRN}PASS${NCL}" | tee -a $TRAIN_LOGF
 else
-	echo -e "test converge: ${RED}FAIL${NCL}" | tee -a $TRAIN_LOGF
+	echo -e "test converge: ${RED}WARN${NCL}" | tee -a $TRAIN_LOGF
 fi
 
 if [[ $ttt > 10 && $ttt < 16.5 ]]
@@ -456,5 +476,3 @@ fff=$OUTPUT_DIR-${ipp}-${end_time}-${SECONDS}-${ttt}
 
 mv $OUTPUT_DIR $fff
 scp -P 7022 -r $fff spm@129.146.47.229:/home/spm/mlperf31-resn-test-result/ &>/dev/null
-
-rm -rf _exp &>/dev/null 

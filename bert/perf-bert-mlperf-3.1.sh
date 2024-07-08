@@ -26,6 +26,19 @@ function check_internal_ports()
 	fi
 }
 
+OAM_CPLD=
+function check_oam_cpld(){
+	OAM_CPLD=$( \
+			ipmitool raw 0x30 0x70 0xef 4 0x70 0x40 0xe6 0x40 2 0x4a 1 0x0; \
+			ipmitool raw 0x30 0x70 0xef 4 0x70 0x40 0xe6 0x41 2 0x4a 1 0x0; \
+			ipmitool raw 0x30 0x70 0xef 4 0x70 0x40 0xe6 0x42 2 0x4a 1 0x0; \
+			ipmitool raw 0x30 0x70 0xef 4 0x70 0x40 0xe6 0x43 2 0x4a 1 0x0; \
+			ipmitool raw 0x30 0x70 0xef 4 0x70 0x40 0xe6 0x44 2 0x4a 1 0x0; \
+			ipmitool raw 0x30 0x70 0xef 4 0x70 0x40 0xe6 0x45 2 0x4a 1 0x0; \
+			ipmitool raw 0x30 0x70 0xef 4 0x70 0x40 0xe6 0x46 2 0x4a 1 0x0; \
+			ipmitool raw 0x30 0x70 0xef 4 0x70 0x40 0xe6 0x47 2 0x4a 1 0x0  )
+}
+
 function print_synopsis()
 {
     cat << EOF
@@ -110,7 +123,11 @@ function parse_args()
                 echo performance | tee /sys/devices/system/cpu/cpu*/cpufreq/scaling_governor
 				sysctl -w vm.nr_hugepages=153600
                 exit 0 ;;
-            -hf | --hosts-file )
+            -co | --check-oam)
+				check_oam_cpld
+				echo -e "${YLW}OAM CPLD Version:${NCL} " $OAM_CPLD
+                exit 0 ;;
+			-hf | --hosts-file )
                 REMOTE_HOSTS=$(generate_hosts_list "$2" 8)
                 shift 2 ;;
             -H | --hosts )
@@ -185,8 +202,11 @@ which expect &>/dev/null
 pip list | grep habana &>/dev/null
 if [ $? -eq 0 ]
 then
-	echo -e "  ${YLW}Start MLPerf 3.1 Bert Testing${NCL} ${start_time}"
-	echo -e "  ${YLW}Gaudi internal ports UP count ${UP_PORTS}${NCL}"
+	echo -e "  ${YLW}Start MLPerf Bert Testing${NCL} ${start_time}"
+	echo -e "  ${YLW}Gaudi internal ports UP count: ${NCL} " ${UP_PORTS}
+	check_oam_cpld
+	echo -e "  ${YLW}OAM CPLD   :${NCL}" $OAM_CPLD
+	echo -e "  ${YLW}PDU Console:${NCL}" `head -n 1  apc-pdu.cnf`
 	echo
 	sleep 3
 else
@@ -535,6 +555,7 @@ echo "cpucor:" $(lscpu | grep "^CPU(s):" | awk '{print $2}') >> $MLOG
 echo "pcinfo:" $(dmidecode | grep 'PCI' | tail -n 1 | awk -F': ' '{print $2}') >> $MLOG
 
 echo "memcnt:" $(lsmem | grep "online memory" | awk '{print $4}') >> $MLOG
+echo "gpcpld:" $OAM_CPLD >> $MLOG
 
 echo "" >> $MLOG
 echo "osintl:" $(stat --format=%w /) >> $MLOG
@@ -668,4 +689,3 @@ mv $OUTPUT_DIR $fff
 
 #       scp -r $fff spm@172.24.189.10:/home/spm/mlperf31-bert-test-result/   &>/dev/null
 scp -P 7022 -r $fff spm@129.146.47.229:/home/spm/mlperf31-bert-test-result/  &>/dev/null
-
