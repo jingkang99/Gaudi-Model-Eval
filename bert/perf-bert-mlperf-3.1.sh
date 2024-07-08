@@ -188,7 +188,7 @@ parse_args "$@"
 
 # --- jk check before test
 start_time=$(date +%s)
-echo ${start_time} > _time_s.log
+echo ${start_time} > $OUTPUT_DIR/_time_s.log
 
 check_internal_ports
 
@@ -525,7 +525,7 @@ pkill tee
 # log system info
 end_time=$(date +%s)
 #date -d @1718326649
-echo ${end_time} >> _time_s.log
+echo ${end_time} >> $OUTPUT_DIR/_time_s.log
 
 MLOG=$OUTPUT_DIR/_module.log
 pip check > $MLOG; pip list | grep -P 'habana|tensor|torch' >> $MLOG; dpkg-query -W | grep habana >> $MLOG; lsmod | grep habana >> $MLOG
