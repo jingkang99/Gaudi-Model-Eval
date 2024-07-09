@@ -188,7 +188,6 @@ parse_args "$@"
 
 # --- jk check before test
 start_time=$(date +%s)
-echo ${start_time} > $OUTPUT_DIR/_time_s.log
 
 check_internal_ports
 
@@ -476,7 +475,13 @@ watch -n 30 "ps -Ao user,pcpu,pid,command --sort=pcpu | grep python | head -n 50
 mpstat 30 | tee $OUTPUT_DIR/_mpstat.log  &>/dev/null & 
 free -g -s 30 | grep Mem | tee $OUTPUT_DIR/_memmon.log &>/dev/null &
 
-bash monitor-pwrdu-status.sh | tee $OUTPUT_DIR/_pdulog.log &>/dev/null &
+# check PDU ip and start monitor
+ping -c1 -W1 -q $(head -n 1 apc-pdu.cnf) &>/dev/null
+if [[ $? -eq 0 ]]; then
+    bash monitor-pwrdu-status.sh | tee $OUTPUT_DIR/_pdulog.log &>/dev/null &
+else
+	echo "0 0 0 0 0 0" > $OUTPUT_DIR/_pdulog.log
+fi
 
 # change log_freq from 20 to 50
 set -x
@@ -525,7 +530,8 @@ pkill tee
 # log system info
 end_time=$(date +%s)
 #date -d @1718326649
-echo ${end_time} >> $OUTPUT_DIR/_time_s.log
+echo ${start_time} > $OUTPUT_DIR/_time_s.log
+echo ${end_time}  >> $OUTPUT_DIR/_time_s.log
 
 MLOG=$OUTPUT_DIR/_module.log
 pip check > $MLOG; pip list | grep -P 'habana|tensor|torch' >> $MLOG; dpkg-query -W | grep habana >> $MLOG; lsmod | grep habana >> $MLOG
@@ -683,6 +689,19 @@ echo -e "${BLU}Test Complete: ${SECONDS} sec${NCL}\n" | tee -a $TRAIN_LOGF
 cp /var/log/kern.log $OUTPUT_DIR/_kernal.log
 TS=$(date +"%b %d")
 grep -P "^${TS}.+accel accel" /var/log/syslog | tail -n 2000 > $OUTPUT_DIR/_logsys.log
+
+cat > $OUTPUT_DIR/_intrvl.log <<- EOM
+_powerr.log 10
+_hl-smi.log 10
+_pdulog.log 10
+_im-sdr.log 30
+_im-ssr.log 30
+_iostat.log 30
+_python.log 30
+_mpstat.log 30
+_memmon.log 30
+_python.log 30
+EOM
 
 ipp=$(ifconfig | grep 'inet ' | grep -v -P '27.0|172.17' | awk '{print $2}')
 fff=$OUTPUT_DIR-${ipp}-${end_time}-${SECONDS}-${ttt}
