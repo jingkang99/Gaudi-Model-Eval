@@ -200,8 +200,12 @@ parse_args "$@"
 
 # --- jk check before test
 
-gbusy=$(hl-smi |  grep "N/A   N/A    N/A" | wc -l)
-if [ $gbusy -ne 8 ]
+ping -c1 -W1 -q $(head -n 1 apc-pdu.cnf) &>/dev/null
+PDUCHK=$?
+[[ $PDUCHK -eq 0 ]] && PDUSTATUS='UP' || PDUSTATUS='DOWN'
+
+BUSY=$(hl-smi |  grep "N/A   N/A    N/A" | wc -l)
+if [ $BUSY -ne 8 ]
 then
 	echo -e "${RED}System Occupied! ${NCL}"
 	exit 1
@@ -219,14 +223,15 @@ which ipmitool &>/dev/null
 which expect &>/dev/null
 [ $? != 0 ] && (echo -e "${RED}ERROR: need expect${NCL}"; exit 2)
 
+tmpf=`mktemp`
 pip list | grep habana &>/dev/null
 if [ $? -eq 0 ]
 then
-	echo -e "  ${YLW}Start MLPerf ResNet Test${NCL}  ${start_time}"
-	echo -e "  ${YLW}Gaudi internal ports UP count: ${NCL} " ${UP_PORTS}
+	echo -e "  ${YLW}Start MLPerf ResNet Test${NCL}  ${start_time}" | tee -a $tmpf
+	echo -e "  ${YLW}Gaudi internal ports UP count: ${NCL} " ${UP_PORTS} | tee -a $tmpf
 	check_oam_cpld
-	echo -e "  ${YLW}OAM CPLD   :${NCL}" $OAM_CPLD
-	echo -e "  ${YLW}PDU Console:${NCL}" `head -n 1  apc-pdu.cnf`
+	echo -e "  ${YLW}OAM CPLD   :${NCL}" $OAM_CPLD | tee -a $tmpf
+	echo -e "  ${YLW}PDU Console:${NCL}" `head -n 1  apc-pdu.cnf` ${PDUSTATUS} | tee -a $tmpf
 	echo
 	sleep 3
 else
@@ -275,12 +280,14 @@ mpstat 30 | tee $OUTPUT_DIR/_mpstat.log  &>/dev/null &
 watch -n 30 "free -g | grep Mem | tee -a $OUTPUT_DIR/_memmon.log" &>/dev/null &
 
 # check PDU ip and start monitor
-ping -c1 -W1 -q $(head -n 1 apc-pdu.cnf) &>/dev/null
-if [[ $? -eq 0 ]]; then
+if [[ $PDUCHK -eq 0 ]]; then
     bash monitor-pwrdu-status.sh | tee $OUTPUT_DIR/_pdulog.log &>/dev/null &
 else
 	echo "0 0 0 0 0 0" > $OUTPUT_DIR/_pdulog.log
 fi
+
+cat $tmpf > $TRAIN_LOGF
+rm  $tmpf
 
 # run Pytorch Resnet training
 set -x
@@ -322,7 +329,7 @@ time mpirun \
 	--target_accuracy $STOP_THRESHOLD \
 	--use_autocast \
 	--dl-worker-type HABANA \
-	 $TOCH_COMPILE_FLAGS 2>&1 | tee $TRAIN_LOGF
+	 $TOCH_COMPILE_FLAGS 2>&1 | tee -a $TRAIN_LOGF
 ret="$?"
 set +x
 [ $ret != 0 ] && (echo -e "${RED}ERROR: mpirun exit ${ret} ${NCL}")
@@ -400,9 +407,9 @@ ipmitool dcmi power reading >> $MLOG
 
 # -------------
 # time to train
-ttt=$(for nn in {0..7} ; do grep 'run_start\|run_stop' $OUTPUT_DIR/train.log | grep worker${nn} | awk '{print $5}' | tr -d ',' | paste -sd " " - | awk '{print ($2 - $1) / 1000 / 60}' ; done | awk '{s+=$1}END{print s/NR}')
+ttt=$(for nn in {0..7} ; do grep 'run_start\|run_stop' $TRAIN_LOGF | grep worker${nn} | awk '{print $5}' | tr -d ',' | paste -sd " " - | awk '{print ($2 - $1) / 1000 / 60}' ; done | awk '{s+=$1}END{print s/NR}')
 echo -e "${YLW}Time To Train: ${ttt} min${NCL}, < 16.5 min" | tee -a $TRAIN_LOGF
-arr=$(for nn in {0..7} ; do grep 'run_start\|run_stop' $OUTPUT_DIR/train.log | grep worker${nn} | awk '{print $5}' | tr -d ',' | paste -sd " " - | awk '{print ($2 - $1) / 1000 / 60}' ; done)
+arr=$(for nn in {0..7} ; do grep 'run_start\|run_stop' $TRAIN_LOGF | grep worker${nn} | awk '{print $5}' | tr -d ',' | paste -sd " " - | awk '{print ($2 - $1) / 1000 / 60}' ; done)
 i=0; for t in $arr ; do echo "  worker:"${i} ${t} | tee -a $TRAIN_LOGF; let i++; done
 echo
 

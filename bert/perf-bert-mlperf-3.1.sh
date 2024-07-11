@@ -187,6 +187,18 @@ PT_HPU_AUTOCAST_FP32_OPS_LIST=$SCRIPT_DIR/ops_fp32_bert_pt.txt
 parse_args "$@"
 
 # --- jk check before test
+
+ping -c1 -W1 -q $(head -n 1 apc-pdu.cnf) &>/dev/null
+PDUCHK=$?
+[[ $PDUCHK -eq 0 ]] && PDUSTATUS='UP' || PDUSTATUS='DOWN'
+
+BUSY=$(hl-smi |  grep "N/A   N/A    N/A" | wc -l)
+if [ $BUSY -ne 8 ]
+then
+	echo -e "${RED}System Occupied! ${NCL}"
+	exit 1
+fi
+
 start_time=$(date +%s)
 
 check_internal_ports
@@ -199,14 +211,15 @@ which ipmitool &>/dev/null
 which expect &>/dev/null
 [ $? != 0 ] && (echo -e "${RED}ERROR: need expect${NCL}"; exit 2)
 
+tmpf=`mktemp`
 pip list | grep habana &>/dev/null
 if [ $? -eq 0 ]
 then
-	echo -e "  ${YLW}Start MLPerf Bert Testing${NCL} ${start_time}"
-	echo -e "  ${YLW}Gaudi internal ports UP count: ${NCL} " ${UP_PORTS}
+	echo -e "  ${YLW}Start MLPerf Bert Testing${NCL} ${start_time}" | tee -a $tmpf
+	echo -e "  ${YLW}Gaudi internal ports UP count: ${NCL} " ${UP_PORTS} | tee -a $tmpf
 	check_oam_cpld
-	echo -e "  ${YLW}OAM CPLD   :${NCL}" $OAM_CPLD
-	echo -e "  ${YLW}PDU Console:${NCL}" `head -n 1  apc-pdu.cnf`
+	echo -e "  ${YLW}OAM CPLD   :${NCL}" $OAM_CPLD | tee -a $tmpf
+	echo -e "  ${YLW}PDU Console:${NCL}" `head -n 1  apc-pdu.cnf` ${PDUSTATUS} | tee -a $tmpf
 	echo
 	sleep 3
 else
@@ -476,12 +489,14 @@ mpstat 30 | tee $OUTPUT_DIR/_mpstat.log  &>/dev/null &
 free -g -s 30 | grep Mem | tee $OUTPUT_DIR/_memmon.log &>/dev/null &
 
 # check PDU ip and start monitor
-ping -c1 -W1 -q $(head -n 1 apc-pdu.cnf) &>/dev/null
-if [[ $? -eq 0 ]]; then
+if [[ $PDUCHK -eq 0 ]]; then
     bash monitor-pwrdu-status.sh | tee $OUTPUT_DIR/_pdulog.log &>/dev/null &
 else
 	echo "0 0 0 0 0 0" > $OUTPUT_DIR/_pdulog.log
 fi
+
+cat $tmpf > $TRAIN_LOGF
+rm  $tmpf
 
 # change log_freq from 20 to 50
 set -x
@@ -517,7 +532,7 @@ time $MPIRUN_CMD python3 $SCRIPT_DIR/run_pretraining.py \
     --enable_packed_data_mode true \
     --checkpoint_filter model \
     $DISTRIBUTION_OPTION \
-    --tensorboard_dir $TB_DIR_TRAIN  2>&1 | tee $TRAIN_LOGF
+    --tensorboard_dir $TB_DIR_TRAIN  2>&1 | tee -a $TRAIN_LOGF
 retval="$?"
 set +x
 

@@ -99,3 +99,20 @@ function pip-show-version() {
     curl -s  https://pypi.org/pypi/${1}/json | jq  -r '.releases | keys | .[]' | sort -V
 }
 
+function pse() {
+	pip list | grep $1
+}
+
+function pii() {
+	pip install $1
+}
+
+function piu() {
+	pip install --upgrade $@
+}
+
+function pir() {
+	REQ=${1:-requirements.txt}
+	awk -F"==" '{print $1}' $REQ | xargs -I{} pip install {}
+}
+
