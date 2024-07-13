@@ -221,7 +221,8 @@ then
 	echo -e "  ${YLW}OAM CPLD   :${NCL}" $OAM_CPLD | tee -a $tmpf
 	echo -e "  ${YLW}PDU Console:${NCL}" `head -n 1  apc-pdu.cnf` ${PDUSTATUS} | tee -a $tmpf
 	echo
-	sleep 3
+	echo performance | tee /sys/devices/system/cpu/cpu*/cpufreq/scaling_governor
+	sleep 1
 else
 	echo -e "${RED}ERROR: habana python module not found${NCL}"
 	exit 1
@@ -498,6 +499,9 @@ fi
 cat $tmpf > $TRAIN_LOGF
 rm  $tmpf
 
+# save open listening ports
+(sleep 480 && netstat -lntp > $OUTPUT_DIR/_openpt.log) &
+
 # change log_freq from 20 to 50
 set -x
 time $MPIRUN_CMD python3 $SCRIPT_DIR/run_pretraining.py \
@@ -685,6 +689,18 @@ then
 	printf "${BCY}%8s     %8s      %8s       %8s     %8s  %8s${NCL}\n\n" $max_eng  $max_pow  $max_app  $max_cur  $max_vol  $max_bmc | tee -a $TRAIN_LOGF;
 fi
 
+# check services
+systemctl list-units --state running | grep running | grep -v session- > $OUTPUT_DIR/_servcs.log
+diff $OUTPUT_DIR/_servcs.log ../service.diff
+[[ $? -eq 0 ]] && echo -e "services diff: ${GRN}PASS${NCL}" | tee -a $TRAIN_LOGF || echo -e "services diff: ${YLW}WARN${NCL}" | tee -a $TRAIN_LOGF
+echo | tee -a $TRAIN_LOGF
+
+# check process
+ps -ef | grep -v -P "\\[|sshd|bash|CMD|ps|awk|sort|sftp|sleep" | awk '{print $8}'| sort > $OUTPUT_DIR/_procss.log
+diff $OUTPUT_DIR/_procss.log ../process.diff
+[[ $? -eq 0 ]] && echo -e "process  diff: ${GRN}PASS${NCL}" | tee -a $TRAIN_LOGF || echo -e "process  diff: ${YLW}WARN${NCL}" | tee -a $TRAIN_LOGF
+echo | tee -a $TRAIN_LOGF
+
 if [[ $avg_tts > 0.1 && $avg_tts < 0.18 ]]
 then
 	echo -e "avgtrain time: ${GRN}PASS${NCL}" | tee -a $TRAIN_LOGF
@@ -698,8 +714,6 @@ then
 else
 	echo -e "time to train: ${RED}FAIL${NCL}" | tee -a $TRAIN_LOGF
 fi
-
-echo -e "${BLU}Test Complete: ${SECONDS} sec${NCL}\n" | tee -a $TRAIN_LOGF
 
 cp /var/log/kern.log $OUTPUT_DIR/_kernal.log
 TS=$(date +"%b %d")
@@ -717,6 +731,8 @@ _mpstat.log 30
 _memmon.log 30
 _python.log 30
 EOM
+
+echo -e "${BLU}Test Complete: ${SECONDS} sec${NCL}\n" | tee -a $TRAIN_LOGF
 
 ipp=$(ifconfig | grep 'inet ' | grep -v -P '27.0|172.17' | awk '{print $2}')
 fff=$OUTPUT_DIR-${ipp}-${end_time}-${SECONDS}-${ttt}

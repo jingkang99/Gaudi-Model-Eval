@@ -1,0 +1,31 @@
+  proc-sys-fs-binfmt_misc.automount loaded active running Arbitrary Executable File Formats File System Automount Point
+  init.scope                        loaded active running System and Service Manager
+  containerd.service                loaded active running containerd container runtime
+  cron.service                      loaded active running Regular background program processing daemon
+  dbus.service                      loaded active running D-Bus System Message Bus
+  docker.service                    loaded active running Docker Application Container Engine
+  getty@tty1.service                loaded active running Getty on tty1
+  irqbalance.service                loaded active running irqbalance daemon
+  multipathd.service                loaded active running Device-Mapper Multipath Device Controller
+  networkd-dispatcher.service       loaded active running Dispatcher daemon for systemd-networkd
+  rsyslog.service                   loaded active running System Logging Service
+  smartmontools.service             loaded active running Self Monitoring and Reporting Technology (SMART) Daemon
+  ssh.service                       loaded active running OpenBSD Secure Shell server
+  systemd-journald.service          loaded active running Journal Service
+  systemd-logind.service            loaded active running User Login Management
+  systemd-networkd.service          loaded active running Network Configuration
+  systemd-resolved.service          loaded active running Network Name Resolution
+  systemd-timesyncd.service         loaded active running Network Time Synchronization
+  systemd-udevd.service             loaded active running Rule-based Manager for Device Events and Files
+  unattended-upgrades.service       loaded active running Unattended Upgrades Shutdown
+  user@0.service                    loaded active running User Manager for UID 0
+  dbus.socket                       loaded active running D-Bus System Message Bus Socket
+  docker.socket                     loaded active running Docker Socket for the API
+  multipathd.socket                 loaded active running multipathd control socket
+  syslog.socket                     loaded active running Syslog Socket
+  systemd-journald-audit.socket     loaded active running Journal Audit Socket
+  systemd-journald-dev-log.socket   loaded active running Journal Socket (/dev/log)
+  systemd-journald.socket           loaded active running Journal Socket
+  systemd-networkd.socket           loaded active running Network Service Netlink Socket
+  systemd-udevd-control.socket      loaded active running udev Control Socket
+  systemd-udevd-kernel.socket       loaded active running udev Kernel Socket
