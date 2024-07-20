@@ -1,4 +1,3 @@
-@dbus-daemon
 /lib/systemd/systemd
 /lib/systemd/systemd-journald
 /lib/systemd/systemd-logind
@@ -6,7 +5,6 @@
 /lib/systemd/systemd-resolved
 /lib/systemd/systemd-timesyncd
 /lib/systemd/systemd-udevd
-/sbin/agetty
 /sbin/init
 /sbin/multipathd
 (sd-pam)

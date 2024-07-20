@@ -3,41 +3,11 @@
 # Supermiro SPM MLPerf Test for ResNet50
 # Jing Kang 7/2024
 
-RED='\033[0;31m'
-YLW='\033[0;33m'
-BLU='\033[0;34m'
-GRN='\033[0;32m'
-BCY='\033[1;36m'
-CYA='\033[0;36m'
-NCL='\033[0m' 
+SRC=`readlink -f "${BASH_SOURCE[0]}" 2>/dev/null||echo $0`
+CUR=`dirname "${SRC}"`
+PAR=`dirname "${CUR}"`
 
-function check_internal_ports()
-{	# check Gaudi interal ports
-	UP_PORTS=$(hl-smi -Q bus_id -f csv,noheader | xargs -I % hl-smi -i % -n link | grep UP | wc -l)
-	if [ $UP_PORTS != 168 ]
-	then
-		echo -e "${RED}ERROR: Gaudi internal ports Not All Up${NCL}"
-		echo -e "${GRN}  /opt/habanalabs/qual/gaudi2/bin/manage_network_ifs.sh --up${NCL}"
-		echo -e "${GRN}  reboot or reload habana driver${NCL}"
-		echo -e "${GRN}  rmmod habanalabs${NCL}"
-		echo -e "${GRN}  modprobe habanalabs${NCL}\n"
-		echo -e "${GRN}  $(basename $0) --check-ports${NCL}\n"
-		exit 1
-	fi
-}
-
-OAM_CPLD=
-function check_oam_cpld(){
-	OAM_CPLD=$( \
-			ipmitool raw 0x30 0x70 0xef 4 0x70 0x40 0xe6 0x40 2 0x4a 1 0x0; \
-			ipmitool raw 0x30 0x70 0xef 4 0x70 0x40 0xe6 0x41 2 0x4a 1 0x0; \
-			ipmitool raw 0x30 0x70 0xef 4 0x70 0x40 0xe6 0x42 2 0x4a 1 0x0; \
-			ipmitool raw 0x30 0x70 0xef 4 0x70 0x40 0xe6 0x43 2 0x4a 1 0x0; \
-			ipmitool raw 0x30 0x70 0xef 4 0x70 0x40 0xe6 0x44 2 0x4a 1 0x0; \
-			ipmitool raw 0x30 0x70 0xef 4 0x70 0x40 0xe6 0x45 2 0x4a 1 0x0; \
-			ipmitool raw 0x30 0x70 0xef 4 0x70 0x40 0xe6 0x46 2 0x4a 1 0x0; \
-			ipmitool raw 0x30 0x70 0xef 4 0x70 0x40 0xe6 0x47 2 0x4a 1 0x0  )
-}
+source $PAR/common-modvars.sh
 
 function print_synopsis()
 {
@@ -140,7 +110,7 @@ function parse_args()
                 exit 0 ;;
             -co | --check-oam)
 				check_oam_cpld
-				echo -e "${YLW}OAM CPLD Version:${NCL} " $OAM_CPLD
+				echo -e "${YLW}OAM CPLD Version:${NCL} " $OAM_CPLDS
                 exit 0 ;;
             -h | --help )
                 print_synopsis
@@ -179,8 +149,8 @@ DATA_ROOT=./data-train/
 WORK_DIR=../resnet-perf-result/work
 LOGS_DIR=../resnet-perf-result/perf
 SCRIPT_DIR=$(dirname "${BASH_SOURCE[0]}")
-OUTPUT_DIR=$LOGS_DIR
-TRAIN_LOGF=$OUTPUT_DIR/train.log
+OUTPUT=$LOGS_DIR
+TRAIN_LOGF=$OUTPUT/train.log
 
 # Default MPI settings
 MPI_HOSTS=localhost:8
@@ -198,52 +168,8 @@ parse_config "$@"
 # optional command line arguments overwrite both default and config settings
 parse_args "$@"
 
-# --- jk check before test
-
-ping -c1 -W1 -q $(head -n 1 apc-pdu.cnf) &>/dev/null
-PDUCHK=$?
-[[ $PDUCHK -eq 0 ]] && PDUSTATUS='UP' || PDUSTATUS='DOWN'
-
-BUSY=$(hl-smi |  grep "N/A   N/A    N/A" | wc -l)
-if [ $BUSY -ne 8 ]
-then
-	echo -e "${RED}System Occupied! ${NCL}"
-	exit 1
-fi
-
-start_time=$(date +%s)
-
-check_internal_ports
-
-echo '' > /var/log/kern.log
-
-which ipmitool &>/dev/null
-[ $? != 0 ] && (echo -e "${RED}ERROR: need ipmitool${NCL}"; exit 2)
-
-which expect &>/dev/null
-[ $? != 0 ] && (echo -e "${RED}ERROR: need expect${NCL}"; exit 2)
-
-tmpf=`mktemp`
-pip list | grep habana &>/dev/null
-if [ $? -eq 0 ]
-then
-	echo -e "  ${YLW}Start MLPerf ResNet Test${NCL}  ${start_time}" | tee -a $tmpf
-	echo -e "  ${YLW}Gaudi internal ports UP count: ${NCL} " ${UP_PORTS} | tee -a $tmpf
-	check_oam_cpld
-	echo -e "  ${YLW}OAM CPLD   :${NCL}" $OAM_CPLD | tee -a $tmpf
-	echo -e "  ${YLW}PDU Console:${NCL}" `head -n 1  apc-pdu.cnf` ${PDUSTATUS} | tee -a $tmpf
-	echo
-	echo performance | tee /sys/devices/system/cpu/cpu*/cpufreq/scaling_governor
-	sleep 1
-else
-	echo -e "${RED}ERROR: habana python module not found${NCL}"
-	exit 1
-fi
-
-export PATH=/opt/python-llm/bin:/opt/habanalabs/openmpi-4.1.5/bin:../tool/:$PATH
-export PT_HPU_LAZY_MODE=1
-SECONDS=0
-# --- jk end
+# --- jk add check
+prerun-check
 
 # Use torch compile
 if [ "$USE_TORCH_COMPILE" == "true" ]; then
@@ -264,34 +190,8 @@ MPI_MAP_BY_PE=`lscpu | grep "^CPU(s):"| awk -v NUM=${NUM_WORKERS_PER_HLS} '{prin
 rm -rf   $LOGS_DIR $WORK_DIR $MPI_OUTPUT
 mkdir -p $LOGS_DIR $WORK_DIR $MPI_OUTPUT
 
-# start mon 
-echo "start mon:" $(date)
-
-watch -n 10 "ipmitool dcmi power reading | grep Instantaneous | awk '{print \$4}' | tee -a $OUTPUT_DIR/_powerr.log" &>/dev/null &
-watch -n 30 "ipmitool sdr   | tee -a $OUTPUT_DIR/_im-sdr.log" &>/dev/null &
-watch -n 30 "ipmitool sensor| tee -a $OUTPUT_DIR/_im-ssr.log" &>/dev/null &
-
-hl-smi -Q timestamp,index,serial,bus_id,memory.used,temperature.aip,utilization.aip,power.draw -f csv,noheader -l 10 | tee $OUTPUT_DIR/_hl-smi.log &>/dev/null &
-
-watch -n 30 "S_COLORS=always iostat -xm | grep -v loop | tee -a $OUTPUT_DIR/_iostat.log" &>/dev/null &
-watch -n 30 "ps -Ao user,pcpu,pid,command --sort=pcpu | grep python | head -n 50 | tee -a $OUTPUT_DIR/_python.log" &>/dev/null &
-
-mpstat 30 | tee $OUTPUT_DIR/_mpstat.log  &>/dev/null & 
-
-watch -n 30 "free -g | grep Mem | tee -a $OUTPUT_DIR/_memmon.log" &>/dev/null &
-
-# check PDU ip and start monitor
-if [[ $PDUCHK -eq 0 ]]; then
-    bash monitor-pwrdu-status.sh | tee $OUTPUT_DIR/_pdulog.log &>/dev/null &
-else
-	echo "0 0 0 0 0 0" > $OUTPUT_DIR/_pdulog.log
-fi
-
-# save open listening ports
-(sleep 480 && netstat -lntp > $OUTPUT_DIR/_openpt.log) &
-
-cat $tmpf > $TRAIN_LOGF
-rm  $tmpf
+# start system monitoring
+start_sys_mon
 
 # run Pytorch Resnet training
 set -x
@@ -338,75 +238,11 @@ ret="$?"
 set +x
 [ $ret != 0 ] && (echo -e "${RED}ERROR: mpirun exit ${ret} ${NCL}")
 
-pkill watch
-pkill mpstat
-pkill hl-smi
-pkill free
-pkill tee
+# stop monitoring process
+stop_sys_mon
 
-# log system info
-end_time=$(date +%s)
-#date -d @1718326649
-echo ${start_time} > $OUTPUT_DIR/_time_s.log
-echo ${end_time}  >> $OUTPUT_DIR/_time_s.log
-
-MLOG=$OUTPUT_DIR/_module.log
-pip check > $MLOG; pip list | grep -P 'habana|tensor|torch' >> $MLOG; dpkg-query -W | grep habana >> $MLOG; lsmod | grep habana >> $MLOG
-echo '-------' >> $MLOG
-
-#IFS='\n' arr=($(ipmitool fru | grep Board | awk -F ': ' '{print $2}'))
-mapfile -t arr < <( ipmitool fru | grep Board | awk -F ': ' '{print $2}' )
-echo "mfgdat:" ${arr[0]}  >> $MLOG
-echo "mfgvdr:" ${arr[1]}  >> $MLOG
-echo "mboard:" ${arr[2]}  >> $MLOG
-echo "serial:" ${arr[3]}  >> $MLOG
-
-echo "fwvern:" $(ipmitool mc info | grep "Firmware Revision" | awk '{print $4}') >> $MLOG
-echo "fwdate:" $(ipmicfg -summary | grep "Firmware Build" | awk '{print $5}') >> $MLOG
-
-#mapfile -t arr < <( dmidecode | grep -i "BIOS Information" -A 3 | awk -F ': ' '{print $2}' )
-#echo "biosvr:" ${arr[2]}  >> $MLOG
-#echo "biosdt:" ${arr[3]}  >> $MLOG
-echo "biosvr:" $(ipmicfg -summary | grep "BIOS Version" |  awk '{print $4}') >> $MLOG
-echo "biosdt:" $(ipmicfg -summary | grep "BIOS Build" |  awk '{print $5}') >> $MLOG
-
-echo "ipmiip:" $(ipmitool lan print | grep -P "IP Address\s+: " | awk -F ': ' '{print $2}') >> $MLOG
-echo "ipmmac:" $(ipmitool lan print | grep -P "MAC Address\s+: "| awk -F ': ' '{print $2}') >> $MLOG
-echo "ipipv6:" $(ipmicfg -summary | grep "IPv6" |  awk '{print $5}') >> $MLOG
-echo "cpldvr:" $(ipmicfg -summary | grep "CPLD" |  awk '{print $4}') >> $MLOG
-
-echo "cpumdl:" $(lscpu | grep Xeon | awk -F ')' '{print $3}' | cut -c 2- | sed 's/i u/iu/' ) >> $MLOG
-echo "cpucor:" $(lscpu | grep "^CPU(s):" | awk '{print $2}') >> $MLOG
-echo "pcinfo:" $(dmidecode | grep 'PCI' | tail -n 1 | awk -F': ' '{print $2}') >> $MLOG
-
-echo "memcnt:" $(lsmem | grep "online memory" | awk '{print $4}') >> $MLOG
-echo "gpcpld:" $OAM_CPLD >> $MLOG
-
-echo "" >> $MLOG
-echo "osintl:" $(stat --format=%w /) >> $MLOG
-echo "machid:" $(cat /etc/machine-id)>> $MLOG
-
-echo "govnor:" $(cat /sys/devices/system/cpu/cpu0/cpufreq/scaling_governor) >> $MLOG
-echo "hgpage:" $(grep HugePages_Total /proc/meminfo | awk '{print $2}') >> $MLOG
-
-hostip=$(ifconfig | grep broadcast | grep -v 172.17 | awk '{print $2}')
-echo "kernel:" $(uname -a) >> $MLOG
-echo "hostip:" ${hostip}   >> $MLOG
-echo "hosmac:" $(ifconfig | grep $hostip -A 2 | grep ether |  awk '{print $2}') >> $MLOG
-
-echo "uptime:" $(uptime) >> $MLOG
-
-echo "habana:" $(hl-smi -v | grep -P '\s+'| awk -F 'version' '{print $2}') >> $MLOG
-echo "startt:" ${start_time} >> $MLOG
-echo "endtme:" ${end_time}   >> $MLOG
-echo "elapse:" $(($end_time-$start_time)) >> $MLOG
-echo "testts:" $(date) >> $MLOG
-
-echo "" >> $MLOG
-hl-smi -Q timestamp,index,serial,bus_id,memory.used,temperature.aip,utilization.aip,power.draw -f csv,noheader >> $MLOG
-hl-smi | grep HL-225 | awk '{print "gpu busidr- " $2,$6}' >> $MLOG
-
-ipmitool dcmi power reading >> $MLOG
+# log system os info
+get_test_envn_data "mlperf" "3.1" "resnet"
 
 # -------------
 # time to train
@@ -417,106 +253,37 @@ i=0; for t in $arr ; do echo "  worker:"${i} ${t} | tee -a $TRAIN_LOGF; let i++;
 echo
 
 # max power reading
-hpw=$(sort $OUTPUT_DIR/_powerr.log | sort -n | tail -n 1)
+hpw=$(sort $OUTPUT/_powerr.log | sort -n | tail -n 1)
 echo -e "${YLW}Maximum Power: ${hpw} watts${NCL}" | tee -a $TRAIN_LOGF
 
 # delete model checkpoint files
-find $OUTPUT_DIR -name *.pt -type f -delete &>/dev/null
+find $OUTPUT -name *.pt -type f -delete &>/dev/null
 rm -rf  ./.graph_dumps _exp &>/dev/null 
 
-# print top 10 stat
-cnt=10
-mapfile -t mem < <( awk '{print $10}' $OUTPUT_DIR/_hl-smi.log | sort -n | uniq -c | tail -n $cnt )
-mapfile -t utl < <( awk '{print $14}' $OUTPUT_DIR/_hl-smi.log | sort -n | uniq -c | tail -n $cnt )
-mapfile -t tmp < <( awk '{print $12}' $OUTPUT_DIR/_hl-smi.log | sort -n | uniq -c | tail -n $cnt )
-mapfile -t pow < <( awk '{print $16}' $OUTPUT_DIR/_hl-smi.log | sort -n | uniq -c | tail -n $cnt )
-
-echo -e "  ${CYA}GPU Top 10 Stats${NCL}" | tee -a $TRAIN_LOGF
-echo -e "  ${CYA}cnt PowerDraw   cnt AIP-Util   cnt Temprature  cnt Memory-Usage${NCL}" | tee -a $TRAIN_LOGF
-for (( i=0; i<${#mem[@]}; i++ ));
-do
-    echo -e "    ${BCY}${pow[$i]}     ${utl[$i]}       ${tmp[$i]}     ${mem[$i]}${NCL}" | tee -a $TRAIN_LOGF
-done
-echo | tee -a $TRAIN_LOGF
-echo -e "${GRN}  max       550 W    	    100 %                           98304 MB${NCL}\n" | tee -a $TRAIN_LOGF
+# print top 30 stat info from hl-smi
+print_topnn_hl_smi 30
 
 echo -e "  ${YLW}Time To Train: ${ttt} min${NCL}, < 16.5 min\n" | tee -a $TRAIN_LOGF
 
 #training result
-echo -e "  ${YLW}Test Converge: loss < 1.75${NCL}"
+echo -e "  ${YLW}Test Converge: loss < 1.75${NCL}" | tee -a $TRAIN_LOGF
 grep 625/626 $TRAIN_LOGF | grep -P '\[0\]|\[17\]|\[34\]' | awk '{printf("  Epoch %4s lr %24s  img/s %-20s  loss \033[0;33m%7s\033[0m  acc1 %8s  acc5 %8s \n",  $2, $7, $9, $11, $14, $17);}' | tee -a $TRAIN_LOGF
 lss=$(grep 625/626 $TRAIN_LOGF | grep -P '\[34\]' | awk '{print $11}')
 echo | tee -a $TRAIN_LOGF
 
-# calc power usage
-pdu=$OUTPUT_DIR/_pdulog.log
-if [[ $(wc -l $pdu | awk '{print $1}' ) -gt 20 ]]
-then
-	engy_s=`head -n 2 $pdu | tail -n 1 | awk '{print $1}'`
-	engy_e=`tail -n 1 $pdu | awk '{print $1}'`
-	usedee=`echo "$engy_e $engy_s" | awk '{print $1-$2}'`
+# PDU energy usage
+print_energy_usage
 
-	echo -e "  pdu energy used: ${YLW}${usedee}${NCL} kWh : ${engy_s} ${engy_e}" | tee -a $TRAIN_LOGF;
-	printf "  ${CYA}max\n" | tee -a $TRAIN_LOGF;
-	printf "  energy/kWh    power/kW    appower/kVA    current/A    voltage/V    ipmi/Watts${NCL}\n" | tee -a $TRAIN_LOGF;
-
-	max_eng=`grep -P '\d+\.\d' $pdu | awk '{print $1}' | sort -n | tail -n 1`
-	max_pow=`grep -P '\d+\.\d' $pdu | awk '{print $2}' | sort -n | tail -n 1`
-	max_app=`grep -P '\d+\.\d' $pdu | awk '{print $3}' | sort -n | tail -n 1`
-	max_cur=`grep -P '\d+\.\d' $pdu | awk '{print $4}' | sort -n | tail -n 1`
-	max_vol=`grep -P '\d+\.\d' $pdu | awk '{print $5}' | sort -n | tail -n 1`
-	max_bmc=`grep -P '\d+\.\d' $pdu | awk '{print $6}' | sort -n | tail -n 1`
-
-	printf "${BCY}%8s     %8s      %8s       %8s     %8s  %8s${NCL}\n\n" $max_eng  $max_pow  $max_app  $max_cur  $max_vol  $max_bmc | tee -a $TRAIN_LOGF;
-fi
-
-# check services
-systemctl list-units --state running | grep running | grep -v session- > $OUTPUT_DIR/_servcs.log
-diff $OUTPUT_DIR/_servcs.log ../service.diff
-[[ $? -eq 0 ]] && echo -e "services diff: ${GRN}PASS${NCL}" | tee -a $TRAIN_LOGF || echo -e "services diff: ${YLW}WARN${NCL}" | tee -a $TRAIN_LOGF
-echo | tee -a $TRAIN_LOGF
-
-# check process
-ps -ef | grep -v -P "\\[|sshd|bash|CMD|ps|awk|sort|sftp|sleep" | awk '{print $8}'| sort > $OUTPUT_DIR/_procss.log
-diff $OUTPUT_DIR/_procss.log ../process.diff
-[[ $? -eq 0 ]] && echo -e "process  diff: ${GRN}PASS${NCL}" | tee -a $TRAIN_LOGF || echo -e "process  diff: ${YLW}WARN${NCL}" | tee -a $TRAIN_LOGF
-echo | tee -a $TRAIN_LOGF
+save_service_procs
 
 if [[ $lss > 1 && $lss < 1.75 ]]
 then
 	echo -e "test converge: ${GRN}PASS${NCL}" | tee -a $TRAIN_LOGF
 else
-	echo -e "test converge: ${RED}WARN${NCL}" | tee -a $TRAIN_LOGF
+	echo -e "test converge: ${YLW}WARN${YLW}" | tee -a $TRAIN_LOGF
 fi
 
-if [[ $ttt > 10 && $ttt < 16.5 ]]
-then
-	echo -e "time to train: ${GRN}PASS${NCL}" | tee -a $TRAIN_LOGF
-else
-	echo -e "time to train: ${RED}FAIL${NCL}" | tee -a $TRAIN_LOGF
-fi
+# performance threshold
+print_final_result 16.5
 
-cp /var/log/kern.log $OUTPUT_DIR/_kernal.log
-TS=$(date +"%b %d")
-grep -P "^${TS}.+accel accel" /var/log/syslog | tail -n 2000 > $OUTPUT_DIR/_logsys.log
-
-cat > $OUTPUT_DIR/_intrvl.log <<- EOM
-_powerr.log 10
-_hl-smi.log 10
-_pdulog.log 10
-_im-sdr.log 30
-_im-ssr.log 30
-_iostat.log 30
-_python.log 30
-_mpstat.log 30
-_memmon.log 30
-_python.log 30
-EOM
-
-echo -e "${BLU}Test Complete: ${SECONDS} sec${NCL}\n" | tee -a $TRAIN_LOGF
-
-ipp=$(ifconfig | grep 'inet ' | grep -v -P '27.0|172.17' | awk '{print $2}')
-fff=$OUTPUT_DIR-${ipp}-${end_time}-${SECONDS}-${ttt}
-
-mv $OUTPUT_DIR $fff
-scp -P 7022 -r $fff spm@129.146.47.229:/home/spm/mlperf31-resn-test-result/ &>/dev/null
+save_result_remote
