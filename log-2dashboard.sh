@@ -83,7 +83,18 @@ test_framework, test_fw_version, test_model, \
 energy_consumed, energy_meter_start, energy_meter_end, \
 time_to_train, max_ipmi_power, average_training_time_step, \
 e2e_train_time, training_sequences_per_second, final_loss, raw_train_time, eval_time, \
+test_note, \
 result_service, result_process, result_avg_train_time_step, result_time_to_train "
+
+# limit string length
+osi[hosnic]=${osi[hosnic]:0:80}
+osi[hdrive]=${osi[hdrive]:0:190}
+
+test_note=""
+if [ -f $OUTPUT/_testnt.txt ]; then
+	test_note=$(grep \## $OUTPUT/_testnt.txt -A 1 | grep -v \#)
+	test_note=${test_note:0:190}
+fi
 
 vv="${osi[ipmmac]}, ${osi[startt]}, ${osi[endtme]}, ${osi[elapse]}, ${osi[testts]}, \
 ${osi[ipmiip]}, ${osi[ipipv6]}, ${osi[fwvern]}, ${osi[fwdate]}, \
@@ -102,6 +113,7 @@ ${osi[perfsw]}, ${osi[perfvr]}, ${osi[modelt]}, \
 $energyco, $pwrsread, $pwrfread, \
 $time2trn, $maxpower, $avgtstep, \
 $e2e_time, $trainseq, $finaloss, $rawttime, $evaltime, \
+$test_note, \
 $diff_srv, $diff_pro, $avgttime, $ttm_rslt "
 
 ss=$(echo $vv | sed "s/, /', '/g")

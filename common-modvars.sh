@@ -3,6 +3,10 @@
 # SPM MLPerf Test 
 # Jing Kang 7/2024
 
+MLPERFROOT=/sox/Gaudi-Model-Eval
+alias bcd="cd $MLPERFROOT/bert-perf-result/$(  ls -tr $MLPERFROOT/bert-perf-result   | tail -n 1)"
+alias rcd="cd $MLPERFROOT/resnet-perf-result/$(ls -tr $MLPERFROOT/resnet-perf-result | tail -n 1)"
+
 # Reset
 Color_Off="\[\033[0m\]"       # Text Reset
 
@@ -407,7 +411,7 @@ _iostat.log 30
 _python.log 30
 _mpstat.log 30
 _memmon.log 30
-_python.log 30
+_python.log 30log-
 EOM
 }
 
@@ -430,11 +434,16 @@ function save_result_remote(){
 	# write test reult to sqlite3, create table
 	sqlite3 mlperf_largelm_test.db3 < ../init_db_mlperf_test.sh &>/dev/null
 
+	# check test note
+	if [ -f _testnt.txt ]; then
+		cp  _testnt.txt $OUTPUT/_testnt.txt
+	fi
+
 	# insert test result
 	OUTPUT=$OUTPUT bash ../log-2dashboard.sh sql | tail -n 1 > $OUTPUT/_insert.sql
 	sqlite3 mlperf_largelm_test.db3 < $OUTPUT/_insert.sql
 
-	#psql "postgresql://aves:_EKb2pIKnIew0ulmcvFohQ@perfmon-11634.6wr.aws-us-west-2.cockroachlabs.cloud:26257/toucan?sslmode=verify-full" -q -f $OUTPUT/_insert.sql
+	importsqlcockroach $OUTPUT/_insert.sql
 
 	mv $OUTPUT $fff
 
@@ -442,4 +451,9 @@ function save_result_remote(){
 	scp -P 7022 -r $fff spm@129.146.47.229:/home/spm/mlperf31-bert-test-result/  &>/dev/null
 	
 	rm -rf  ./.graph_dumps _exp &>/dev/null 
+}
+
+function importsqlcockroach(){
+	sql=${1:-_insert.sql}
+	psql "postgresql://aves:_EKb2pIKnIew0ulmcvFohQ@perfmon-11634.6wr.aws-us-west-2.cockroachlabs.cloud:26257/toucan?sslmode=verify-full" -q -f $sql
 }
