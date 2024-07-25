@@ -115,4 +115,6 @@ function pir() {
 	REQ=${1:-requirements.txt}
 	awk -F"==" '{print $1}' $REQ | xargs -I{} pip install {}
 }
-
+alias acd='cd /sox/habana-intel/Model-References/MLPERF3.1/Training/benchmarks'
+alias bcd="cd $MLPERFROOT/bert-perf-result/$(  ls -tr $MLPERFROOT/bert-perf-result   | tail -n 1)"
+alias rcd="cd $MLPERFROOT/resnet-perf-result/$(ls -tr $MLPERFROOT/resnet-perf-result | tail -n 1)"
