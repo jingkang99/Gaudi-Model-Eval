@@ -109,7 +109,7 @@ function parse_args()
 				sysctl -w vm.nr_hugepages=153600
                 exit 0 ;;
             -co | --check-oam)
-				check_oam_cpld
+				check_gpu_oam_cpld
 				echo -e "${YLW}OAM CPLD Version:${NCL} " $OAM_CPLDS
                 exit 0 ;;
             -h | --help )
