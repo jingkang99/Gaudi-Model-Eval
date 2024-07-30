@@ -105,7 +105,7 @@ def main():
     batch_size = 128
     lr = 0.01
     milestones = [10,15]
-    load_path = './data'
+    load_path = './'
     save_path = './checkpoints'
     lazy_mode = True
 
