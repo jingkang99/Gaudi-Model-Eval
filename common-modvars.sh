@@ -315,7 +315,7 @@ function get_test_envn_data(){
 	echo "startt:" ${start_time} >> $MLOG
 	echo "endtme:" ${end_time}   >> $MLOG
 	echo "elapse:" $(($end_time-$start_time)) >> $MLOG
-	echo "testts:" $(date) >> $MLOG
+	echo "testts:" $(date '+%Y-%m-%d %H:%M:%S') >> $MLOG
 
 	echo "python:" $( python -V | cut -b 8-) >> $MLOG
 	echo "osname:" $( grep ^NAME= /etc/os-release | awk -F'=' '{print $2}' | awk -F'"' '{print $2}') >> $MLOG
@@ -456,4 +456,10 @@ function save_result_remote(){
 function importsqlcockroach(){
 	sql=${1:-_insert.sql}
 	psql "postgresql://aves:_EKb2pIKnIew0ulmcvFohQ@perfmon-11634.6wr.aws-us-west-2.cockroachlabs.cloud:26257/toucan?sslmode=verify-full" -q -f $sql
+}
+
+# convert date format
+# date -d'Wed Jul 24 05:38:12 PM PDT 2024' '+%Y-%m-%d %H:%M:%S'
+function conv_date(){
+	date -d"${1}" '+%Y-%m-%d %H:%M:%S'
 }

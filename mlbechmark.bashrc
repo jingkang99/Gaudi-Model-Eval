@@ -124,3 +124,7 @@ alias rcd="cd $MLPERFROOT/resnet-perf-result/$(ls -tr $MLPERFROOT/resnet-perf-re
 
 mkdir -p /root/.postgresql 2>/dev/null
 cp tool/root.crt /root/.postgresql/root.crt
+
+export WANDB_DISABLED=true
+export HF_HOME=/sox/huggingface
+

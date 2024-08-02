@@ -4,7 +4,6 @@
 /lib/systemd/systemd-networkd
 /lib/systemd/systemd-resolved
 /lib/systemd/systemd-timesyncd
-/lib/systemd/systemd-udevd
 /sbin/init
 /sbin/multipathd
 (sd-pam)

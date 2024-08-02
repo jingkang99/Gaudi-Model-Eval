@@ -284,6 +284,6 @@ else
 fi
 
 # performance threshold
-print_final_result 16.5
+print_final_result 16.65
 
 save_result_remote
