@@ -463,3 +463,7 @@ function importsqlcockroach(){
 function conv_date(){
 	date -d"${1}" '+%Y-%m-%d %H:%M:%S'
 }
+
+function piplist_size(){
+    python -c "for d in __import__('importlib.metadata').metadata.distributions(): print('{:>12.3f} KiB  {}'.format(sum(0 if not f.locate().is_file() else f.locate().stat().st_size for f in d.files) / 1024, d.name))" | sort -n
+}
