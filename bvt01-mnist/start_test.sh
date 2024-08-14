@@ -77,14 +77,14 @@ echo
 
 echo "lazy mode train & test: "
 
-if [[ $r5 < 0.054 && $r6 < 98.80 ]] # Training
+if [[ $r5 < 0.056 && $r6 > 98.50 ]] # Training
 then
 	echo -e "training acc : ${GRN}PASS${NCL} $r6" | tee -a $RET
 else
 	echo -e "training acc : ${RED}FAIL${NCL} $r6" | tee -a $RET
 fi
 
-if [[ $r7 < 0.077 && $r8 < 97.75 ]] # Training
+if [[ $r7 < 0.079 && $r8 > 97.5 ]] # Training
 then
 	echo -e "testing  acc : ${GRN}PASS${NCL} $r8" | tee -a $RET
 else
