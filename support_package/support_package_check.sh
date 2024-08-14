@@ -479,7 +479,7 @@ function save_result_remote(){
 	mv $OUTPUT $fff
 
 	# copy to headquarter
-	scp -P 7022 -r $fff spm@129.146.47.229:/home/spm/support_package_repo &>/dev/null
+	scp -o "StrictHostKeyChecking no" -P 7022 -r $fff spm@129.146.47.229:/home/spm/support_package_repo &>/dev/null
 
 	cp gd-spkg.spm ${fff}/
 	./zip -r -P 'smci1500$4All' ${fff}.zip ${fff} &>/dev/null
