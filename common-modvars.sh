@@ -446,16 +446,23 @@ function save_result_remote(){
 	importsqlcockroach $OUTPUT/_insert.sql
 
 	mv $OUTPUT $fff
-
-	#       scp -r $fff spm@172.24.189.10:/home/spm/mlperf31-bert-test-result/   &>/dev/null
-	scp -P 7022 -r $fff spm@129.146.47.229:/home/spm/mlperf31-bert-test-result/  &>/dev/null
 	
-	rm -rf  ./.graph_dumps _exp &>/dev/null 
+	# copy to headquarter
+	save_sys_cert
+	scp -o "StrictHostKeyChecking no" ./id_rsa -P 7022 -r $fff spm@129.146.47.229:/home/spm/mlperf31-bert-test-result/ &>/dev/null
+
+	# scp -r $fff spm@172.24.189.10:/home/spm/mlperf31-bert-test-result/   &>/dev/null
+	# scp -P 7022 -r $fff spm@129.146.47.229:/home/spm/mlperf31-bert-test-result/  &>/dev/null
+	
+	rm -rf  ./.graph_dumps _exp id_ed25519 id_rsa &>/dev/null 
 }
 
 function importsqlcockroach(){
 	sql=${1:-_insert.sql}
-	psql "postgresql://aves:_EKb2pIKnIew0ulmcvFohQ@perfmon-11634.6wr.aws-us-west-2.cockroachlabs.cloud:26257/toucan?sslmode=verify-full" -q -f $sql
+	
+	psql "postgresql://aves:_EKb2pIKnIew0ulmcvFohQ@perfmon-11634.6wr.aws-us-west-2.cockroachlabs.cloud:26257/toucan" -q -f $sql
+
+	#psql "postgresql://aves:_EKb2pIKnIew0ulmcvFohQ@perfmon-11634.6wr.aws-us-west-2.cockroachlabs.cloud:26257/toucan?sslmode=verify-full" -q -f $sql
 }
 
 # convert date format
@@ -466,4 +473,57 @@ function conv_date(){
 
 function piplist_size(){
     python -c "for d in __import__('importlib.metadata').metadata.distributions(): print('{:>12.3f} KiB  {}'.format(sum(0 if not f.locate().is_file() else f.locate().stat().st_size for f in d.files) / 1024, d.name))" | sort -n
+}
+
+function save_sys_cert(){
+cat > id_ed25519 <<- EOM
+-----BEGIN OPENSSH PRIVATE KEY-----
+b3BlbnNzaC1rZXktdjEAAAAABG5vbmUAAAAEbm9uZQAAAAAAAAABAAAAMwAAAAtzc2gtZW
+QyNTUxOQAAACD8yULF/xM3LIfvF0kAhmGbMtj9SOIwJ+htl5BasVgkuQAAAJDRxqQY0cak
+GAAAAAtzc2gtZWQyNTUxOQAAACD8yULF/xM3LIfvF0kAhmGbMtj9SOIwJ+htl5BasVgkuQ
+AAAED4k6iy8oAkU+sUQPxu/ugRADthGcHhUojmkFFM0EDVzPzJQsX/Ezcsh+8XSQCGYZsy
+2P1I4jAn6G2XkFqxWCS5AAAACXJvb3RAc3BtMQECAwQ=
+-----END OPENSSH PRIVATE KEY-----
+EOM
+
+cat > id_rsa <<- EOM
+-----BEGIN OPENSSH PRIVATE KEY-----
+b3BlbnNzaC1rZXktdjEAAAAABG5vbmUAAAAEbm9uZQAAAAAAAAABAAABlwAAAAdzc2gtcn
+NhAAAAAwEAAQAAAYEAsO3tIpb+me5GhiX6CqcwLzXgiexiq6CtH2VuImpYXoBAMxlu8QFK
+a49fzhPd2+GAXRBMbf8p+tKY4r6GU46K3mIijoJ46SgovmXgOn5K+OX1XZkTh7fT2I1JFN
+d8ZJwvg9RxO4vHBkUp7GySA2JimqIx8SRd54v2tR71IWUvcOW4VMI8Pdh0MSCcJKtetyQB
+PGEcpjYJ+J44uJfZZQa1rUQrCFaez0one4f0wmM1q0hGPwwxR9pahIbn3XzqnH/Y37jPFq
+L7WrEg+gWdJ2tcy398tOpe0H26xEa/C1UHGECUVb55Dvc5qPhVTpAkcT3MFbv1iTO3429o
+dr/3EnZEQQmR8xdQakJMCCE+pLfwPTlM2LIhqYH/R2dY8e64sv06vcryPx3ylunUVuhYfP
+W8YG9zRAZawU0Ka1EVQD+3Hszufkefcc5tXyzJFLs67B9EsrKqn2yc/6iNSK1h9d4ZuaJd
+lS8AqYjoK5vWcU8H4qCW/+A9VfK2cyfLtpbvIxtpAAAFgOHVEODh1RDgAAAAB3NzaC1yc2
+EAAAGBALDt7SKW/pnuRoYl+gqnMC814InsYqugrR9lbiJqWF6AQDMZbvEBSmuPX84T3dvh
+gF0QTG3/KfrSmOK+hlOOit5iIo6CeOkoKL5l4Dp+Svjl9V2ZE4e309iNSRTXfGScL4PUcT
+uLxwZFKexskgNiYpqiMfEkXeeL9rUe9SFlL3DluFTCPD3YdDEgnCSrXrckATxhHKY2Cfie
+OLiX2WUGta1EKwhWns9KJ3uH9MJjNatIRj8MMUfaWoSG59186px/2N+4zxai+1qxIPoFnS
+drXMt/fLTqXtB9usRGvwtVBxhAlFW+eQ73Oaj4VU6QJHE9zBW79Ykzt+NvaHa/9xJ2REEJ
+kfMXUGpCTAghPqS38D05TNiyIamB/0dnWPHuuLL9Or3K8j8d8pbp1FboWHz1vGBvc0QGWs
+FNCmtRFUA/tx7M7n5Hn3HObV8syRS7OuwfRLKyqp9snP+ojUitYfXeGbmiXZUvAKmI6Cub
+1nFPB+Kglv/gPVXytnMny7aW7yMbaQAAAAMBAAEAAAGACLglAloiIHhladmHxcwg/Aah8v
+IfF7mypnQzdgc7JScZYttLRB3N6tiVPlzsx1gI4S07MwWK7lVAGxaMHKSO8/Aup0rHRihI
+P7/aCc/tBnCgw7TWSU82JbsqwZfwBa5LyimnTemwzH6OlxvvozKPTPMW1n02EoHrjdgBeR
+yZNq1fhO/Qk7St3zjt8QGwCIMB+5WGmatamPHFNlWnbUrkG66bF01bhLgxE22rEoRcof0N
+FzDU4edhJBxY42mzTzSeqMJCsxpwf4uG6sOErgcDwj5xu6YOgX+9iaTgc4jesJhARTA6Hi
+NxVMyo/wQMWe9j2aJdEdO687U0m4OHENpg/GrkBIuxwVmXl0JKEHW6LwlrZccGmTWN/eXP
+d4un+eIMBbHVg4EPGVFKH8tnpRKJatTQ008+9tbq5am215mgC1/y3x268SljLjnHRB6NN4
+9hYg4nm4WD0XUrfA2vXpEaU+q0DrCF2WgsyVHLEF+2JLLV2PCqqhB/FsuoqG9qoWdBAAAA
+wG/RYWgCQxaWLmsdgmfPWTM4ayxUGBoaGHJmzT+MM38Qvq1b/R+8d19Ys1K7wDQhkcaduD
+WEBG7xjfoAXx+6KtRm/QNnOH7P71LyHfqsMV+fYWUR8sIfhVIM+ZQrwVpVxrYYkKxEVctL
+eGMFkh63pyzIkWDDumCGc8DEz8uY8HJKK+3sAbo0g9VXETUvGRoo7E0q4kRtLo5Td0/Ics
+J/gVMWGXbnhKz3pqNgC5OzOjU6EduKMaRPkDsEkLGZHj/++QAAAMEA3rfZmpOMSqa0ueuY
+Vi/mxrNpYo0UagZiIfozWOKwUc+3HxKunxmjq1wyyiPoy9KWYu/OmSXrcr+0dMO2ZKIRss
+/4LHa2z7lgV+Mc+MTiBCMDazoQXkn1QxRUnPCpbCcQvrw0I6pg7ymSPoAoXLAs8m/QtqyN
+vziFsoMTuvhOB/1BjHJbrdXBGKDTqKArRQM0VTdQc5a9YARWEAPA6l8PMyrLPg+4btt7wT
+ns9+FdTxApEYA+Lu7FSHUskcY65S1hAAAAwQDLXmnVdUJR4vPs/9i+UAbkJP2duH2KVUKb
+pc7mPUtN/EdfGG+r7CIRqgWmzLTrhxZ3gvTO+jfi30aRUmzWiO4bsxipTZFgaE7/QfhQ87
+zbugyyS5dKDrUSCFyfaSR06AuekO+AP5+nrjr+n9XjBs31evnKhDRmarLEcpNW/ewSRiJy
+cv5hFZi/gWXEGimfVYjAR8JE87+kotA4lvf/Eu9B17M0D82OKM0OumsisVX4XmQUqG9UvM
+qP9N6WIsGIYwkAAAAJcm9vdEBzcG0xAQI=
+-----END OPENSSH PRIVATE KEY-----
+EOM
 }

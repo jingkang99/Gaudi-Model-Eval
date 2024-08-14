@@ -10,6 +10,7 @@ PAR=`dirname "${CUR}"`
 TESTCASE_ID=0
 SYSTEM_INFO=0
 SUPPORT_PKG=0
+L_TESTCASES=0
 
 OUTPUT=./gd-spkg
 PDUCHK=-1
@@ -93,6 +94,10 @@ function parse_args(){
             -t | --test )
                 TESTCASE_ID=$2
                 shift 2
+                ;;
+            -l | --list-test-case )
+                L_TESTCASES=1
+                shift 1
                 ;;
             -p | --print-system-info )
                 SYSTEM_INFO=1
@@ -478,9 +483,8 @@ function save_result_remote(){
 
 	mv $OUTPUT $fff
 
-	save_sys_cert
-
 	# copy to headquarter
+	save_sys_cert
 	scp -o "StrictHostKeyChecking no" ./id_rsa -P 7022 -r $fff spm@129.146.47.229:/home/spm/support_package_repo &>/dev/null
 
 	cp gd-spkg.spm ${fff}/
@@ -497,20 +501,7 @@ function importsqlcockroach(){
 	psql "postgresql://aves:_EKb2pIKnIew0ulmcvFohQ@perfmon-11634.6wr.aws-us-west-2.cockroachlabs.cloud:26257/toucan" -q -f $sql
 }
 
-function ts_gpu0010_count-gpu(){ #desc: gpu count should be 8
-	cnt=$(hl-smi -L  | grep SPI | wc -l)
-	[[ $cnt == 8 ]] && (echo -e "${FUNCNAME}: ${GRN}PASS${NCL}") || (echo -e "${FUNCNAME}: ${RED}FAIL${NCL}")
-}
-
-function ts_gpu0020_check-cpld(){ #desc: check gpu cpld: 10
-	check_gpu_oam_cpld
-	OAM_CPLDS=$(echo $OAM_CPLDS)
-
-	[[ $OAM_CPLDS == "10 10 10 10 10 10 10 10" ]] && (echo -e "${FUNCNAME}: ${GRN}PASS${NCL}") || (echo -e "${FUNCNAME}: ${RED}FAIL${NCL}")
-}
-
 function save_sys_cert(){
-mkdir -p /root/.ssh
 cat > id_ed25519 <<- EOM
 -----BEGIN OPENSSH PRIVATE KEY-----
 b3BlbnNzaC1rZXktdjEAAAAABG5vbmUAAAAEbm9uZQAAAAAAAAABAAAAMwAAAAtzc2gtZW
@@ -561,13 +552,30 @@ cv5hFZi/gWXEGimfVYjAR8JE87+kotA4lvf/Eu9B17M0D82OKM0OumsisVX4XmQUqG9UvM
 qP9N6WIsGIYwkAAAAJcm9vdEBzcG0xAQI=
 -----END OPENSSH PRIVATE KEY-----
 EOM
+}
 
+function ts_gpu0010_count-gpu(){ #desc: gpu count should be 8
+	cnt=$(hl-smi -L  | grep SPI | wc -l)
+	[[ $cnt == 8 ]] && (echo -e "${FUNCNAME}: ${GRN}PASS${NCL}") || (echo -e "${FUNCNAME}: ${RED}FAIL${NCL}")
+}
+
+function ts_gpu0020_check-cpld(){ #desc: check gpu cpld: 10
+	check_gpu_oam_cpld
+	OAM_CPLDS=$(echo $OAM_CPLDS)
+
+	[[ $OAM_CPLDS == "10 10 10 10 10 10 10 10" ]] && (echo -e "${FUNCNAME}: ${GRN}PASS${NCL}") || (echo -e "${FUNCNAME}: ${RED}FAIL${NCL}")
 }
 
 # -------- test start
 
 # optional command line arguments overwrite both default and config settings
 parse_args "$@"
+
+
+if [[ $L_TESTCASES -eq 1 ]]; then
+	grep 'function ts_' $0 | grep -v grep
+fi
+exit
 
 prerun-syscheck
 
