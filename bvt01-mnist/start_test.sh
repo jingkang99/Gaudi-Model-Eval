@@ -93,4 +93,4 @@ fi
 
 rm -rf __pycache__ .graph_dumps checkpoints
 
-echo -e "test compeleted in $SECONDS" | tee -a $RET
+echo -e "test completed in $SECONDS" | tee -a $RET
