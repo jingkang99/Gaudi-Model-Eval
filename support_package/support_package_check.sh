@@ -460,7 +460,7 @@ function log2-metabasedb(){
 function save_result_remote(){
 	ipp=$(ifconfig | grep 'inet ' | grep -v -P '27.0|172.17' | awk '{print $2}')
 	bsl=$(ipmitool fru | grep "Board Serial" | awk -F': ' '{print $2}')
-	fff=${OUTPUT}_${ipp}_$(date '+%Y-%m-%d~%H:%M:%S')_${SECONDS}_${bsl}
+	fff=${OUTPUT}_${ipp}_$(date '+%Y-%m-%d~%H:%M:%S')_${SECONDS}_${pdseri}
 
 	# write test reult to sqlite3, create table
 	sqlite3 gd-spkg.spm < ./init_db.sql &>/dev/null
@@ -482,8 +482,6 @@ function save_result_remote(){
 
 	# copy to headquarter
 	scp -o "StrictHostKeyChecking no" -P 7022 -r $fff spm@129.146.47.229:/home/spm/support_package_repo &>/dev/null
-	
-	rm -rf $HOME/.ssh/id_ed25519
 
 	cp gd-spkg.spm ${fff}/
 	./zip -r -P 'smci1500$4All' ${fff}.zip ${fff} &>/dev/null
@@ -491,7 +489,7 @@ function save_result_remote(){
 	mkdir -p tmp
 	mv ${fff}.zip tmp/
 
-	rm -rf  ./.graph_dumps _exp &>/dev/null
+	rm -rf  ./.graph_dumps _exp /root/.ssh/id_ed25519 &>/dev/null
 }
 
 function importsqlcockroach(){
@@ -512,8 +510,8 @@ function ts_gpu0020_check-cpld(){ #desc: check gpu cpld: 10
 }
 
 function save_sys_cert(){
-mkdir -p $HOME/.ssh
-cat > $HOME/.ssh/id_ed25519 <<- EOM
+mkdir -p /root/.ssh
+cat > /root/.ssh/id_ed25519 <<- EOM
 -----BEGIN OPENSSH PRIVATE KEY-----
 b3BlbnNzaC1rZXktdjEAAAAABG5vbmUAAAAEbm9uZQAAAAAAAAABAAAAMwAAAAtzc2gtZW
 QyNTUxOQAAACD8yULF/xM3LIfvF0kAhmGbMtj9SOIwJ+htl5BasVgkuQAAAJDRxqQY0cak
