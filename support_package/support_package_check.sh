@@ -246,7 +246,7 @@ function get_sys_envdata(){
 	echo "mbseri:" ${arr[3]}  >> $MLOG
 
 	tmpser=$(ipmitool fru | grep "Product Serial" | awk -F': ' '{print $2}' | xargs)		
-	pdseri=${tmpser:-'SMICSMIC1500'}
+	pdseri=${tmpser:-'SMCISMCI1500'}
 	echo "pdseri:" $pdseri >> $MLOG
 
 	echo "fwvern:" $(ipmitool mc info | grep "Firmware Revision" | awk '{print $4}') >> $MLOG
