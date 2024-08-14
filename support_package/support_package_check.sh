@@ -244,8 +244,10 @@ function get_sys_envdata(){
 	echo "mfgvdr:" ${arr[1]}  >> $MLOG
 	echo "mboard:" ${arr[2]}  >> $MLOG
 	echo "mbseri:" ${arr[3]}  >> $MLOG
-	
-	echo "pdseri:" $(ipmitool fru | grep "Product Serial" | awk -F': ' '{print $2}') >> $MLOG
+
+	tmpser=$(ipmitool fru | grep "Product Serial" | awk -F': ' '{print $2}' | xargs)		
+	pdseri=${tmpser:-'SMICSMIC1500'}
+	echo "pdseri:" $pdseri >> $MLOG
 
 	echo "fwvern:" $(ipmitool mc info | grep "Firmware Revision" | awk '{print $4}') >> $MLOG
 	echo "fwdate:" $(ipmicfg -summary | grep "Firmware Build" | awk '{print $5}') >> $MLOG
