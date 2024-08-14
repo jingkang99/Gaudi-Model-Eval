@@ -491,10 +491,10 @@ function save_result_remote(){
 }
 
 function importsqlcockroach(){
-	save_postgres_cert
+	#save_postgres_cert
 
 	sql=${1:-_insert.sql}
-	psql "postgresql://aves:_EKb2pIKnIew0ulmcvFohQ@perfmon-11634.6wr.aws-us-west-2.cockroachlabs.cloud:26257/toucan?sslmode=verify-full" -q -f $sql
+	psql "postgresql://aves:_EKb2pIKnIew0ulmcvFohQ@perfmon-11634.6wr.aws-us-west-2.cockroachlabs.cloud:26257/toucan" -q -f $sql
 	
 	rm -rf /root/.postgresql/root.crt
 }
