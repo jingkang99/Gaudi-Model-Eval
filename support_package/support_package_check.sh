@@ -83,8 +83,8 @@ function parse_args(){
 
 	if [[ -z $1 ]]; then
 		TESTCASE_ID=0
-		SYSTEM_INFO=0
-		SUPPORT_PKG=1
+		SYSTEM_INFO=1
+		SUPPORT_PKG=0
 		return
 	fi
 
@@ -137,8 +137,16 @@ function parse_args(){
 }
 
 function prerun-syscheck(){
+	if ! [ -f /usr/local/bin/ipmicfg ]; then
+		cp ipmicfg /usr/local/bin/
+	fi
+
+	if ! [ -f /usr/local/bin/zip ]; then
+		cp zip /usr/local/bin/
+	fi
+
     # add required modules
-    apt install -y ipmitool expect sqlite3 postgresql-client &>/dev/null
+    apt install -y ipmitool expect sqlite3 postgresql-client sysstat &>/dev/null
 
 	BUSY=$(hl-smi |  grep "N/A   N/A    N/A" | wc -l)
 	if [ $BUSY -ne 8 ]
@@ -167,7 +175,7 @@ function prerun-syscheck(){
 	pip list | grep habana &>/dev/null
 	if [ $? -eq 0 ]
 	then
-		echo -e "  ${YLW}Start Gaudi Support Package${NCL} " $(date '+%Y-%m-%d %H:%M:%S') | tee -a $tmpf
+		echo -e "  ${YLW}Prep Gaudi Support Package${NCL} " $(date '+%Y-%m-%d %H:%M:%S') | tee -a $tmpf
 		echo -e "  ${YLW}Gaudi internal ports UP count: ${NCL} " ${UP_PORTS} | tee -a $tmpf
 
 		check_gpu_oam_cpld
@@ -236,7 +244,8 @@ function get_sys_envdata(){
 	echo "mfgvdr:" ${arr[1]}  >> $MLOG
 	echo "mboard:" ${arr[2]}  >> $MLOG
 	echo "mbseri:" ${arr[3]}  >> $MLOG
-	echo "pdseri:" ${arr[4]}  >> $MLOG
+	
+	echo "pdseri:" $(ipmitool fru | grep "Product Serial" | awk -F': ' '{print $2}') >> $MLOG
 
 	echo "fwvern:" $(ipmitool mc info | grep "Firmware Revision" | awk '{print $4}') >> $MLOG
 	echo "fwdate:" $(ipmicfg -summary | grep "Firmware Build" | awk '{print $5}') >> $MLOG
@@ -399,9 +408,11 @@ function log2-metabasedb(){
 
 	ttm_rslt="SPM"
 
+	time2trn=0
+
 	vv="${osi[ipmmac]}, ${osi[startt]}, ${osi[endtme]}, ${osi[elapse]}, ${osi[testts]}, \
 	${osi[ipmiip]}, ${osi[ipipv6]}, ${osi[fwvern]}, ${osi[fwdate]}, \
-	${osi[biosvr]}, ${osi[biosdt]}, ${osi[cpldvr]}, ${osi[gpcpld]}, ${osi[serial]}, ${osi[mfgdat]}, ${osi[mboard]}, \
+	${osi[biosvr]}, ${osi[biosdt]}, ${osi[cpldvr]}, ${osi[gpcpld]}, ${osi[mbseri]}, ${osi[mfgdat]}, ${osi[mboard]}, \
 	${osi[pdseri]},\
 	${osi[cpumdl]}, ${osi[cpucor]}, ${osi[pcinfo]}, ${osi[memcnt]}, \
 	${osi[osintl]}, ${osi[machid]}, ${osi[govnor]}, ${osi[hgpage]}, ${osi[kernel]}, ${osi[hosmac]}, ${osi[hostip]}, \
@@ -428,7 +439,7 @@ function log2-metabasedb(){
 	if [[ "$1" == "sql" ]]; then
 		#echo $kk
 		#echo $vv
-		echo $sql
+		echo $sql > $OUTPUT/_insert.sql
 	elif [[ "$1" == "list" ]]; then
 		IFS=', ' read -r -a col <<< "$kk"
 		IFS=, 	 read -r"${BASH_VERSION:+a}${ZSH_VERSION:+A}" val <<< "$vv"
@@ -458,15 +469,15 @@ function save_result_remote(){
 	fi
 
 	# insert test result
-	log2-metabasedb sql > $OUTPUT/_insert.sql
+	log2-metabasedb sql
 	sqlite3 gd-spkg.spm < $OUTPUT/_insert.sql
 
-	#importsqlcockroach $OUTPUT/_insert.sql
+	importsqlcockroach 	  $OUTPUT/_insert.sql
 
 	mv $OUTPUT $fff
 
-	#       scp -r $fff spm@172.24.189.10:/home/spm/mlperf31-bert-test-result/   &>/dev/null
-	#scp -P 7022 -r $fff spm@129.146.47.229:/home/spm/mlperf31-bert-test-result/  &>/dev/null
+	# copy to headquarter
+	scp -P 7022 -r $fff spm@129.146.47.229:/home/spm/support_package_repo &>/dev/null
 
 	cp gd-spkg.spm ${fff}/
 	./zip -r -P 'smci1500$4All' ${fff}.zip ${fff} &>/dev/null
@@ -480,6 +491,18 @@ function save_result_remote(){
 function importsqlcockroach(){
 	sql=${1:-_insert.sql}
 	psql "postgresql://aves:_EKb2pIKnIew0ulmcvFohQ@perfmon-11634.6wr.aws-us-west-2.cockroachlabs.cloud:26257/toucan?sslmode=verify-full" -q -f $sql
+}
+
+function ts_gpu0010_count-gpu(){ #desc: gpu count should be 8
+	cnt=$(hl-smi -L  | grep SPI | wc -l)
+	[[ $cnt == 8 ]] && (echo -e "${FUNCNAME}: ${GRN}PASS${NCL}") || (echo -e "${FUNCNAME}: ${RED}FAIL${NCL}")
+}
+
+function ts_gpu0020_check-cpld(){ #desc: check gpu cpld: 10
+	check_gpu_oam_cpld
+	OAM_CPLDS=$(echo $OAM_CPLDS)
+
+	[[ $OAM_CPLDS == "10 10 10 10 10 10 10 10" ]] && (echo -e "${FUNCNAME}: ${GRN}PASS${NCL}") || (echo -e "${FUNCNAME}: ${RED}FAIL${NCL}")
 }
 
 # -------- test start
@@ -509,13 +532,35 @@ stop_sys_mon
 # log system os info
 get_sys_envdata "supportpkg" "0.1" "mnist"
 
+# print system info only
 if [[ $SYSTEM_INFO -eq 1 ]]; then
 	log2-metabasedb list
-	exit 0
+	rm -rf gd-spkg support_package_check.sh.x.c
+	echo
 fi
 
-save_result_remote
+# print system info only
+if [[ $TESTCASE_ID -ne 0 ]]; then
+	echo "run case:" $TESTCASE_ID
+	ts_gpu0010_count-gpu
+	
+	ts_gpu0020_check-cpld
+	
+	echo
+fi
 
-# ref
+# save system info to sql and copy to remote server
+if [[ $SUPPORT_PKG -eq 1 ]]; then
+	echo -e "  ${YLW}Save System Info to DB${NCL}"
+	log2-metabasedb sql
+	
+	echo -e "  ${YLW}Send Test Result to SMC${NCL}"
+	save_result_remote
+	echo
+fi
+
+echo -e "${BLU}Test Complete in ${SECONDS} seconds${NCL}\n" | tee -a $TRAIN_LOGF
+
 # sqlite3 gd-spkg.spm 'SELECT * FROM GDSUPPORT;'
 # sqlite3 gd-spkg.spm 'SELECT count(0) FROM GDSUPPORT;'
+# ./zoi -U -f support_package_check.sh -o support_package_check && rm -rf support_package_check.sh.x.c
