@@ -35,6 +35,9 @@ SYNOPSIS
 DESCRIPTION
         Gaudi Server Heath Check and Diagnostic Toolkit
 
+        -l, --list-test-case
+            list all test cases' function description
+
         -t <test-case-id | all>, --test <test-case-id | all>
             run a specified test case or all cases
 
@@ -91,7 +94,11 @@ function parse_args(){
 
     while [ -n "$1" ]; do
         case "$1" in
-            -t | --test )
+            -t | --test | -e | --exec )
+				if [[ -z $2 ]]; then
+					print_synopsis
+					exit 1
+				fi
                 TESTCASE_ID=$2
                 shift 2
                 ;;
@@ -184,7 +191,10 @@ function prerun-syscheck(){
 		echo -e "  ${YLW}Gaudi internal ports UP count: ${NCL} " ${UP_PORTS} | tee -a $tmpf
 
 		check_gpu_oam_cpld
-		echo -e "  ${YLW}OAM CPLD   :${NCL}" $OAM_CPLDS | tee -a $tmpf
+		echo -e "  ${YLW}OAM CPLD :  ${NCL}" $OAM_CPLDS | tee -a $tmpf
+		fwver=$(hl-smi --version | awk '{print $4}' | head -n 1)
+		echo -e "  ${YLW}Firmware : ${NCL}" $fwver | tee -a $tmpf
+
 		echo
 	else
 		echo -e "${RED}warn: habana python module not instaleld, skip tests${NCL}"
@@ -554,28 +564,88 @@ qP9N6WIsGIYwkAAAAJcm9vdEBzcG0xAQI=
 EOM
 }
 
-function ts_gpu0010_count-gpu(){ #desc: gpu count should be 8
+function print_result(){
+	printf "%25s : " $1	| tee -a $TRAINL
+	if   [[ $2 -eq 0 ]]; then
+		echo -e "${GRN}PASS${NCL}" | tee -a $TRAINL
+	elif [[ $2 -eq 1 ]]; then
+		echo -e "${RED}FAIL${NCL}" | tee -a $TRAINL
+	fi
+}
+
+function exec_case(){
+	kase=$1
+	printf "  ${CYA}%s: %s${NCL}\n\n" "Execute Gaudi Test Cases" $kase | tee -a $TRAINL
+
+	if [[ $kase =~ "all"  ]]; then
+		kase="0"
+	fi
+
+	for (( i=0; i<${#exe[@]}; i++ )); do
+		if [[ ${exe[$i]} =~ "$kase"  ]]; then
+			#printf "%2i %30s : %s\n" $((i+1)) ${exe[$i]} "debug"
+			eval ${exe[$i]}
+		fi
+	done
+	echo
+	
+	if [[ $kase =~ "all"  ]]; then
+		kase="0"
+	fi
+	echo -e "  ${CYA}Tested in ${SECONDS} seconds${NCL}\n" | tee -a $TRAINL
+}
+
+function ts_gpu0010_count-gpu(){ #desc: gpu count: 8
 	cnt=$(hl-smi -L  | grep SPI | wc -l)
-	[[ $cnt == 8 ]] && (echo -e "${FUNCNAME}: ${GRN}PASS${NCL}") || (echo -e "${FUNCNAME}: ${RED}FAIL${NCL}")
+	[[ $cnt == 8 ]] && (print_result ${FUNCNAME} 0) \
+					|| (print_result ${FUNCNAME} 1)
 }
 
 function ts_gpu0020_check-cpld(){ #desc: check gpu cpld: 10
 	check_gpu_oam_cpld
 	OAM_CPLDS=$(echo $OAM_CPLDS)
 
-	[[ $OAM_CPLDS == "10 10 10 10 10 10 10 10" ]] && (echo -e "${FUNCNAME}: ${GRN}PASS${NCL}") || (echo -e "${FUNCNAME}: ${RED}FAIL${NCL}")
+	[[ $OAM_CPLDS == "10 10 10 10 10 10 10 10" ]] \
+	&& (print_result ${FUNCNAME} 0) \
+	|| (print_result ${FUNCNAME} 1)
 }
 
 # -------- test start
 
-# optional command line arguments overwrite both default and config settings
 parse_args "$@"
 
+# get all test cases
+mapfile -t tss < <( grep 'function ts' support_package_check.sh | grep -v grep )
+declare -a exe
 
+for (( i=0; i<${#tss[@]}; i++ )); do
+	casef=${tss[$i]/function /}
+	casef=${casef/(/}
+	casef=${casef/)/}
+	
+	cname=$(echo $casef | awk -F'(){ #desc: ' '{print $1}')
+	cdesc=$(echo $casef | awk -F'(){ #desc: ' '{print $2}')
+
+	exe=("${exe[@]}" $cname)
+done
+
+# list cases and exit
 if [[ $L_TESTCASES -eq 1 ]]; then
-	grep 'function ts_' $0 | grep -v grep
+	printf "\n${CYA} %30s   %s${NCL}\n" "Gaudi Support Package Test Cases" "Description"
+
+	for (( i=0; i<${#tss[@]}; i++ )); do
+		casef=${tss[$i]/function /}
+		casef=${casef/(/}
+		casef=${casef/)/}
+		
+		cname=$(echo $casef | awk -F'(){ #desc: ' '{print $1}')
+		cdesc=$(echo $casef | awk -F'(){ #desc: ' '{print $2}')
+
+		printf "%2i %30s : %s\n" $((i+1)) "$cname" "$cdesc"
+	done
+	echo
+	exit
 fi
-exit
 
 prerun-syscheck
 
@@ -591,10 +661,7 @@ mkdir -p $OUTPUT &>/dev/null
 start_sys_mon
 
 #echo $TESTCASE_ID $SYSTEM_INFO $SUPPORT_PKG
-sleep 5
-
-# stop monitoring process
-stop_sys_mon
+sleep 3
 
 # log system os info
 get_sys_envdata "supportpkg" "0.1" "mnist"
@@ -606,27 +673,28 @@ if [[ $SYSTEM_INFO -eq 1 ]]; then
 	echo
 fi
 
-# print system info only
-if [[ $TESTCASE_ID -ne 0 ]]; then
-	echo "run case:" $TESTCASE_ID
-	ts_gpu0010_count-gpu
-	
-	ts_gpu0020_check-cpld
-	
-	echo
+# run test cases
+if [[ $TESTCASE_ID != 0 ]]; then
+	exec_case $TESTCASE_ID
+	exit
 fi
+
+# stop monitoring process
+stop_sys_mon
 
 # save system info to sql and copy to remote server
 if [[ $SUPPORT_PKG -eq 1 ]]; then
-	echo -e "  ${YLW}Save System Info to DB${NCL}"
+	exec_case 'all'
+
+	echo -e "  ${YLW}Save System Info to DB${NCL}"  | tee -a $TRAINL
 	log2-metabasedb sql
 	
-	echo -e "  ${YLW}Send Test Result to SMC${NCL}"
+	echo -e "  ${YLW}Send Test Result to SMC${NCL}" | tee -a $TRAINL
 	save_result_remote
 	echo
 fi
 
-echo -e "${BLU}Test Complete in ${SECONDS} seconds${NCL}\n" | tee -a $TRAIN_LOGF
+echo -e "${BLU}Test Completed in ${SECONDS} seconds${NCL}\n" 
 
 # sqlite3 gd-spkg.spm 'SELECT * FROM GDSUPPORT;'
 # sqlite3 gd-spkg.spm 'SELECT count(0) FROM GDSUPPORT;'
