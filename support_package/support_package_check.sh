@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/bash
 
 # Supermiro Gaudi Support Package
 # Jing Kang 8/2024
@@ -722,6 +722,23 @@ function exec_case(){
 	echo -e "  ${CYA}Tested in ${SECONDS} seconds${NCL}\n" | tee -a $TRAINL
 }
 
+function lts_gpu1010_count-gpu(){ #desc: gpu count: 8
+	cnt=$(hl-smi -L  | grep SPI | wc -l)
+	[[ $cnt == 8 ]] && (print_result ${FUNCNAME} 0; res[$1]=0) \
+					|| (print_result ${FUNCNAME} 1; res[$1]=1)
+}
+
+function lts_gpu1020_check-cpld(){ #desc: check gpu cpld: 10
+	check_gpu_oam_cpld
+	OAM_CPLDS=$(echo $OAM_CPLDS)
+
+	[[ $OAM_CPLDS == "10 10 10 10 10 10 10 10" ]] \
+	&& (print_result ${FUNCNAME} 0; res[$1]=0) \
+	|| (print_result ${FUNCNAME} 1; res[$1]=1)
+}
+
+function save_unit_testcases(){
+cat >testcases.sh <<- 'EOM'
 function ts_gpu1010_count-gpu(){ #desc: gpu count: 8
 	cnt=$(hl-smi -L  | grep SPI | wc -l)
 	[[ $cnt == 8 ]] && (print_result ${FUNCNAME} 0; res[$1]=0) \
@@ -736,13 +753,20 @@ function ts_gpu1020_check-cpld(){ #desc: check gpu cpld: 10
 	&& (print_result ${FUNCNAME} 0; res[$1]=0) \
 	|| (print_result ${FUNCNAME} 1; res[$1]=1)
 }
+EOM
+
+}
 
 # -------- main start
 
 parse_args "$@"
 
+save_unit_testcases
+
+source testcases.sh
+
 # get all test cases
-mapfile -t tss < <( grep 'function ts' support_package_check.sh | grep -v grep )
+mapfile -t tss < <( grep 'function ts' testcases.sh  | grep -v grep )
 declare -a exe	# function name
 declare -a des	# description
 declare -a seq	# case #
@@ -765,6 +789,7 @@ for (( i=0; i<${#tss[@]}; i++ )); do
 
 	res=("${res[@]}" "0")	 # case test result	
 done
+#rm -rf testcases.sh
 
 # list cases and exit
 if [[ $L_TESTCASES -eq 1 ]]; then
@@ -839,4 +864,4 @@ echo -e "${BLU}Test Completed in ${SECONDS} seconds${NCL}\n"
 
 # sqlite3 gd-spkg.spm 'SELECT * FROM GDSUPPORT;'
 # sqlite3 gd-spkg.spm 'SELECT count(0) FROM GDSUPPORT;'
-# ./zoi -U -f support_package_check.sh -o support_package_check && rm -rf support_package_check.sh.x.c
+# ./zoi -U -f support_package_check.sh -o support_sysinfo_check && rm -rf support_package_check.sh.x.c
