@@ -511,7 +511,7 @@ function save_result_remote(){
 	scp -o "StrictHostKeyChecking no" ./id_rsa -P 7022 -r $fff spm@129.146.47.229:/home/spm/support_package_repo &>/dev/null
 
 	cp gd-spkg.spm ${fff}/
-	./zip -r -P 'smci1500$4All' ${fff}.zip ${fff} &>/dev/null
+	zip -r -P 'smci1500$4All' ${fff}.zip ${fff} &>/dev/null
 
 	mkdir -p tmp
 	mv ${fff}.zip tmp/
@@ -789,7 +789,7 @@ for (( i=0; i<${#tss[@]}; i++ )); do
 
 	res=("${res[@]}" "0")	 # case test result	
 done
-#rm -rf testcases.sh
+rm -rf testcases.sh
 
 # list cases and exit
 if [[ $L_TESTCASES -eq 1 ]]; then
@@ -830,7 +830,7 @@ get_sys_envdata "supportpkg" "0.1" "mnist"
 # print system info only
 if [[ $SYSTEM_INFO -eq 1 ]]; then
 	stop_sys_mon
-
+	echo
 	log2-metabasedb list
 
 	rm -rf support_package_check.sh.x.c
