@@ -11,6 +11,7 @@ TESTCASE_ID=0
 SYSTEM_INFO=0
 SUPPORT_PKG=0
 L_TESTCASES=0
+HABAPYTORCH=0
 
 OUTPUT=./gd-spkg
 PDUCHK=-1
@@ -49,6 +50,9 @@ DESCRIPTION
 
         -h, --help
             print this help message
+
+        -v, --version
+            print support_package_check version
 
 EXAMPLES
        `basename $0` -t all
@@ -139,6 +143,10 @@ function parse_args(){
                 print_synopsis
                 exit 0
                 ;;
+            -v | --version )
+                echo "0.1"
+                exit 0
+                ;;
 			* )
                 echo "error: invalid parameter: $1"
                 print_synopsis
@@ -168,6 +176,7 @@ function prerun-syscheck(){
 	fi
 
 	start_time=$(date +%s)
+	start_YYYY=$(date '+%Y-%m-%d %H:%M:%S' -d @$start_time)
 
 	check_gpu_int_port
 
@@ -184,21 +193,28 @@ function prerun-syscheck(){
 	[ $? != 0 ] && (echo -e "${RED}ERROR: need psql - postgresql-client${NCL}"; exit 2)
 
 	tmpf=`mktemp`
+
+	echo -e "  ${YLW}Prep Support Package${NCL}" $start_YYYY | tee -a $tmpf
+	echo -e "  ${YLW}Gaudi internal ports UP count :${NCL}" ${UP_PORTS} | tee -a $tmpf
+
+	check_gpu_oam_cpld
+	echo -e "  ${YLW}OAM CPLD : ${NCL}" $OAM_CPLDS | tee -a $tmpf
+	fwver=$(hl-smi --version | awk '{print $4}' | head -n 1)
+	echo -e "  ${YLW}Firmware : ${NCL}" $fwver | tee -a $tmpf
+
+	get_external_ip_info
+	echo -e "  ${YLW}Location : ${NCL}" $city, $region $postal| tee -a $tmpf
+
+	loip=$(ifconfig | grep broadcast | grep -v 172.17 | awk '{print $2}')
+	echo -e "  ${YLW}Local IP : ${NCL}" $loip | tee -a $tmpf
+	echo -e "  ${YLW}Extnl IP : ${NCL}" $exip | tee -a $tmpf
+
 	pip list | grep habana &>/dev/null
-	if [ $? -eq 0 ]
-	then
-		echo -e "  ${YLW}Prep Gaudi Support Package${NCL} " $(date '+%Y-%m-%d %H:%M:%S') | tee -a $tmpf
-		echo -e "  ${YLW}Gaudi internal ports UP count: ${NCL} " ${UP_PORTS} | tee -a $tmpf
-
-		check_gpu_oam_cpld
-		echo -e "  ${YLW}OAM CPLD :  ${NCL}" $OAM_CPLDS | tee -a $tmpf
-		fwver=$(hl-smi --version | awk '{print $4}' | head -n 1)
-		echo -e "  ${YLW}Firmware : ${NCL}" $fwver | tee -a $tmpf
-
-		echo
-	else
-		echo -e "${RED}warn: habana python module not instaleld, skip tests${NCL}"
-		exit 1
+	if ! [ $? -eq 0 ]; then
+		#echo -e "  ${RED}warn: habana python module not found, skip LLM test${NCL}"
+		HABAPYTORCH=-1
+	else 
+		HABAPYTORCH=0
 	fi
 
 	mpiver=$(ls /opt/habanalabs/ | grep openmpi | cut -b 9-)
@@ -208,7 +224,7 @@ function prerun-syscheck(){
 }
 
 function start_sys_mon(){
-	#echo "start mon:" $(date)
+	#echo "  start sys mon:" $(date)
 
 	watch -n 10 "ipmitool dcmi power reading | grep Instantaneous | awk '{print \$4}' | tee -a $OUTPUT/_powerr.log" &>/dev/null &
 	watch -n 30 "ipmitool sdr   | tee -a $OUTPUT/_im-sdr.log" &>/dev/null &
@@ -237,6 +253,7 @@ function start_sys_mon(){
 }
 
 function stop_sys_mon(){
+	#echo -e "\n  stop  sys mon: $SECONDS"
 	pkill watch
 	pkill mpstat
 	pkill hl-smi
@@ -251,6 +268,7 @@ function get_sys_envdata(){
 	echo ${end_time}  >> $OUTPUT/_time_s.log
 
 	MLOG=$OUTPUT/_module.log
+	
 	pip check > $MLOG; pip list | grep -P 'habana|tensor|torch|transformers' >> $MLOG; dpkg-query -W | grep habana >> $MLOG; lsmod | grep habana >> $MLOG
 	echo '-------' >> $MLOG
 
@@ -267,9 +285,6 @@ function get_sys_envdata(){
 	echo "fwvern:" $(ipmitool mc info | grep "Firmware Revision" | awk '{print $4}') >> $MLOG
 	echo "fwdate:" $(ipmicfg -summary | grep "Firmware Build" | awk '{print $5}') >> $MLOG
 
-	#mapfile -t arr < <( dmidecode | grep -i "BIOS Information" -A 3 | awk -F ': ' '{print $2}' )
-	#echo "biosvr:" ${arr[2]}  >> $MLOG
-	#echo "biosdt:" ${arr[3]}  >> $MLOG
 	echo "biosvr:" $(ipmicfg -summary | grep "BIOS Version" |  awk '{print $4}') >> $MLOG
 	echo "biosdt:" $(ipmicfg -summary | grep "BIOS Build" |  awk '{print $5}') >> $MLOG
 
@@ -310,7 +325,7 @@ function get_sys_envdata(){
 	echo "startt:" ${start_time} >> $MLOG
 	echo "endtme:" ${end_time}   >> $MLOG
 	echo "elapse:" $(($end_time-$start_time)) >> $MLOG
-	echo "testts:" $(date '+%Y-%m-%d %H:%M:%S') >> $MLOG
+	echo "testts:" $start_YYYY   >> $MLOG
 
 	echo "python:" $( python -V | cut -b 8-) >> $MLOG
 	echo "osname:" $( grep ^NAME= /etc/os-release | awk -F'=' '{print $2}' | awk -F'"' '{print $2}') >> $MLOG
@@ -417,10 +432,12 @@ function log2-metabasedb(){
 	osi[hosnic]=${osi[hosnic]:0:80}
 	osi[hdrive]=${osi[hdrive]:0:190}
 
+	# check test note
 	test_note=""
-	if [ -f $OUTPUT/_testnt.txt ]; then
-		test_note=$(grep \## $OUTPUT/_testnt.txt -A 1 | grep -v \#)
+	if [ -f _testnt.txt ]; then
+		test_note=$(grep \## _testnt.txt -A 1 | grep -v \#)
 		test_note=${test_note:0:190}
+		cp _testnt.txt $OUTPUT/_testnt.txt
 	fi
 
 	ttm_rslt="SPM"
@@ -478,18 +495,14 @@ function save_result_remote(){
 	fff=${OUTPUT}_${ipp}_$(date '+%Y-%m-%d~%H:%M:%S')_${SECONDS}_${pdseri}
 
 	# write test reult to sqlite3, create table
-	sqlite3 gd-spkg.spm < ./init_db.sql &>/dev/null
-
-	# check test note
-	if [ -f _testnt.txt ]; then
-		cp  _testnt.txt $OUTPUT/_testnt.txt
-	fi
+	save_sqlite_init
+	sqlite3 gd-spkg.spm < ./init_sqlite &>/dev/null
+	rm -rf init_sqlite &>/dev/null
 
 	# insert test result
-	log2-metabasedb sql
 	sqlite3 gd-spkg.spm < $OUTPUT/_insert.sql
 
-	importsqlcockroach 	  $OUTPUT/_insert.sql
+	importsql2postgres 	  $OUTPUT/_insert.sql
 
 	mv $OUTPUT $fff
 
@@ -506,9 +519,10 @@ function save_result_remote(){
 	rm -rf  ./.graph_dumps _exp id_ed25519 id_rsa &>/dev/null
 }
 
-function importsqlcockroach(){
+function importsql2postgres(){
 	sql=${1:-_insert.sql}
-	psql "postgresql://aves:_EKb2pIKnIew0ulmcvFohQ@perfmon-11634.6wr.aws-us-west-2.cockroachlabs.cloud:26257/toucan" -q -f $sql
+   #psql "postgresql://aves:_EKb2pIKnIew0ulmcvFohQ@perfmon-11634.6wr.aws-us-west-2.cockroachlabs.cloud:26257/toucan" -q -f $sql
+	psql "postgresql://postgres:smc123@129.146.47.229:7122/toucan" -q -f $sql
 }
 
 function save_sys_cert(){
@@ -564,6 +578,108 @@ qP9N6WIsGIYwkAAAAJcm9vdEBzcG0xAQI=
 EOM
 }
 
+function save_sqlite_init(){
+cat > init_sqlite <<- EOM
+CREATE TABLE GDSUPPORT(
+bmc_mac			VARCHAR(50) NOT NULL,
+test_start		INTEGER  NOT NULL,
+test_end		INTEGER,
+elapse_time		INTEGER,
+test_date		VARCHAR(50),
+bmc_ipv4		VARCHAR(50),
+bmc_ipv6		VARCHAR(50),
+bmc_fware_version	VARCHAR(50),
+bmc_fware_date	VARCHAR(50),
+bios_version	VARCHAR(50),
+bios_date		VARCHAR(50),
+bios_cpld		VARCHAR(50),
+gpu_cpld		VARCHAR(50),
+mb_serial		VARCHAR(50),
+mb_mdate		VARCHAR(50),
+mb_model		VARCHAR(50),
+pd_serial		VARCHAR(50),
+cpu_model		VARCHAR(50),
+cpu_cores		VARCHAR(50),
+pcie			VARCHAR(50),
+memory			VARCHAR(50),
+os_idate		VARCHAR(50),
+machid			VARCHAR(50),
+scaling_governor	VARCHAR(50),
+huge_page		VARCHAR(50),
+os_kernel		VARCHAR(50),
+host_mac		VARCHAR(50),
+host_ip			VARCHAR(50),
+host_nic		VARCHAR(90),
+root_partition_size VARCHAR(50),
+hard_drive		VARCHAR(200),
+host_uptime_since	VARCHAR(50),
+habanalabs_firmware	VARCHAR(50),
+optimum_habana		VARCHAR(50),
+torch				VARCHAR(50),
+pytorch_lightning	VARCHAR(50),
+lightning_habana	VARCHAR(50),
+tensorflow_cpu		VARCHAR(50),
+transformers		VARCHAR(50),
+habanalabs		VARCHAR(50),
+habanalabs_ib	VARCHAR(50),
+habanalabs_cn	VARCHAR(50),
+habanalabs_en	VARCHAR(50),
+ib_uverbs		VARCHAR(50),
+oam0_serial		VARCHAR(50),
+oam0_pci		VARCHAR(50),
+oam1_serial		VARCHAR(50),
+oam1_pci		VARCHAR(50),
+oam2_serial		VARCHAR(50),
+oam2_pci		VARCHAR(50),
+oam3_serial		VARCHAR(50),
+oam3_pci		VARCHAR(50),
+oam4_serial		VARCHAR(50),
+oam4_pci		VARCHAR(50),
+oam5_serial		VARCHAR(50),
+oam5_pci		VARCHAR(50),
+oam6_serial		VARCHAR(50),
+oam6_pci		VARCHAR(50),
+oam7_serial		VARCHAR(50),
+oam7_pci		VARCHAR(50),
+gaudi_model		VARCHAR(50),
+gaudi_driver	VARCHAR(50),
+python_version	VARCHAR(50),
+os_name			VARCHAR(50),
+os_version		VARCHAR(50),
+openmpi_version	VARCHAR(50),
+libfabric_version	VARCHAR(50),
+test_framework	VARCHAR(50),
+test_fw_version	VARCHAR(50),
+test_model		VARCHAR(50),
+energy_consumed		VARCHAR(50),
+energy_meter_start	VARCHAR(50),
+energy_meter_end	VARCHAR(50),
+time_to_train		FLOAT,
+max_ipmi_power		VARCHAR(50),
+average_training_time_step	  VARCHAR(50),
+e2e_train_time				  VARCHAR(50),
+training_sequences_per_second VARCHAR(50),
+final_loss		VARCHAR(50),
+raw_train_time	VARCHAR(50),
+eval_time		VARCHAR(50),
+test_note		VARCHAR(200),
+result_service	VARCHAR(50),
+result_process	VARCHAR(50),
+result_avg_train_time_step	VARCHAR(50),
+result_time_to_train		VARCHAR(50),
+PRIMARY KEY (bmc_mac, test_start) );
+EOM
+}
+
+function get_external_ip_info(){
+	curl -s --connect-timeout 5 --max-time 5 ipinfo.io | grep : | sed 's/"//g' | sed 's/,//g' > sip
+	exip=$(  grep ip:   sip   | awk -F': ' '{print $2}' )
+	city=$(  grep city: sip   | awk -F': ' '{print $2}' )
+	region=$(grep region: sip | awk -F': ' '{print $2}' )
+	postal=$(grep postal: sip | awk -F': ' '{print $2}' )
+	rm -rf sip &>/dev/null
+}
+
 function print_result(){
 	printf "%25s : " $1	| tee -a $TRAINL
 	if   [[ $2 -eq 0 ]]; then
@@ -581,43 +697,58 @@ function exec_case(){
 		kase="0"
 	fi
 
+	bmc1=$(ipmitool lan print | grep -P "MAC Address\s+: "| awk -F ': ' '{print $2}')
+	loip=$(ifconfig | grep broadcast | grep -v 172.17 | awk '{print $2}')
+	
 	for (( i=0; i<${#exe[@]}; i++ )); do
+		sql="INSERT INTO GDRESULT (bmc_mac, test_date, testid, result, loip, exip, city, region, postal) \
+		     VALUES ( '${bmc1}', '${start_YYYY}', " 
+
 		if [[ ${exe[$i]} =~ "$kase"  ]]; then
-			#printf "%2i %30s : %s\n" $((i+1)) ${exe[$i]} "debug"
-			eval ${exe[$i]}
+			eval "${exe[$i]} $i"
 		fi
+
+		RST=""
+		[[ ${res[$i]} -eq 0 ]] && RST="PASS" || RST="FAIL"
+
+		# insert sql for test result
+		sql="$sql '${seq[$i]}', '${RST}', '${loip}', '${exip}', '${city}', '${region}', '${postal}' );"
+		echo $sql >> $OUTPUT/_caseresult
 	done
 	echo
-	
-	if [[ $kase =~ "all"  ]]; then
-		kase="0"
-	fi
+
+	importsql2postgres $OUTPUT/_caseresult
+
 	echo -e "  ${CYA}Tested in ${SECONDS} seconds${NCL}\n" | tee -a $TRAINL
 }
 
-function ts_gpu0010_count-gpu(){ #desc: gpu count: 8
+function ts_gpu1010_count-gpu(){ #desc: gpu count: 8
 	cnt=$(hl-smi -L  | grep SPI | wc -l)
-	[[ $cnt == 8 ]] && (print_result ${FUNCNAME} 0) \
-					|| (print_result ${FUNCNAME} 1)
+	[[ $cnt == 8 ]] && (print_result ${FUNCNAME} 0; res[$1]=0) \
+					|| (print_result ${FUNCNAME} 1; res[$1]=1)
 }
 
-function ts_gpu0020_check-cpld(){ #desc: check gpu cpld: 10
+function ts_gpu1020_check-cpld(){ #desc: check gpu cpld: 10
 	check_gpu_oam_cpld
 	OAM_CPLDS=$(echo $OAM_CPLDS)
 
 	[[ $OAM_CPLDS == "10 10 10 10 10 10 10 10" ]] \
-	&& (print_result ${FUNCNAME} 0) \
-	|| (print_result ${FUNCNAME} 1)
+	&& (print_result ${FUNCNAME} 0; res[$1]=0) \
+	|| (print_result ${FUNCNAME} 1; res[$1]=1)
 }
 
-# -------- test start
+# -------- main start
 
 parse_args "$@"
 
 # get all test cases
 mapfile -t tss < <( grep 'function ts' support_package_check.sh | grep -v grep )
-declare -a exe
+declare -a exe	# function name
+declare -a des	# description
+declare -a seq	# case #
+declare -a res	# test result
 
+# parset case info from function
 for (( i=0; i<${#tss[@]}; i++ )); do
 	casef=${tss[$i]/function /}
 	casef=${casef/(/}
@@ -626,7 +757,13 @@ for (( i=0; i<${#tss[@]}; i++ )); do
 	cname=$(echo $casef | awk -F'(){ #desc: ' '{print $1}')
 	cdesc=$(echo $casef | awk -F'(){ #desc: ' '{print $2}')
 
-	exe=("${exe[@]}" $cname)
+	exe=("${exe[@]}" $cname) # case function name
+	des=("${des[@]}" $cdesc) # case description	
+	
+	cnumb=$(echo $cname | awk -F'_' '{print $2}' | grep -o ....$)
+	seq=("${seq[@]}" $cnumb) # case sequence#
+
+	res=("${res[@]}" "0")	 # case test result	
 done
 
 # list cases and exit
@@ -651,40 +788,44 @@ prerun-syscheck
 
 # clear caches
 PROC_FS=${PROC_FS:-"/proc"}
-sync && echo 3 > $PROC_FS/sys/vm/drop_caches
+#sync && echo 3 > $PROC_FS/sys/vm/drop_caches
 
 # prepare directories
 rm -rf   $OUTPUT &>/dev/null
 mkdir -p $OUTPUT &>/dev/null
 
-# start system monitoring
 start_sys_mon
 
 #echo $TESTCASE_ID $SYSTEM_INFO $SUPPORT_PKG
-sleep 3
+sleep 2
 
-# log system os info
+# gather system os info
 get_sys_envdata "supportpkg" "0.1" "mnist"
 
 # print system info only
 if [[ $SYSTEM_INFO -eq 1 ]]; then
+	stop_sys_mon
+
 	log2-metabasedb list
-	rm -rf gd-spkg support_package_check.sh.x.c
+
+	rm -rf support_package_check.sh.x.c
 	echo
 fi
 
 # run test cases
 if [[ $TESTCASE_ID != 0 ]]; then
 	exec_case $TESTCASE_ID
+
+	stop_sys_mon
 	exit
 fi
-
-# stop monitoring process
-stop_sys_mon
 
 # save system info to sql and copy to remote server
 if [[ $SUPPORT_PKG -eq 1 ]]; then
 	exec_case 'all'
+
+	# stop monitoring process
+	stop_sys_mon
 
 	echo -e "  ${YLW}Save System Info to DB${NCL}"  | tee -a $TRAINL
 	log2-metabasedb sql
