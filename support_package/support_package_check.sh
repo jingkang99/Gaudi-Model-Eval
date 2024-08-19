@@ -106,6 +106,18 @@ function parse_args(){
                 TESTCASE_ID=$2
                 shift 2
                 ;;
+            -q | --query )
+				if [[ -z $2 ]]; then
+					print_synopsis
+					exit 1
+				fi
+				echo -e "  GDCASE GDRESULT GDSUPPORT for Support Package\n"
+				qdb=$(printf "%s %s" "select * from" $2)
+				echo "$qdb" > qdb.sql
+				exec_psql_sql_file qdb.sql
+				#rm -rf qdb.sql &>/dev/null
+				exit 0
+				;;
             -l | --list-test-case )
                 L_TESTCASES=1
                 shift 1
@@ -502,7 +514,7 @@ function save_result_remote(){
 	# insert test result
 	sqlite3 gd-spkg.spm < $OUTPUT/_insert.sql
 
-	importsql2postgres 	  $OUTPUT/_insert.sql
+	exec_psql_sql_file 	  $OUTPUT/_insert.sql
 
 	mv $OUTPUT $fff
 
@@ -519,7 +531,7 @@ function save_result_remote(){
 	rm -rf  ./.graph_dumps _exp id_ed25519 id_rsa &>/dev/null
 }
 
-function importsql2postgres(){
+function exec_psql_sql_file(){
 	sql=${1:-_insert.sql}
    #psql "postgresql://aves:_EKb2pIKnIew0ulmcvFohQ@perfmon-11634.6wr.aws-us-west-2.cockroachlabs.cloud:26257/toucan" -q -f $sql
 	psql "postgresql://postgres:smc123@129.146.47.229:7122/toucan" -q -f $sql
@@ -717,7 +729,7 @@ function exec_case(){
 	done
 	echo
 
-	importsql2postgres $OUTPUT/_caseresult
+	exec_psql_sql_file $OUTPUT/_caseresult
 
 	echo -e "  ${CYA}Tested in ${SECONDS} seconds${NCL}\n" | tee -a $TRAINL
 }
@@ -772,7 +784,9 @@ declare -a des	# description
 declare -a seq	# case #
 declare -a res	# test result
 
-# parset case info from function
+rm -rf insert2db.sql &>/dev/null
+
+# parse test case info from function
 for (( i=0; i<${#tss[@]}; i++ )); do
 	casef=${tss[$i]/function /}
 	casef=${casef/(/}
@@ -788,8 +802,17 @@ for (( i=0; i<${#tss[@]}; i++ )); do
 	seq=("${seq[@]}" $cnumb) # case sequence#
 
 	res=("${res[@]}" "0")	 # case test result	
+	
+	# sql - insert cases detail info to db
+	ttt="INSERT INTO GDCASE (testid, function, description) \
+		 VALUES ( '${cnumb}', '${cname}', '${cdesc}');" 
+	echo $ttt >> insert2db.sql
+
 done
-rm -rf testcases.sh
+
+exec_psql_sql_file  insert2db.sql &>/dev/null
+
+rm -rf testcases.sh insert2db.sql &>/dev/null
 
 # list cases and exit
 if [[ $L_TESTCASES -eq 1 ]]; then
