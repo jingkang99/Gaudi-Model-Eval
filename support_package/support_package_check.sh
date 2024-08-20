@@ -471,7 +471,7 @@ function log2-metabasedb(){
 	time2trn=0
 
 	vv="${osi[ipmmac]}, ${osi[startt]}, ${osi[endtme]}, ${osi[elapse]}, ${osi[testts]}, \
-	${osi[ipmiip]}, ${osi[ipipv6]}, ${osi[fwvern]}, ${osi[fwdate]}, \
+	${osi[ipmiip]}, ${osi[i	v6]}, ${osi[fwvern]}, ${osi[fwdate]}, \
 	${osi[biosvr]}, ${osi[biosdt]}, ${osi[cpldvr]}, ${osi[gpcpld]}, ${osi[mbseri]}, ${osi[mfgdat]}, ${osi[mboard]}, \
 	${osi[pdseri]},\
 	${osi[cpumdl]}, ${osi[cpucor]}, ${osi[pcinfo]}, ${osi[memcnt]}, \
@@ -897,6 +897,8 @@ if [[ $SUPPORT_PKG -eq 1 ]]; then
 	save_result_remote
 	echo
 fi
+
+rm -rf _testnt.txt &>/dev/null
 
 echo -e "${BLU}Test Completed in ${SECONDS} seconds${NCL}\n" 
 
