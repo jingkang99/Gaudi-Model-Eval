@@ -12,6 +12,7 @@ SYSTEM_INFO=0
 SUPPORT_PKG=0
 L_TESTCASES=0
 HABAPYTORCH=0
+EXETESTNOTE=""
 
 OUTPUT=./gd-spkg
 PDUCHK=-1
@@ -41,6 +42,9 @@ DESCRIPTION
 
         -t <test-case-id | all>, --test <test-case-id | all>
             run a specified test case or all cases
+
+        -n <"description">, --note <"description"l>
+            add a test note to the report
 
         -p, --print-system-info
             print out system hardware and software infomation
@@ -77,7 +81,7 @@ function check_gpu_int_port(){
 	UP_PORTS=$(hl-smi -Q bus_id -f csv,noheader | xargs -I % hl-smi -i % -n link | grep UP | wc -l)
 	if [ $UP_PORTS != 168 ]
 	then
-		echo -e "${RED}ERROR: Gaudi internal ports Not All Up${NCL}"
+		echo -e "${RED}ERROR: Gaudi internal ports Not All Up - $UP_PORTS${NCL}"
 		echo -e "${GRN}  /opt/habanalabs/qual/gaudi2/bin/manage_network_ifs.sh --up${NCL}"
 		echo -e "${GRN}  reboot or reload habana driver${NCL}"
 		echo -e "${GRN}  rmmod habanalabs${NCL}"
@@ -106,7 +110,17 @@ function parse_args(){
                 TESTCASE_ID=$2
                 shift 2
                 ;;
-            -q | --query )
+            -n | --note )
+				if [[ -z $2 ]]; then
+					print_synopsis
+					exit 1
+				fi
+                echo "###" > _testnt.txt
+				echo "$2" >> _testnt.txt
+				EXETESTNOTE=$2
+                shift 2
+                ;;
+			-q | --query )
 				if [[ -z $2 ]]; then
 					print_synopsis
 					exit 1
@@ -115,7 +129,7 @@ function parse_args(){
 				qdb=$(printf "%s %s" "select * from" $2)
 				echo "$qdb" > qdb.sql
 				exec_psql_sql_file qdb.sql
-				#rm -rf qdb.sql &>/dev/null
+				rm -rf qdb.sql &>/dev/null
 				exit 0
 				;;
             -l | --list-test-case )
@@ -713,19 +727,20 @@ function exec_case(){
 	loip=$(ifconfig | grep broadcast | grep -v 172.17 | awk '{print $2}')
 	
 	for (( i=0; i<${#exe[@]}; i++ )); do
-		sql="INSERT INTO GDRESULT (bmc_mac, test_date, testid, result, loip, exip, city, region, postal) \
+		sql="INSERT INTO GDRESULT (bmc_mac, test_date, testid, result, loip, exip, city, region, postal, note) \
 		     VALUES ( '${bmc1}', '${start_YYYY}', " 
 
-		if [[ ${exe[$i]} =~ "$kase"  ]]; then
+		if [[ ${exe[$i]} =~ "$kase"  ]]; then		
 			eval "${exe[$i]} $i"
+
+			RST=""
+			[[ ${res[$i]} -eq 0 ]] && RST="PASS" || RST="FAIL"
+
+			# insert sql for test result
+			sql="$sql '${seq[$i]}', '${RST}', '${loip}', '${exip}', '${city}', '${region}', '${postal}', '${EXETESTNOTE}' );"
+			echo $sql >> $OUTPUT/_caseresult
 		fi
 
-		RST=""
-		[[ ${res[$i]} -eq 0 ]] && RST="PASS" || RST="FAIL"
-
-		# insert sql for test result
-		sql="$sql '${seq[$i]}', '${RST}', '${loip}', '${exip}', '${city}', '${region}', '${postal}' );"
-		echo $sql >> $OUTPUT/_caseresult
 	done
 	echo
 
