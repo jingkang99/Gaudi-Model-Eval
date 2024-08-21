@@ -518,7 +518,7 @@ function log2-metabasedb(){
 function save_result_remote(){
 	ipp=$(ifconfig | grep 'inet ' | grep -v -P '27.0|172.17' | awk '{print $2}')
 	bsl=$(ipmitool fru | grep "Board Serial" | awk -F': ' '{print $2}')
-	fff=${OUTPUT}_${ipp}_$(date '+%Y-%m-%d~%H:%M:%S')_${SECONDS}_${pdseri}
+	fff=${OUTPUT}_${ipp}_$(date '+%Y-%m-%dc%H-%M-%S')_${SECONDS}_${pdseri}
 
 	# write test reult to sqlite3, create table
 	save_sqlite_init
@@ -534,10 +534,11 @@ function save_result_remote(){
 
 	# copy to headquarter
 	save_sys_cert
-	scp -o "StrictHostKeyChecking no" ./id_rsa -P 7022 -r $fff spm@129.146.47.229:/home/spm/support_package_repo &>/dev/null
+	scp -r -P 7022 -i ./id_rsa -o PasswordAuthentication=no -o StrictHostKeyChecking=no $fff spm@129.146.47.229:/home/spm/support_package_repo/ &>/dev/null
 
 	cp gd-spkg.spm ${fff}/
-	zip -r -P 'smci1500$4All' ${fff}.zip ${fff} &>/dev/null
+	zip -r -P 'smci1500$4All' ${fff}.zip ${fff} /var/log/kern.log /var/log/syslog /var/log/dmesg &>/dev/null
+	scp -r -P 7022 -i ./id_rsa -o PasswordAuthentication=no -o StrictHostKeyChecking=no ${fff}.zip spm@129.146.47.229:/home/spm/support_package_repo/zip/ &>/dev/null
 
 	mkdir -p tmp
 	mv ${fff}.zip tmp/
@@ -555,10 +556,10 @@ function save_sys_cert(){
 cat > id_ed25519 <<- EOM
 -----BEGIN OPENSSH PRIVATE KEY-----
 b3BlbnNzaC1rZXktdjEAAAAABG5vbmUAAAAEbm9uZQAAAAAAAAABAAAAMwAAAAtzc2gtZW
-QyNTUxOQAAACD8yULF/xM3LIfvF0kAhmGbMtj9SOIwJ+htl5BasVgkuQAAAJDRxqQY0cak
-GAAAAAtzc2gtZWQyNTUxOQAAACD8yULF/xM3LIfvF0kAhmGbMtj9SOIwJ+htl5BasVgkuQ
-AAAED4k6iy8oAkU+sUQPxu/ugRADthGcHhUojmkFFM0EDVzPzJQsX/Ezcsh+8XSQCGYZsy
-2P1I4jAn6G2XkFqxWCS5AAAACXJvb3RAc3BtMQECAwQ=
+QyNTUxOQAAACB+8BuvOM5P+hjRN/2C9GqSYaOm5Jj39IzKUDh1yemdngAAAJh+T+UJfk/l
+CQAAAAtzc2gtZWQyNTUxOQAAACB+8BuvOM5P+hjRN/2C9GqSYaOm5Jj39IzKUDh1yemdng
+AAAEDrxo+ffBboSDXHA122bC9x88dPqbF3JNcgmYCbC67A237wG684zk/6GNE3/YL0apJh
+o6bkmPf0jMpQOHXJ6Z2eAAAAD3NwbTEtMjAtMDgtMjAyNAECAwQFBg==
 -----END OPENSSH PRIVATE KEY-----
 EOM
 
@@ -602,6 +603,8 @@ cv5hFZi/gWXEGimfVYjAR8JE87+kotA4lvf/Eu9B17M0D82OKM0OumsisVX4XmQUqG9UvM
 qP9N6WIsGIYwkAAAAJcm9vdEBzcG0xAQI=
 -----END OPENSSH PRIVATE KEY-----
 EOM
+
+chmod 400 id_rsa id_ed25519
 }
 
 function save_sqlite_init(){
@@ -768,7 +771,9 @@ function save_unit_testcases(){
 cat >testcases.sh <<- 'EOM'
 function ts_gpu1010_count-gpu(){ #desc: gpu count: 8
 	cnt=$(hl-smi -L  | grep SPI | wc -l)
-	[[ $cnt == 8 ]] && (print_result ${FUNCNAME} 0; res[$1]=0) \
+	gcn=$(lspci -d :1020: -nn | wc -l)
+
+	[[ $cnt == 8 && $gcn == 8 ]] && (print_result ${FUNCNAME} 0; res[$1]=0) \
 					|| (print_result ${FUNCNAME} 1; res[$1]=1)
 }
 
@@ -780,6 +785,7 @@ function ts_gpu1020_check-cpld(){ #desc: check gpu cpld: 10
 	&& (print_result ${FUNCNAME} 0; res[$1]=0) \
 	|| (print_result ${FUNCNAME} 1; res[$1]=1)
 }
+
 EOM
 
 }
