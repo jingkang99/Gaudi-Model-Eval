@@ -7,6 +7,10 @@ MLPERFROOT=/sox/Gaudi-Model-Eval
 alias bcd="cd $MLPERFROOT/bert-perf-result/$(  ls -tr $MLPERFROOT/bert-perf-result   | tail -n 1)"
 alias rcd="cd $MLPERFROOT/resnet-perf-result/$(ls -tr $MLPERFROOT/resnet-perf-result | tail -n 1)"
 
+GD2=1 && GD3=1
+GMODEL=`hl-smi -L | head -n 12 | grep Product | awk '{print $4}'`
+[[ $GMODEL =~ 'HL-225' ]] && GD2=0 || GD3=0
+
 # Reset
 Color_Off="\[\033[0m\]"       # Text Reset
 
@@ -181,7 +185,10 @@ function check_gpu_int_port(){
 	if [ $UP_PORTS != 168 ]
 	then
 		echo -e "${RED}ERROR: Gaudi internal ports Not All Up${NCL}"
-		echo -e "${GRN}  /opt/habanalabs/qual/gaudi2/bin/manage_network_ifs.sh --up${NCL}"
+		
+		[[ $GD2 ]] && gp=gaudi2 || gp=gaudi3
+		echo -e "${GRN}  /opt/habanalabs/qual/${gp}/bin/manage_network_ifs.sh --up${NCL}"
+
 		echo -e "${GRN}  reboot or reload habana driver${NCL}"
 		echo -e "${GRN}  rmmod habanalabs${NCL}"
 		echo -e "${GRN}  modprobe habanalabs${NCL}\n"

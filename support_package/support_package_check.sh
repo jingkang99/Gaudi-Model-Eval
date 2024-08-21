@@ -709,49 +709,6 @@ function get_external_ip_info(){
 	rm -rf sip &>/dev/null
 }
 
-function print_result(){
-	printf "%25s : " $1	| tee -a $TRAINL
-	if   [[ $2 -eq 0 ]]; then
-		echo -e "${GRN}PASS${NCL}" | tee -a $TRAINL
-	elif [[ $2 -eq 1 ]]; then
-		echo -e "${RED}FAIL${NCL}" | tee -a $TRAINL
-	fi
-}
-
-function exec_case(){
-	kase=$1
-	printf "  ${CYA}%s: %s${NCL}\n\n" "Execute Gaudi Test Cases" $kase | tee -a $TRAINL
-
-	if [[ $kase =~ "all"  ]]; then
-		kase="0"
-	fi
-
-	bmc1=$(ipmitool lan print | grep -P "MAC Address\s+: "| awk -F ': ' '{print $2}')
-	loip=$(ifconfig | grep broadcast | grep -v 172.17 | awk '{print $2}')
-	
-	for (( i=0; i<${#exe[@]}; i++ )); do
-		sql="INSERT INTO GDRESULT (bmc_mac, test_date, testid, result, loip, exip, city, region, postal, note) \
-		     VALUES ( '${bmc1}', '${start_YYYY}', " 
-
-		if [[ ${exe[$i]} =~ "$kase"  ]]; then		
-			eval "${exe[$i]} $i"
-
-			RST=""
-			[[ ${res[$i]} -eq 0 ]] && RST="PASS" || RST="FAIL"
-
-			# insert sql for test result
-			sql="$sql '${seq[$i]}', '${RST}', '${loip}', '${exip}', '${city}', '${region}', '${postal}', '${EXETESTNOTE}' );"
-			echo $sql >> $OUTPUT/_caseresult
-		fi
-
-	done
-	echo
-
-	exec_psql_sql_file $OUTPUT/_caseresult
-
-	echo -e "  ${CYA}Tested in ${SECONDS} seconds${NCL}\n" | tee -a $TRAINL
-}
-
 function lts_gpu1010_count-gpu(){ #desc: gpu count: 8
 	cnt=$(hl-smi -L  | grep SPI | wc -l)
 	[[ $cnt == 8 ]] && (print_result ${FUNCNAME} 0; res[$1]=0) \
@@ -786,8 +743,87 @@ function ts_gpu1020_check-cpld(){ #desc: check gpu cpld: 10
 	|| (print_result ${FUNCNAME} 1; res[$1]=1)
 }
 
-EOM
+ROOT_CAUSES=
 
+function ts_gpu1030_gpu_pci_id(){ #desc: check gpu pci id
+	gcn=$(hl-smi -L | grep "Bus Id" | awk '{print $4}' |  sed 's/0000://')
+
+	check_oam "b3:00.0" 0
+	check_oam "19:00.0" 1
+	check_oam "1a:00.0" 2
+	check_oam "b4:00.0" 3
+	check_oam "43:00.0" 4
+	check_oam "44:00.0" 5
+	check_oam "cc:00.0" 6
+	check_oam "cd:00.0" 7
+
+	[[ $gcn =~ "b3:00.0" ]] && [[ $gcn =~ "19:00.0" ]] && [[ $gcn =~ "1a:00.0" ]] && \
+	[[ $gcn =~ "b4:00.0" ]] && [[ $gcn =~ "43:00.0" ]] && [[ $gcn =~ "44:00.0" ]] && \
+	[[ $gcn =~ "cc:00.0" ]] && [[ $gcn =~ "cd:00.0" ]] && \
+	   (print_result ${FUNCNAME} 0; res[$1]=0) \
+	|| (print_result ${FUNCNAME} 1; res[$1]=1)
+}
+
+EOM
+}
+
+function check_oam(){
+	ok="oam $2 found"
+	ng="oam $2 lost"
+
+	[[ $gcn =~ "$1" ]] && passert $ok || passert $ng
+}
+
+function passert(){
+	[[ $* =~ (lost|fail) ]] && ROOT_CAUSES="$*"
+
+	[[ $* =~ (lost|fail) ]] \
+		&& printf "${RED}    %s${NCL}\n" "$*" | tee -a $TRAINL \
+		|| printf "${GRN}    %s${NCL}\n" "$*" | tee -a $TRAINL
+}
+
+function print_result(){
+	printf "%25s : " $1	| tee -a $TRAINL
+	if   [[ $2 -eq 0 ]]; then
+		echo -e "${GRN}PASS${NCL}" | tee -a $TRAINL
+	elif [[ $2 -eq 1 ]]; then
+		echo -e "${RED}FAIL${NCL}" | tee -a $TRAINL
+	fi
+}
+
+function exec_case(){
+	kase=$1
+	printf "  ${CYA}%s: %s${NCL}\n\n" "Execute Gaudi Test Cases" $kase | tee -a $TRAINL
+
+	if [[ $kase =~ "all"  ]]; then
+		kase="0"
+	fi
+
+	bmc1=$(ipmitool lan print | grep -P "MAC Address\s+: "| awk -F ': ' '{print $2}')
+	loip=$(ifconfig | grep broadcast | grep -v 172.17 | awk '{print $2}')
+	
+	for (( i=0; i<${#exe[@]}; i++ )); do
+		sql="INSERT INTO GDRESULT (bmc_mac, test_date, testid, result, loip, exip, city, region, postal, note, debug) \
+		     VALUES ( '${bmc1}', '${start_YYYY}', " 
+
+		if [[ ${exe[$i]} =~ "$kase"  ]]; then
+			ROOT_CAUSES=''
+			eval "${exe[$i]} $i"
+
+			RST=""
+			[[ ${res[$i]} -eq 0 ]] && RST="PASS" || RST="FAIL"
+
+			# insert sql for test result
+			sql="$sql '${seq[$i]}', '${RST}', '${loip}', '${exip}', '${city}', '${region}', '${postal}', '${EXETESTNOTE}', '${ROOT_CAUSES}');"
+			echo $sql >> $OUTPUT/_caseresult
+		fi
+
+	done
+	echo
+
+	exec_psql_sql_file $OUTPUT/_caseresult
+
+	echo -e "  ${CYA}Tested in ${SECONDS} seconds${NCL}\n" | tee -a $TRAINL
 }
 
 # -------- main start
