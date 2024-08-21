@@ -3,6 +3,10 @@
 # Supermiro Gaudi Support Package
 # Jing Kang 8/2024
 
+GD2=1 && GD3=1
+GMODEL=`hl-smi -L | head -n 12 | grep Product | awk '{print $4}'`
+[[ $GMODEL =~ 'HL-225' ]] && GD2=0 || GD3=0
+
 SRC=`readlink -f "${BASH_SOURCE[0]}" 2>/dev/null||echo $0`
 CUR=`dirname "${SRC}"`
 PAR=`dirname "${CUR}"`
@@ -65,15 +69,21 @@ EOF
 }
 
 function check_gpu_oam_cpld(){
-	OAM_CPLDS=$( \
-			ipmitool raw 0x30 0x70 0xef 4 0x70 0x40 0xe6 0x40 2 0x4a 1 0x0; \
-			ipmitool raw 0x30 0x70 0xef 4 0x70 0x40 0xe6 0x41 2 0x4a 1 0x0; \
-			ipmitool raw 0x30 0x70 0xef 4 0x70 0x40 0xe6 0x42 2 0x4a 1 0x0; \
-			ipmitool raw 0x30 0x70 0xef 4 0x70 0x40 0xe6 0x43 2 0x4a 1 0x0; \
-			ipmitool raw 0x30 0x70 0xef 4 0x70 0x40 0xe6 0x44 2 0x4a 1 0x0; \
-			ipmitool raw 0x30 0x70 0xef 4 0x70 0x40 0xe6 0x45 2 0x4a 1 0x0; \
-			ipmitool raw 0x30 0x70 0xef 4 0x70 0x40 0xe6 0x46 2 0x4a 1 0x0; \
-			ipmitool raw 0x30 0x70 0xef 4 0x70 0x40 0xe6 0x47 2 0x4a 1 0x0  )
+	[[ $GD2 ]] && \
+	OAM_CPLDS=$(  \
+		ipmitool raw 0x30 0x70 0xef 4 0x70 0x40 0xe6 0x40 2 0x4a 1 0x0; \
+		ipmitool raw 0x30 0x70 0xef 4 0x70 0x40 0xe6 0x41 2 0x4a 1 0x0; \
+		ipmitool raw 0x30 0x70 0xef 4 0x70 0x40 0xe6 0x42 2 0x4a 1 0x0; \
+		ipmitool raw 0x30 0x70 0xef 4 0x70 0x40 0xe6 0x43 2 0x4a 1 0x0; \
+		ipmitool raw 0x30 0x70 0xef 4 0x70 0x40 0xe6 0x44 2 0x4a 1 0x0; \
+		ipmitool raw 0x30 0x70 0xef 4 0x70 0x40 0xe6 0x45 2 0x4a 1 0x0; \
+		ipmitool raw 0x30 0x70 0xef 4 0x70 0x40 0xe6 0x46 2 0x4a 1 0x0; \
+		ipmitool raw 0x30 0x70 0xef 4 0x70 0x40 0xe6 0x47 2 0x4a 1 0x0  )
+
+	[[ $GD3 ]] && \
+	OAM_CPLDS=$(  \
+		ipmitool raw 0x30 0x70 0xEF 0x02 0xEC 0x43 0x0C 0x9E 0x01 0x00; \
+		ipmitool raw 0x30 0x70 0xEF 0x02 0xEC 0x43 0x0C 0x9E 0x01 0x01  )
 }
 
 # check Gaudi interal ports 
@@ -83,7 +93,7 @@ function check_gpu_int_port(){
 	then
 		echo -e "${RED}ERROR: Gaudi internal ports Not All Up - $UP_PORTS${NCL}"
 		echo -e "${GRN}  /opt/habanalabs/qual/gaudi2/bin/manage_network_ifs.sh --up${NCL}"
-		echo -e "${GRN}  reboot or reload habana driver${NCL}"
+			echo -e "${GRN}  reboot or reload habana driver${NCL}"
 		echo -e "${GRN}  rmmod habanalabs${NCL}"
 		echo -e "${GRN}  modprobe habanalabs${NCL}\n"
 		echo -e "${GRN}  $(basename $0) --check-ports${NCL}\n"
@@ -223,17 +233,19 @@ function prerun-syscheck(){
 	echo -e "  ${YLW}Prep Support Package${NCL}" $start_YYYY | tee -a $tmpf
 	echo -e "  ${YLW}Gaudi internal ports UP count :${NCL}" ${UP_PORTS} | tee -a $tmpf
 
+	echo -e "  ${YLW}Model    :${NCL}" ${GMODEL} | tee -a $tmpf
+
 	check_gpu_oam_cpld
-	echo -e "  ${YLW}OAM CPLD : ${NCL}" $OAM_CPLDS | tee -a $tmpf
+	echo -e "  ${YLW}OAM CPLD :${NCL}" $OAM_CPLDS | tee -a $tmpf
 	fwver=$(hl-smi --version | awk '{print $4}' | head -n 1)
-	echo -e "  ${YLW}Firmware : ${NCL}" $fwver | tee -a $tmpf
+	echo -e "  ${YLW}Firmware :${NCL}" $fwver | tee -a $tmpf
 
 	get_external_ip_info
-	echo -e "  ${YLW}Location : ${NCL}" $city, $region $postal| tee -a $tmpf
+	echo -e "  ${YLW}Location :${NCL}" $city, $region $postal| tee -a $tmpf
 
 	loip=$(ifconfig | grep broadcast | grep -v 172.17 | awk '{print $2}')
-	echo -e "  ${YLW}Local IP : ${NCL}" $loip | tee -a $tmpf
-	echo -e "  ${YLW}Extnl IP : ${NCL}" $exip | tee -a $tmpf
+	echo -e "  ${YLW}Local IP :${NCL}" $loip | tee -a $tmpf
+	echo -e "  ${YLW}Extnl IP :${NCL}" $exip | tee -a $tmpf
 
 	pip list | grep habana &>/dev/null
 	if ! [ $? -eq 0 ]; then
@@ -727,8 +739,9 @@ function lts_gpu1020_check-cpld(){ #desc: check gpu cpld: 10
 function save_unit_testcases(){
 cat >testcases.sh <<- 'EOM'
 function ts_gpu1010_count-gpu(){ #desc: gpu count: 8
-	cnt=$(hl-smi -L  | grep SPI | wc -l)
-	gcn=$(lspci -d :1020: -nn | wc -l)
+	cnt=$(hl-smi -L | grep SPI | wc -l)
+
+	[[ $GD2 ]] && gcn=$(lspci -d :1020: -nn | wc -l) || gcn=$(lspci -d :1060: -nn | wc -l)
 
 	[[ $cnt == 8 && $gcn == 8 ]] && (print_result ${FUNCNAME} 0; res[$1]=0) \
 					|| (print_result ${FUNCNAME} 1; res[$1]=1)
