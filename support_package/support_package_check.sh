@@ -193,16 +193,10 @@ function parse_args(){
 }
 
 function prerun-syscheck(){
-	if ! [ -f /usr/local/bin/ipmicfg ]; then
-		cp ipmicfg /usr/local/bin/
-	fi
-
-	if ! [ -f /usr/local/bin/zip ]; then
-		cp zip /usr/local/bin/
-	fi
+	export PATH=.:$PATH
 
     # add required modules
-    apt install -y ipmitool expect sqlite3 postgresql-client sysstat &>/dev/null
+    apt install -y ipmitool expect sqlite3 postgresql-client sysstat zip  &>/dev/null
 
 	BUSY=$(hl-smi |  grep "N/A   N/A    N/A" | wc -l)
 	if [ $BUSY -ne 8 ]
@@ -333,7 +327,7 @@ function get_sys_envdata(){
 
 	echo "cpumdl:" $(lscpu | grep Xeon | awk -F ')' '{print $3}' | cut -c 2- | sed 's/i u/iu/' ) >> $MLOG
 	echo "cpucor:" $(lscpu | grep "^CPU(s):" | awk '{print $2}') >> $MLOG
-	echo "pcinfo:" $(dmidecode | grep 'PCI' | tail -n 1 | awk -F': ' '{print $2}') >> $MLOG
+	echo "pcinfo:" $(dmidecode | grep 'Type.*PCI' | tail -n 1 | awk -F': ' '{print $2}') >> $MLOG
 
 	echo "memcnt:" $(lsmem | grep "online memory" | awk '{print $4}') >> $MLOG
 	echo "gpcpld:" $OAM_CPLDS >> $MLOG
@@ -345,12 +339,12 @@ function get_sys_envdata(){
 	echo "govnor:" $(cat /sys/devices/system/cpu/cpu0/cpufreq/scaling_governor) >> $MLOG
 	echo "hgpage:" $(grep HugePages_Total /proc/meminfo | awk '{print $2}') >> $MLOG
 
-	hostip=$(ifconfig | grep broadcast | grep -v 172.17 | awk '{print $2}')
+	hostip=$(ifconfig | grep broadcast | grep -v 172.17 | awk '{print $2}' | grep -v ^169)
 	echo "kernel:" $(uname -r) >> $MLOG
 	echo "hostip:" ${hostip}   >> $MLOG
 	macadd=$(ifconfig | grep $hostip -A 2 | grep ether |  awk '{print $2}')
 	echo "hosmac:" ${macadd}   >> $MLOG
-	
+
 	hosnic=$(lspci | grep Eth | awk -F': ' '{print $2}' | sed 's/Intel Corporation Ethernet//g')
 	echo "hosnic:" ${hosnic}   >> $MLOG
 
@@ -365,7 +359,7 @@ function get_sys_envdata(){
 	echo "elapse:" $(($end_time-$start_time)) >> $MLOG
 	echo "testts:" $start_YYYY   >> $MLOG
 
-	echo "python:" $( python -V | cut -b 8-) >> $MLOG
+	echo "python:" $( python3 -V | cut -b 8-) >> $MLOG
 	echo "osname:" $( grep ^NAME= /etc/os-release | awk -F'=' '{print $2}' | awk -F'"' '{print $2}') >> $MLOG
 	echo "osvern:" $( grep ^VERSION_ID= /etc/os-release | awk -F'=' '{print $2}' | awk -F'"' '{print $2}' ) >> $MLOG
 	echo "opnmpi:" $( ls /opt/habanalabs/ | grep openmpi | cut -b 9- ) >> $MLOG
