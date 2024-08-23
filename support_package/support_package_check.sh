@@ -3,6 +3,8 @@
 # Supermiro Gaudi Support Package
 # Jing Kang 8/2024
 
+export PATH=.:$PATH
+
 GD2=1 && GD3=1
 GMODEL=`hl-smi -L | head -n 12 | grep Product | awk '{print $4}'`
 [[ $GMODEL =~ 'HL-225' ]] && GD2=0 || GD3=0
@@ -193,8 +195,7 @@ function parse_args(){
 }
 
 function prerun-syscheck(){
-	export PATH=.:$PATH
-
+	SECONDS=0
     # add required modules
     apt install -y ipmitool expect sqlite3 postgresql-client sysstat zip  &>/dev/null
 
@@ -244,6 +245,7 @@ function prerun-syscheck(){
 	pip list | grep habana &>/dev/null
 	if ! [ $? -eq 0 ]; then
 		#echo -e "  ${RED}warn: habana python module not found, skip LLM test${NCL}"
+		echo -e "  ${YLW}HL Python:${NCL}" No | tee -a $tmpf
 		HABAPYTORCH=-1
 	else 
 		HABAPYTORCH=0
@@ -252,7 +254,7 @@ function prerun-syscheck(){
 	mpiver=$(ls /opt/habanalabs/ | grep openmpi | cut -b 9-)
 	export PATH=/opt/python-llm/bin:/opt/habanalabs/openmpi-${mpiver}/bin:${PAR}/tool:$PATH
 	export PT_HPU_LAZY_MODE=1
-	SECONDS=0
+	echo -e "  ${YLW}Env Check:${NCL}" ${SECONDS} | tee -a $tmpf
 }
 
 function start_sys_mon(){
@@ -752,7 +754,7 @@ function ts_gpu1020_check-cpld(){ #desc: check gpu cpld: 10
 
 ROOT_CAUSES=
 
-function ts_gpu1030_gpu_pci_id(){ #desc: check gpu pci id
+function ts_gpu1030_check_gpu_busid(){ #desc: check gpu bus-id
 	gcn=$(hl-smi -L | grep "Bus Id" | awk '{print $4}' |  sed 's/0000://')
 
 	check_oam "b3:00.0" 0
@@ -771,6 +773,52 @@ function ts_gpu1030_gpu_pci_id(){ #desc: check gpu pci id
 	|| (print_result ${FUNCNAME} 1; res[$1]=1)
 }
 
+function ts_gpu1040_check_powergood(){ #desc: check PowerGood
+	flag=0
+	pg=`ipmitool raw 0x30 0x70 0xef 2 0x70 0x4b 2 0x9e 1 0x02 | xargs`
+	[[ "$pg" == "00" ]] && passert "OAM PRESENT   $pg OK" || passert "OAM PRESENT   $pg NG"
+	[[ "$pg" != "00" ]] && flag=$((flag + 1))
+
+	pg=`ipmitool raw 0x30 0x70 0xef 2 0x70 0x4b 2 0x9e 1 0x04 | xargs`
+	[[ "$pg" == "ff" ]] && passert "OAM P54V PG   $pg OK" || passert "OAM P54V PG   $pg NG"
+	[[ "$pg" != "ff" ]] && flag=$((flag + 1))
+
+	pg=`ipmitool raw 0x30 0x70 0xef 2 0x70 0x4b 2 0x9e 1 0x06 | xargs`
+	[[ "$pg" == "ff" ]] && passert "OAM P12V PG   $pg OK" || passert "OAM P12V PG   $pg NG"
+	[[ "$pg" != "ff" ]] && flag=$((flag + 1))
+	
+	pg=`ipmitool raw 0x30 0x70 0xef 2 0x70 0x4b 2 0x9e 1 0x09 | xargs`
+	[[ "$pg" == "ff" ]] && passert "OAM MODULE PG $pg OK" || passert "OAM MODULE PG $pg NG"
+	[[ "$pg" != "ff" ]] && flag=$((flag + 1))
+
+	pg=`ipmitool raw 0x30 0x70 0xef 2 0x70 0x4c 2 0x84 1 0x09 | xargs`
+	[[ "$pg" == "0f" ]] && passert "UBB PG        $pg OK" || passert "UBB PG        $pg NG"
+	[[ "$pg" != "0f" ]] && flag=$((flag + 1))
+
+	pg=`ipmitool raw 0x30 0x70 0xef 2 0x70 0x4b 2 0x9e 1 0x01 | xargs`
+	[[ "$pg" == "ff" ]] && passert "OAM THERMTRIP $pg OK" || passert "OAM THERMTRIP $pg NG"
+	[[ "$pg" != "ff" ]] && flag=$((flag + 1))
+
+	ipmitool raw 0x30 0x70 0xef 2 0x70 0x4b 2 0x9e 0xff 0x0 > $OUTPUT/_cpld0xffx0
+
+	[[ $flag == 0 ]] && print_result ${FUNCNAME} 0 || print_result ${FUNCNAME} 1
+	[[ $flag == 0 ]] && res[$1]=0 || res[$1]=1
+}
+
+function ts_gpu1050_check_gpu_pcie(){ #desc: check pcie PMC LnkSta Habana
+	flag=0
+	pg=`lspci -d :4000: -nnvv | grep -Ew "PMC|LnkSta" | grep \(ok\) | wc  -l`
+	[[ "$pg" == "12" ]] && passert "PMC-Sierra LnkSta ok count $pg OK" || passert "PMC-Sierra LnkSta ok count $pg NG"
+	[[ "$pg" != "12" ]] && flag=$((flag + 1))
+
+	pg=`lspci -d :1020: -nnvv | grep -Ew "Habana|LnkSta" | grep \(ok\) | wc  -l`
+	[[ "$pg" == "8" ]] && passert "Habana LnkSta     ok count $pg  OK" || passert "Habana LnkSta     ok count $pg  NG"
+	[[ "$pg" != "8" ]] && flag=$((flag + 1))
+
+	[[ $flag == 0 ]] && print_result ${FUNCNAME} 0 || print_result ${FUNCNAME} 1
+	[[ $flag == 0 ]] && res[$1]=0 || res[$1]=1
+}
+
 EOM
 }
 
@@ -782,15 +830,15 @@ function check_oam(){
 }
 
 function passert(){
-	[[ $* =~ (lost|fail) ]] && ROOT_CAUSES="$*"
+	[[ $* =~ (lost|fail|NG) ]] && ROOT_CAUSES="$*"
 
-	[[ $* =~ (lost|fail) ]] \
+	[[ $* =~ (lost|fail|NG) ]] \
 		&& printf "${RED}    %s${NCL}\n" "$*" | tee -a $TRAINL \
 		|| printf "${GRN}    %s${NCL}\n" "$*" | tee -a $TRAINL
 }
 
 function print_result(){
-	printf "%25s : " $1	| tee -a $TRAINL
+	printf "%30s : " $1	| tee -a $TRAINL
 	if   [[ $2 -eq 0 ]]; then
 		echo -e "${GRN}PASS${NCL}" | tee -a $TRAINL
 	elif [[ $2 -eq 1 ]]; then
@@ -907,12 +955,11 @@ rm -rf   $OUTPUT &>/dev/null
 mkdir -p $OUTPUT &>/dev/null
 
 start_sys_mon
-
-#echo $TESTCASE_ID $SYSTEM_INFO $SUPPORT_PKG
-sleep 2
+sleep 1
 
 # gather system os info
 get_sys_envdata "supportpkg" "0.1" "mnist"
+echo -e "  ${YLW}Configure:${NCL}" ${SECONDS} | tee -a $tmpf
 
 # print system info only
 if [[ $SYSTEM_INFO -eq 1 ]]; then
