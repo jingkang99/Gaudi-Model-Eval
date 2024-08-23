@@ -3,11 +3,13 @@
 # Supermiro Gaudi Support Package
 # Jing Kang 8/2024
 
-export PATH=.:$PATH
-
 GD2=1 && GD3=1
 GMODEL=`hl-smi -L | head -n 12 | grep Product | awk '{print $4}'`
 [[ $GMODEL =~ 'HL-225' ]] && GD2=0 || GD3=0
+
+[[ $GD2 == 0 ]] && GPATH=".:/opt/habanalabs/qual/gaudi2/bin"
+[[ $GD3 == 0 ]] && GPATH=".:/opt/habanalabs/qual/gaudi3/bin"
+export PATH=$GPATH:$PATH
 
 SRC=`readlink -f "${BASH_SOURCE[0]}" 2>/dev/null||echo $0`
 CUR=`dirname "${SRC}"`
@@ -379,6 +381,8 @@ function get_sys_envdata(){
 	hl-smi | grep HL-225 | awk '{print "gpu busidr- " $2,$6}' >> $MLOG
 
 	ipmitool dcmi power reading >> $MLOG
+
+	lspci -vt > $OUTPUT/_lspciv.log
 }
 
 function log2-metabasedb(){
@@ -737,7 +741,7 @@ cat >testcases.sh <<- 'EOM'
 function ts_gpu1010_count-gpu(){ #desc: gpu count: 8
 	cnt=$(hl-smi -L | grep SPI | wc -l)
 
-	[[ $GD2 ]] && gcn=$(lspci -d :1020: -nn | wc -l) || gcn=$(lspci -d :1060: -nn | wc -l)
+	[[ $GD2 == 0 ]] && gcn=$(lspci -d :1020: -nn | wc -l) || gcn=$(lspci -d :1060: -nn | wc -l)
 
 	[[ $cnt == 8 && $gcn == 8 ]] && (print_result ${FUNCNAME} 0; res[$1]=0) \
 					|| (print_result ${FUNCNAME} 1; res[$1]=1)
