@@ -7,9 +7,14 @@ GD2=1 && GD3=1
 GMODEL=`hl-smi -L | head -n 12 | grep Product | awk '{print $4}'`
 [[ $GMODEL =~ 'HL-225' ]] && GD2=0 || GD3=0
 
-[[ $GD2 == 0 ]] && GPATH=".:/opt/habanalabs/qual/gaudi2/bin"
-[[ $GD3 == 0 ]] && GPATH=".:/opt/habanalabs/qual/gaudi3/bin"
-export PATH=$GPATH:$PATH
+[[ $GD2 == 0 ]] && GPATH="/opt/habanalabs/qual/gaudi2/bin"
+[[ $GD3 == 0 ]] && GPATH="/opt/habanalabs/qual/gaudi3/bin"
+export PATH=.:$GPATH:$PATH
+
+GOPT="-gaudi2"
+[[ $GD3 == 0 ]] && GOPT="-gaudi3"
+
+GLOG=/var/log/habana_logs/qual
 
 SRC=`readlink -f "${BASH_SOURCE[0]}" 2>/dev/null||echo $0`
 CUR=`dirname "${SRC}"`
@@ -35,7 +40,7 @@ CYA='\033[0;36m'
 NCL='\033[0m' 
 
 function print_synopsis() {
-    cat << EOF
+cat << EOF
 NAME
         `basename $0`
 
@@ -179,6 +184,10 @@ function parse_args(){
 				check_gpu_oam_cpld
 				echo -e "${YLW}OAM CPLD Version:${NCL} " $OAM_CPLDS
                 exit 0 ;;
+            -hq | --hl_qual)
+				echo -e "${YLW}hl_qual Verification Order${NCL}"
+				print_hl_qual_plan
+				exit 0 ;;
             -h | --help )
                 print_synopsis
                 exit 0
@@ -823,7 +832,69 @@ function ts_gpu1050_check_gpu_pcie(){ #desc: check pcie PMC LnkSta Habana
 	[[ $flag == 0 ]] && res[$1]=0 || res[$1]=1
 }
 
+function ts_qua1060_Memory_BW_Test(){ #desc: check Memory_BW_Test
+	printf "  ${GRN}qual: Memory_BW_Test: "
+	local start=$(date +%s)
+
+	cd $GPATH
+	rm -rf ${GLOG}/* &>/dev/null
+	hl_qual -gaudi2 -mb -memOnly -rmod parallel -c all -dis_mon &>/dev/null
+	runt=$(($(date +%s) - start))
+	cd - &>/dev/null
+	echo -e ${runt}${NCL}
+
+	glog=$(ls -rt ${GLOG} | tail -n 1)
+	rslt=$(tail -n 1 ${GLOG}/${glog})
+
+	cp ${GLOG}/${glog} $OUTPUT/_${glog}-'Memory_BW'
+
+	if [[ $rslt == "PASSED" ]]; then
+		print_result ${FUNCNAME} 0
+		res[$1]=0 
+	else
+		passert "memory test fail-${runt}"
+		print_result ${FUNCNAME} 1
+		res[$1]=1
+	fi
+}
+
+function ts_qua1070_Memory_BW_Test(){ #desc: check Memory_BW_Test
+	printf "  ${GRN}qual: Memory_BW_Test: "
+	local start=$(date +%s)
+
+	cd $GPATH
+	rm -rf ${GLOG}/* &>/dev/null
+	hl_qual -gaudi2 -mb -memOnly -rmod parallel -c all -dis_mon &>/dev/null
+	runt=$(($(date +%s) - start))
+	cd - &>/dev/null
+	echo -e ${runt}${NCL}
+
+	glog=$(ls -rt ${GLOG} | tail -n 1)
+	rslt=$(tail -n 1 ${GLOG}/${glog})
+
+	cp ${GLOG}/${glog} $OUTPUT/_${glog}-'Memory_BW'
+
+	if [[ $rslt == "PASSED" ]]; then
+		print_result ${FUNCNAME} 0
+		res[$1]=0 
+	else
+		passert "memory test fail-${runt}"
+		print_result ${FUNCNAME} 1
+		res[$1]=1
+	fi
+}
+
 EOM
+}
+
+function print_hl_qual_plan(){
+cat  << EOF
+ --------    --------    --------    --------    --------    --------    --------    --------
+|        |  |        |  |        |  |        |  |        |  |        |  |        |  |        | 
+| PCI BW |->| Serdes |->| HCLAPI |->| Power  |->| Power  |->| Simple |->| FT     |->| FT     |
+|        |  |        |  |        |  | Stress |  | EDP    |  | FT     |  | LoopB  |  | AllG   |
+ --------    --------    --------    --------    --------    --------    --------    --------
+EOF
 }
 
 function check_oam(){
