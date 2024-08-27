@@ -209,15 +209,17 @@ function parse_args(){
 
 function prerun-syscheck(){
 	SECONDS=0
-    # add required modules
-    apt install -y ipmitool expect sqlite3 postgresql-client sysstat zip  &>/dev/null
+
+    apt install -y ipmitool expect sqlite3 postgresql-client sysstat zip &>/dev/null
 	pip3 install numpy  &>/dev/null
 
 	BUSY=$(hl-smi |  grep "N/A   N/A    N/A" | wc -l)
 	if [ $BUSY -ne 8 ]
 	then
-		echo -e "${RED}System Occupied! ${NCL}"
-		exit 1
+		echo -e "${RED}warn: gaudi occupied${NCL}"
+		clean_runner
+		BUSY=$(hl-smi |  grep "N/A   N/A    N/A" | wc -l)
+		[[ $BUSY -ne 8 ]] && exit 1
 	fi
 
 	start_time=$(date +%s)
@@ -931,20 +933,12 @@ function ts_qua1070_PCI_BW_Test(){ #desc: check PCI_BW_Test
 	fi
 }
 
-function reload_hl_drivers(){
-	echo "  reload hl drive with timeout_locked=0"
-	rmmod habanalabs &
-	progress_bar 88
-	
-	modprobe habanalabs timeout_locked=0
-	progress_bar 28
-}
-
 function ts_qua1080_HBM_Stress_Test(){ #desc: check HBM_Stress_Test
+	clean_runner
 	printf "  ${GRN}qual: HBM_Stress_Test: "
 	local start=$(date +%s)
 
-	reload_hl_drivers
+	reload_hl_drivers "lock"
 
 	cd $GPATH
 	rm -rf ${GLOG}/* &>/dev/null
@@ -972,18 +966,20 @@ function ts_qua1080_HBM_Stress_Test(){ #desc: check HBM_Stress_Test
 }
 
 function ts_qua1082_HBM_Stress_DMA(){ #desc: check HBM_Stress_DMA
-	printf "  ${GRN}qual: HBM_Stress_DMA: "
+	clean_runner
+	printf "  ${GRN}qual: HBM_Stress_DMA\n"
 	local start=$(date +%s)
 
 	cd $GPATH
 	rm -rf ${GLOG}/* &>/dev/null
 	hl_qual -gaudi2 -hbm_dma_stress -i 3 -rmod parallel -c all -dis_mon &>/dev/null &
-	progress_bar 410
+	progress_bar 470
+	cd - &>/dev/null
 
 	runt=$(($(date +%s) - start))
-	echo -e "  -hbm_dma_stress : ${runt}${NCL}"
-
-	cd - &>/dev/null
+	printf "  -hbm_dma_stress: "
+	hl_qual_exec_time
+	printf "${NCL}\n"
 
 	glog=$(ls -rt ${GLOG} | tail -n 1)
 	rslt=$(tail -n 1 ${GLOG}/${glog})
@@ -1001,6 +997,7 @@ function ts_qua1082_HBM_Stress_DMA(){ #desc: check HBM_Stress_DMA
 }
 
 function ts_qua1084_HBM_Stress_TPC(){ #desc: check HBM_Stress_TPC
+	clean_runner
 	printf "  ${GRN}qual: HBM_Stress_TPC: "
 	local start=$(date +%s)
 
@@ -1008,11 +1005,10 @@ function ts_qua1084_HBM_Stress_TPC(){ #desc: check HBM_Stress_TPC
 	rm -rf ${GLOG}/* &>/dev/null
 	hl_qual -gaudi2 -hbm_tpc_stress -i 3 -rmod parallel -c all -dis_mon &>/dev/null &
 	progress_bar 300
+	cd - &>/dev/null
 
 	runt=$(($(date +%s) - start))
 	echo -e "  -hbm_tpc_stress : ${runt}${NCL}"
-
-	cd - &>/dev/null
 
 	glog=$(ls -rt ${GLOG} | tail -n 1)
 	rslt=$(tail -n 1 ${GLOG}/${glog})
@@ -1030,6 +1026,7 @@ function ts_qua1084_HBM_Stress_TPC(){ #desc: check HBM_Stress_TPC
 }
 
 function ts_qua1090_NIC_Base_Pairs(){ #desc: check NIC_Base_Pairs
+	clean_runner
 	printf "  ${GRN}qual: NIC_Base_Test: "
 	local start=$(date +%s)
 
@@ -1037,14 +1034,13 @@ function ts_qua1090_NIC_Base_Pairs(){ #desc: check NIC_Base_Pairs
 	rm -rf ${GLOG}/* &>/dev/null
 	hl_qual -gaudi2 -c all -rmod parallel -i 50 -nic_base -test_type pairs -dis_mon &>/dev/null &
 	progress_bar 30
+	cd - &>/dev/null
 
 	printf "  -nic_base pairs: "
 	hl_qual_exec_time
 	printf "${NCL}\n"
 
 	runt=$(($(date +%s) - start))
-
-	cd - &>/dev/null
 
 	glog=$(ls -rt ${GLOG} | tail -n 1)
 	rslt=$(tail -n 1 ${GLOG}/${glog})
@@ -1062,6 +1058,7 @@ function ts_qua1090_NIC_Base_Pairs(){ #desc: check NIC_Base_Pairs
 }
 
 function ts_qua1092_NIC_Base_Allreduce(){ #desc: check NIC_Base_allreduce
+	clean_runner
 	printf "  ${GRN}qual: NIC_Base_allreduce: "
 	local start=$(date +%s)
 
@@ -1094,6 +1091,7 @@ function ts_qua1092_NIC_Base_Allreduce(){ #desc: check NIC_Base_allreduce
 }
 
 function ts_qua1100_E2E_Concurrency(){ #desc: check E2E_Concurrency_Test
+	clean_runner
 	printf "  ${GRN}qual: E2E_Concurrency_Test: "
 	local start=$(date +%s)
 
@@ -1126,6 +1124,7 @@ function ts_qua1100_E2E_Concurrency(){ #desc: check E2E_Concurrency_Test
 }
 
 function ts_qua1110_SerDes_BER_Test(){ #desc: check SerDes_BER_Test
+	clean_runner
 	printf "  ${GRN}qual: SerDes_BER_Test: "
 	local start=$(date +%s)
 
@@ -1158,6 +1157,7 @@ function ts_qua1110_SerDes_BER_Test(){ #desc: check SerDes_BER_Test
 }
 
 function ts_qua1120_Functional_Test(){ #desc: check Functional_Test
+	clean_runner
 	printf "  ${GRN}qual: Functional_Test: "
 	local start=$(date +%s)
 
@@ -1190,6 +1190,7 @@ function ts_qua1120_Functional_Test(){ #desc: check Functional_Test
 }
 
 function ts_qua1130_Power_Stress(){ #desc: check Power_EDP
+	clean_runner
 	printf "  ${GRN}qual: Power_EPD: "
 	local start=$(date +%s)
 
@@ -1222,6 +1223,7 @@ function ts_qua1130_Power_Stress(){ #desc: check Power_EDP
 }
 
 function ts_qua1132_Power_Extreme(){ #desc: check Power_extreme
+	clean_runner
 	printf "  ${GRN}qual: Power_extreme: "
 	local start=$(date +%s)
 
@@ -1253,8 +1255,12 @@ function ts_qua1132_Power_Extreme(){ #desc: check Power_extreme
 	fi
 }
 
-
 EOM
+}
+
+function clean_runner(){
+	pkill runner
+	hl-smi | grep -P "AIP +PID" -A 9 | awk '{print $3}' | grep -P "\d+" | xargs kill -9 &>/dev/null
 }
 
 function print_hl_qual_plan(){
@@ -1266,8 +1272,8 @@ cat  << EOF
  --------    --------    --------    --------    --------    --------    --------    --------
 EOF
 
-echo
-grep "hl_qual -gaudi2" ${BASH_SOURCE[0]} | grep -v grep | awk -F'&' '{print $1}'
+	echo
+	grep "hl_qual -gaudi2" ${BASH_SOURCE[0]} | grep -v grep | awk -F'&' '{print $1}'
 }
 
 function hl_qual_exec_time(){
@@ -1277,6 +1283,15 @@ function hl_qual_exec_time(){
 	local s1=`grep "Finish running plugin" $lll | head -n 1 | awk -F'.' '{print $1}' | awk -F'[' '{print $2}'`
 	difftm=$(( $(date -d "$s1" "+%s") - $(date -d "$s0" "+%s") ))
 	printf "%s - %s %s - %s" $difftm $s1 $s0 $rrr
+}
+
+function reload_hl_drivers(){
+	echo "  reload hl drive with timeout_locked=0"
+	rmmod habanalabs &
+	progress_bar 90
+
+	[[ $1 =~ "lock" ]] && modprobe habanalabs timeout_locked=0 || modprobe habanalabs
+	progress_bar 30
 }
 
 function check_oam(){
