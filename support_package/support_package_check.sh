@@ -16,6 +16,8 @@ GOPT="-gaudi2"
 
 GLOG=/var/log/habana_logs/qual
 
+#----
+
 SRC=`readlink -f "${BASH_SOURCE[0]}" 2>/dev/null||echo $0`
 CUR=`dirname "${SRC}"`
 PAR=`dirname "${CUR}"`
@@ -209,6 +211,7 @@ function prerun-syscheck(){
 	SECONDS=0
     # add required modules
     apt install -y ipmitool expect sqlite3 postgresql-client sysstat zip  &>/dev/null
+	pip3 install numpy  &>/dev/null
 
 	BUSY=$(hl-smi |  grep "N/A   N/A    N/A" | wc -l)
 	if [ $BUSY -ne 8 ]
@@ -730,19 +733,55 @@ function get_external_ip_info(){
 	rm -rf sip &>/dev/null
 }
 
-function lts_gpu1010_count-gpu(){ #desc: gpu count: 8
-	cnt=$(hl-smi -L  | grep SPI | wc -l)
-	[[ $cnt == 8 ]] && (print_result ${FUNCNAME} 0; res[$1]=0) \
-					|| (print_result ${FUNCNAME} 1; res[$1]=1)
+function progress_baa() {
+	local duration=${1}
+	already_done() { for ((done=0; done<$elapsed; done++)); do printf "▇"; done }
+	remaining() { for ((remain=$elapsed; remain<$duration; remain++)); do printf " "; done }
+	percentage() { printf "| %s%%" $(( (($elapsed)*100)/($duration)*100/100 )); }
+	clean_line() { printf "\r"; }
+
+	for (( elapsed=1; elapsed<=$duration; elapsed++ )); do
+		already_done; remaining; percentage
+		sleep 1
+		clean_line
+	done
+	clean_line
 }
 
-function lts_gpu1020_check-cpld(){ #desc: check gpu cpld: 10
-	check_gpu_oam_cpld
-	OAM_CPLDS=$(echo $OAM_CPLDS)
+function show_progress {
+	bar_size=40
+	bar_char_done="#"
+	bar_char_todo="-"
+	bar_percentage_scale=2
 
-	[[ $OAM_CPLDS == "10 10 10 10 10 10 10 10" ]] \
-	&& (print_result ${FUNCNAME} 0; res[$1]=0) \
-	|| (print_result ${FUNCNAME} 1; res[$1]=1)
+    current="$1"
+    total="$2"
+
+    # calculate the progress in percentage 
+    percent=$(bc <<< "scale=$bar_percentage_scale; 100 * $current / $total" )
+    # The number of done and todo characters
+    done=$(bc <<< "scale=0; $bar_size * $percent / 100" )
+    todo=$(bc <<< "scale=0; $bar_size - $done" )
+
+    # build the done and todo sub-bars
+    done_sub_bar=$(printf "%${done}s" | tr " " "${bar_char_done}")
+    todo_sub_bar=$(printf "%${todo}s" | tr " " "${bar_char_todo}")
+
+    # output the bar
+    echo -ne "\r  [${done_sub_bar}${todo_sub_bar}] ${percent}%"
+	printf "\r";
+}
+
+function progress_bar(){
+	tasks_in_total=$1
+	for current_task in $(seq $tasks_in_total) 
+		do
+		sleep 1
+		show_progress $current_task $tasks_in_total
+	done
+
+	printf ' %.0s' {1..100}
+	echo
 }
 
 function save_unit_testcases(){
@@ -832,21 +871,55 @@ function ts_gpu1050_check_gpu_pcie(){ #desc: check pcie PMC LnkSta Habana
 	[[ $flag == 0 ]] && res[$1]=0 || res[$1]=1
 }
 
-function ts_qua1060_Memory_BW_Test(){ #desc: check Memory_BW_Test
-	printf "  ${GRN}qual: Memory_BW_Test: "
+function ts_qua1060_Memory_BW_memOnly(){ #desc: check Memory_BW_Test memOnly
+	printf "  ${GRN}qual: Memory_BW_Test memOnly: "
 	local start=$(date +%s)
 
 	cd $GPATH
 	rm -rf ${GLOG}/* &>/dev/null
-	hl_qual -gaudi2 -mb -memOnly -rmod parallel -c all -dis_mon &>/dev/null
+	hl_qual -gaudi2 -mb -memOnly -rmod parallel -c all -dis_mon &>/dev/null &
+	progress_bar 30
+
+	printf "  -hbm_dma_stress : "
+	hl_qual_exec_time
+	printf "${NCL}\n"
+
 	runt=$(($(date +%s) - start))
 	cd - &>/dev/null
-	echo -e ${runt}${NCL}
+	#echo -e ${runt}${NCL}
 
 	glog=$(ls -rt ${GLOG} | tail -n 1)
 	rslt=$(tail -n 1 ${GLOG}/${glog})
 
-	cp ${GLOG}/${glog} $OUTPUT/_${glog}-'Memory_BW'
+	cp ${GLOG}/${glog} $OUTPUT/_${glog}-'Memory_memOnly'
+
+	if [[ $rslt == "PASSED" ]]; then
+		print_result ${FUNCNAME} 0
+		res[$1]=0 
+	else
+		passert "memory only test fail-${runt}"
+		print_result ${FUNCNAME} 1
+		res[$1]=1
+	fi
+}
+
+function ts_qua1070_PCI_BW_Test(){ #desc: check PCI_BW_Test
+	printf "  ${GRN}qual: PCI_BW_Test: "
+	local start=$(date +%s)
+
+	cd $GPATH
+	rm -rf ${GLOG}/* &>/dev/null
+	`pip install numpy`
+	__python_cmd=python3 hl_qual -gaudi2 -mb -memOnly -rmod parallel -c all -dis_mon &>/dev/null
+	runt=$(($(date +%s) - start))
+	echo -e "  -mb -memOnly : ${runt}${NCL}"
+
+	cd - &>/dev/null
+
+	glog=$(ls -rt ${GLOG} | tail -n 1)
+	rslt=$(tail -n 1 ${GLOG}/${glog})
+
+	cp ${GLOG}/${glog} $OUTPUT/_${glog}-'PCI_BW'
 
 	if [[ $rslt == "PASSED" ]]; then
 		print_result ${FUNCNAME} 0
@@ -858,31 +931,328 @@ function ts_qua1060_Memory_BW_Test(){ #desc: check Memory_BW_Test
 	fi
 }
 
-function ts_qua1070_Memory_BW_Test(){ #desc: check Memory_BW_Test
-	printf "  ${GRN}qual: Memory_BW_Test: "
+function reload_hl_drivers(){
+	echo "  reload hl drive with timeout_locked=0"
+	rmmod habanalabs &
+	progress_bar 88
+	
+	modprobe habanalabs timeout_locked=0
+	progress_bar 28
+}
+
+function ts_qua1080_HBM_Stress_Test(){ #desc: check HBM_Stress_Test
+	printf "  ${GRN}qual: HBM_Stress_Test: "
 	local start=$(date +%s)
+
+	reload_hl_drivers
 
 	cd $GPATH
 	rm -rf ${GLOG}/* &>/dev/null
-	hl_qual -gaudi2 -mb -memOnly -rmod parallel -c all -dis_mon &>/dev/null
+	hl_qual -gaudi2 -full_hbm_data_check_test -i 3 -rmod parallel -c all -dis_mon &>/dev/null &
+	progress_bar 342
+
 	runt=$(($(date +%s) - start))
+	echo -e "  -full_hbm_data_check_test : ${runt}${NCL}"
+
 	cd - &>/dev/null
-	echo -e ${runt}${NCL}
 
 	glog=$(ls -rt ${GLOG} | tail -n 1)
 	rslt=$(tail -n 1 ${GLOG}/${glog})
 
-	cp ${GLOG}/${glog} $OUTPUT/_${glog}-'Memory_BW'
+	cp ${GLOG}/${glog} $OUTPUT/_${glog}-'HBM_Stress'
 
 	if [[ $rslt == "PASSED" ]]; then
 		print_result ${FUNCNAME} 0
 		res[$1]=0 
 	else
-		passert "memory test fail-${runt}"
+		passert "hbm full test fail-${runt}"
 		print_result ${FUNCNAME} 1
 		res[$1]=1
 	fi
 }
+
+function ts_qua1082_HBM_Stress_DMA(){ #desc: check HBM_Stress_DMA
+	printf "  ${GRN}qual: HBM_Stress_DMA: "
+	local start=$(date +%s)
+
+	cd $GPATH
+	rm -rf ${GLOG}/* &>/dev/null
+	hl_qual -gaudi2 -hbm_dma_stress -i 3 -rmod parallel -c all -dis_mon &>/dev/null &
+	progress_bar 410
+
+	runt=$(($(date +%s) - start))
+	echo -e "  -hbm_dma_stress : ${runt}${NCL}"
+
+	cd - &>/dev/null
+
+	glog=$(ls -rt ${GLOG} | tail -n 1)
+	rslt=$(tail -n 1 ${GLOG}/${glog})
+
+	cp ${GLOG}/${glog} $OUTPUT/_${glog}-'HBM_DMA'
+
+	if [[ $rslt == "PASSED" ]]; then
+		print_result ${FUNCNAME} 0
+		res[$1]=0 
+	else
+		passert "hbm dma fail-${runt}"
+		print_result ${FUNCNAME} 1
+		res[$1]=1
+	fi
+}
+
+function ts_qua1084_HBM_Stress_TPC(){ #desc: check HBM_Stress_TPC
+	printf "  ${GRN}qual: HBM_Stress_TPC: "
+	local start=$(date +%s)
+
+	cd $GPATH
+	rm -rf ${GLOG}/* &>/dev/null
+	hl_qual -gaudi2 -hbm_tpc_stress -i 3 -rmod parallel -c all -dis_mon &>/dev/null &
+	progress_bar 300
+
+	runt=$(($(date +%s) - start))
+	echo -e "  -hbm_tpc_stress : ${runt}${NCL}"
+
+	cd - &>/dev/null
+
+	glog=$(ls -rt ${GLOG} | tail -n 1)
+	rslt=$(tail -n 1 ${GLOG}/${glog})
+
+	cp ${GLOG}/${glog} $OUTPUT/_${glog}-'HBM_TPC'
+
+	if [[ $rslt == "PASSED" ]]; then
+		print_result ${FUNCNAME} 0
+		res[$1]=0 
+	else
+		passert "hbm tpc fail-${runt}"
+		print_result ${FUNCNAME} 1
+		res[$1]=1
+	fi
+}
+
+function ts_qua1090_NIC_Base_Pairs(){ #desc: check NIC_Base_Pairs
+	printf "  ${GRN}qual: NIC_Base_Test: "
+	local start=$(date +%s)
+
+	cd $GPATH
+	rm -rf ${GLOG}/* &>/dev/null
+	hl_qual -gaudi2 -c all -rmod parallel -i 50 -nic_base -test_type pairs -dis_mon &>/dev/null &
+	progress_bar 30
+
+	printf "  -nic_base pairs: "
+	hl_qual_exec_time
+	printf "${NCL}\n"
+
+	runt=$(($(date +%s) - start))
+
+	cd - &>/dev/null
+
+	glog=$(ls -rt ${GLOG} | tail -n 1)
+	rslt=$(tail -n 1 ${GLOG}/${glog})
+
+	cp ${GLOG}/${glog} $OUTPUT/_${glog}-'NIC_Base_Pairs'
+
+	if [[ $rslt == "PASSED" ]]; then
+		print_result ${FUNCNAME} 0
+		res[$1]=0 
+	else
+		passert "nic base pairs fail-${runt}"
+		print_result ${FUNCNAME} 1
+		res[$1]=1
+	fi
+}
+
+function ts_qua1092_NIC_Base_Allreduce(){ #desc: check NIC_Base_allreduce
+	printf "  ${GRN}qual: NIC_Base_allreduce: "
+	local start=$(date +%s)
+
+	cd $GPATH
+	rm -rf ${GLOG}/* &>/dev/null
+	hl_qual -gaudi2 -c all -rmod parallel -i 50 -ep 100 -nic_base -test_type allreduce -dis_mon &>/dev/null &
+	progress_bar 25
+
+	printf "  -nic_base allreduce: "
+	hl_qual_exec_time
+	printf "${NCL}\n"
+
+	runt=$(($(date +%s) - start))
+
+	cd - &>/dev/null
+
+	glog=$(ls -rt ${GLOG} | tail -n 1)
+	rslt=$(tail -n 1 ${GLOG}/${glog})
+
+	cp ${GLOG}/${glog} $OUTPUT/_${glog}-'NIC_Base_Allreduce'
+
+	if [[ $rslt == "PASSED" ]]; then
+		print_result ${FUNCNAME} 0
+		res[$1]=0 
+	else
+		passert "nic base allreduce fail-${runt}"
+		print_result ${FUNCNAME} 1
+		res[$1]=1
+	fi
+}
+
+function ts_qua1100_E2E_Concurrency(){ #desc: check E2E_Concurrency_Test
+	printf "  ${GRN}qual: E2E_Concurrency_Test: "
+	local start=$(date +%s)
+
+	cd $GPATH
+	rm -rf ${GLOG}/* &>/dev/null
+	hl_qual -gaudi2 -e2e_concurrency -disable_ports 8,22,23 -enable_ports_check int -t 30 -rmod parallel -c all -dis_mon &>/dev/null &
+	progress_bar 65
+
+	printf "  -e2e_concurrency : "
+	hl_qual_exec_time
+	printf "${NCL}\n"
+
+	runt=$(($(date +%s) - start))
+
+	cd - &>/dev/null
+
+	glog=$(ls -rt ${GLOG} | tail -n 1)
+	rslt=$(tail -n 1 ${GLOG}/${glog})
+
+	cp ${GLOG}/${glog} $OUTPUT/_${glog}-'E2E_Concur'
+
+	if [[ $rslt == "PASSED" ]]; then
+		print_result ${FUNCNAME} 0
+		res[$1]=0 
+	else
+		passert "e2e concur fail-${runt}"
+		print_result ${FUNCNAME} 1
+		res[$1]=1
+	fi
+}
+
+function ts_qua1110_SerDes_BER_Test(){ #desc: check SerDes_BER_Test
+	printf "  ${GRN}qual: SerDes_BER_Test: "
+	local start=$(date +%s)
+
+	cd $GPATH
+	rm -rf ${GLOG}/* &>/dev/null
+	hl_qual -gaudi2 -ser -rmod parallel -c all -dis_mon &>/dev/null &
+	progress_bar 18
+
+	printf "  -ser : "
+	hl_qual_exec_time
+	printf "${NCL}\n"
+
+	runt=$(($(date +%s) - start))
+
+	cd - &>/dev/null
+
+	glog=$(ls -rt ${GLOG} | tail -n 1)
+	rslt=$(tail -n 1 ${GLOG}/${glog})
+
+	cp ${GLOG}/${glog} $OUTPUT/_${glog}-'SerDes_BER'
+
+	if [[ $rslt == "PASSED" ]]; then
+		print_result ${FUNCNAME} 0
+		res[$1]=0 
+	else
+		passert "ser fail-${runt}"
+		print_result ${FUNCNAME} 1
+		res[$1]=1
+	fi
+}
+
+function ts_qua1120_Functional_Test(){ #desc: check Functional_Test
+	printf "  ${GRN}qual: Functional_Test: "
+	local start=$(date +%s)
+
+	cd $GPATH
+	rm -rf ${GLOG}/* &>/dev/null
+	hl_qual -gaudi2 -f2 -t 300 -d -dis_val -serdes -enable_ports_check int -l high -rmod parallel -c all -dis_mon &>/dev/null &
+	progress_bar 395
+
+	printf "  -f2 : "
+	hl_qual_exec_time
+	printf "${NCL}\n"
+
+	runt=$(($(date +%s) - start))
+
+	cd - &>/dev/null
+
+	glog=$(ls -rt ${GLOG} | tail -n 1)
+	rslt=$(tail -n 1 ${GLOG}/${glog})
+
+	cp ${GLOG}/${glog} $OUTPUT/_${glog}-'f2'
+
+	if [[ $rslt == "PASSED" ]]; then
+		print_result ${FUNCNAME} 0
+		res[$1]=0 
+	else
+		passert "f2 fail-${runt}"
+		print_result ${FUNCNAME} 1
+		res[$1]=1
+	fi
+}
+
+function ts_qua1130_Power_Stress(){ #desc: check Power_EDP
+	printf "  ${GRN}qual: Power_EPD: "
+	local start=$(date +%s)
+
+	cd $GPATH
+	rm -rf ${GLOG}/* &>/dev/null
+	hl_qual -gaudi2 -e -Tw 1 -Ts 2 -sync -inc_power -enable_ports_check int -rmod parallel -c all -dis_mon &>/dev/null &
+	progress_bar 80
+
+	printf "  -inc_power : "
+	hl_qual_exec_time
+	printf "${NCL}\n"
+
+	runt=$(($(date +%s) - start))
+
+	cd - &>/dev/null
+
+	glog=$(ls -rt ${GLOG} | tail -n 1)
+	rslt=$(tail -n 1 ${GLOG}/${glog})
+
+	cp ${GLOG}/${glog} $OUTPUT/_${glog}-'inc_power'
+
+	if [[ $rslt == "PASSED" ]]; then
+		print_result ${FUNCNAME} 0
+		res[$1]=0 
+	else
+		passert "inc_power fail-${runt}"
+		print_result ${FUNCNAME} 1
+		res[$1]=1
+	fi
+}
+
+function ts_qua1132_Power_Extreme(){ #desc: check Power_extreme
+	printf "  ${GRN}qual: Power_extreme: "
+	local start=$(date +%s)
+
+	cd $GPATH
+	rm -rf ${GLOG}/* &>/dev/null
+	hl_qual -gaudi2 -t 40 -e -l extreme -Tw 3 -Ts 1 -rmod parallel -c all -dis_mon &>/dev/null &
+	progress_bar 50
+
+	printf "  -extreme : "
+	hl_qual_exec_time
+	printf "${NCL}\n"
+
+	runt=$(($(date +%s) - start))
+
+	cd - &>/dev/null
+
+	glog=$(ls -rt ${GLOG} | tail -n 1)
+	rslt=$(tail -n 1 ${GLOG}/${glog})
+
+	cp ${GLOG}/${glog} $OUTPUT/_${glog}-'extreme'
+
+	if [[ $rslt == "PASSED" ]]; then
+		print_result ${FUNCNAME} 0
+		res[$1]=0 
+	else
+		passert "power extreme fail-${runt}"
+		print_result ${FUNCNAME} 1
+		res[$1]=1
+	fi
+}
+
 
 EOM
 }
@@ -895,6 +1265,18 @@ cat  << EOF
 |        |  |        |  |        |  | Stress |  | EDP    |  | FT     |  | LoopB  |  | AllG   |
  --------    --------    --------    --------    --------    --------    --------    --------
 EOF
+
+echo
+grep "hl_qual -gaudi2" ${BASH_SOURCE[0]} | grep -v grep | awk -F'&' '{print $1}'
+}
+
+function hl_qual_exec_time(){
+	local lll=${GLOG}/$(ls -rt ${GLOG} | tail -n 1)
+	local rrr=$(tail -n 1 ${lll})
+	local s0=`grep "Start running plugin"  $lll | head -n 1 | awk -F'.' '{print $1}' | awk -F'[' '{print $2}'`
+	local s1=`grep "Finish running plugin" $lll | head -n 1 | awk -F'.' '{print $1}' | awk -F'[' '{print $2}'`
+	difftm=$(( $(date -d "$s1" "+%s") - $(date -d "$s0" "+%s") ))
+	printf "%s - %s %s - %s" $difftm $s1 $s0 $rrr
 }
 
 function check_oam(){
@@ -1013,7 +1395,7 @@ if [[ $L_TESTCASES -eq 1 ]]; then
 		cname=$(echo $casef | awk -F'(){ #desc: ' '{print $1}')
 		cdesc=$(echo $casef | awk -F'(){ #desc: ' '{print $2}')
 
-		printf "%2i %30s : %s\n" $((i+1)) "$cname" "$cdesc"
+		printf "%2i \t %-30s : %s\n" $((i+1)) "$cname" "$cdesc"
 	done
 	echo
 	exit
