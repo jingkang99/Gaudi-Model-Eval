@@ -210,16 +210,29 @@ function parse_args(){
 function prerun-syscheck(){
 	SECONDS=0
 
-    apt install -y ipmitool expect sqlite3 postgresql-client sysstat zip &>/dev/null
+	apt install -y ipmitool expect sqlite3 postgresql-client sysstat zip libsigsegv2 &>/dev/null
 	pip3 install numpy  &>/dev/null
 
 	BUSY=$(hl-smi |  grep "N/A   N/A    N/A" | wc -l)
 	if [ $BUSY -ne 8 ]
 	then
-		echo -e "${RED}warn: gaudi occupied${NCL}"
+		echo -e "${RED}Warn: Not All 8 GPU Found - $BUSY ${NCL}"
 		clean_runner
 		BUSY=$(hl-smi |  grep "N/A   N/A    N/A" | wc -l)
-		[[ $BUSY -ne 8 ]] && exit 1
+		if [[ $BUSY -ne 8 ]]; then
+			gcn=$(hl-smi -L | grep "Bus Id" | awk '{print $4}' |  sed 's/0000://')
+			mkdir -p $OUTPUT
+
+			check_oam "b3:00.0" 0
+			check_oam "19:00.0" 1
+			check_oam "1a:00.0" 2
+			check_oam "b4:00.0" 3
+			check_oam "43:00.0" 4
+			check_oam "44:00.0" 5
+			check_oam "cc:00.0" 6
+			check_oam "cd:00.0" 7
+			exit 1
+		fi
 	fi
 
 	start_time=$(date +%s)
@@ -1296,7 +1309,7 @@ function reload_hl_drivers(){
 
 function check_oam(){
 	ok="oam $2 found"
-	ng="oam $2 lost"
+	ng="oam $2 $1 lost"
 
 	[[ $gcn =~ "$1" ]] && passert $ok || passert $ng
 }
