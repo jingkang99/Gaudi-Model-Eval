@@ -801,7 +801,7 @@ function progress_bar(){
 
 function save_unit_testcases(){
 cat >testcases.sh <<- 'EOM'
-function ts_gpu1010_count-gpu(){ #desc: gpu count: 8
+function ts_gpu1010_check_gpu_cnt(){ #desc: check gpu count: 8
 	cnt=$(hl-smi -L | grep SPI | wc -l)
 
 	[[ $GD2 == 0 ]] && gcn=$(lspci -d :1020: -nn | wc -l) || gcn=$(lspci -d :1060: -nn | wc -l)
@@ -810,7 +810,7 @@ function ts_gpu1010_count-gpu(){ #desc: gpu count: 8
 					|| (print_result ${FUNCNAME} 1; res[$1]=1)
 }
 
-function ts_gpu1020_check-cpld(){ #desc: check gpu cpld: 10
+function ts_gpu1020_check_cpld(){ #desc: check gpu cpld: 10
 	check_gpu_oam_cpld
 	OAM_CPLDS=$(echo $OAM_CPLDS)
 
@@ -924,7 +924,6 @@ function ts_qua1070_PCI_BW_Test(){ #desc: check PCI_BW_Test
 
 	cd $GPATH
 	rm -rf ${GLOG}/* &>/dev/null
-	`pip install numpy`
 	__python_cmd=python3 hl_qual -gaudi2 -mb -memOnly -rmod parallel -c all -dis_mon &>/dev/null
 	runt=$(($(date +%s) - start))
 	echo -e "  -mb -memOnly : ${runt}${NCL}"
@@ -946,7 +945,7 @@ function ts_qua1070_PCI_BW_Test(){ #desc: check PCI_BW_Test
 	fi
 }
 
-function ts_qua1080_HBM_Stress_Test(){ #desc: check HBM_Stress_Test
+function ts_qua1080_HBM_Stress_Full(){ #desc: check HBM_Stress_Test
 	clean_runner
 	printf "  ${GRN}qual: HBM_Stress_Test: "
 	local start=$(date +%s)
@@ -1040,13 +1039,15 @@ function ts_qua1084_HBM_Stress_TPC(){ #desc: check HBM_Stress_TPC
 
 function ts_qua1090_NIC_Base_Pairs(){ #desc: check NIC_Base_Pairs
 	clean_runner
-	printf "  ${GRN}qual: NIC_Base_Test: "
+	printf "  ${GRN}qual: NIC_Base_Pairs\n"
 	local start=$(date +%s)
 
 	cd $GPATH
 	rm -rf ${GLOG}/* &>/dev/null
 	hl_qual -gaudi2 -c all -rmod parallel -i 50 -nic_base -test_type pairs -dis_mon &>/dev/null &
-	progress_bar 30
+	[[ `ps -ef | grep hl_qual | grep gaudi | wc -l` != 0 ]] || echo -e  "${GRN}running...${NCL}"
+
+	progress_bar 35
 	cd - &>/dev/null
 
 	printf "  -nic_base pairs: "
@@ -1070,7 +1071,7 @@ function ts_qua1090_NIC_Base_Pairs(){ #desc: check NIC_Base_Pairs
 	fi
 }
 
-function ts_qua1092_NIC_Base_Allreduce(){ #desc: check NIC_Base_allreduce
+function ts_qua1092_NIC_Base_Allreduce(){ #desc: check NIC_Base_allreduce 20
 	clean_runner
 	printf "  ${GRN}qual: NIC_Base_allreduce: "
 	local start=$(date +%s)
@@ -1290,12 +1291,15 @@ EOF
 }
 
 function hl_qual_exec_time(){
+	# hl_qual still running
+	[[ `ps -ef | grep hl_qual | grep gaudi | wc -l` != 0 ]] || sleep 10 
+
 	local lll=${GLOG}/$(ls -rt ${GLOG} | tail -n 1)
 	local rrr=$(tail -n 1 ${lll})
 	local s0=`grep "Start running plugin"  $lll | head -n 1 | awk -F'.' '{print $1}' | awk -F'[' '{print $2}'`
 	local s1=`grep "Finish running plugin" $lll | head -n 1 | awk -F'.' '{print $1}' | awk -F'[' '{print $2}'`
 	difftm=$(( $(date -d "$s1" "+%s") - $(date -d "$s0" "+%s") ))
-	printf "%s - %s %s - %s" $difftm $s1 $s0 $rrr
+	printf "%s - %s %s" $difftm $s1 $s0
 }
 
 function reload_hl_drivers(){
@@ -1323,16 +1327,18 @@ function passert(){
 }
 
 function print_result(){
-	printf "%30s : " $1	| tee -a $TRAINL
+	printf "  %-30s : " $1	| tee -a $TRAINL
 	if   [[ $2 -eq 0 ]]; then
-		echo -e "${GRN}PASS${NCL}" | tee -a $TRAINL
+		echo -e "${CYA}PASS${NCL}" | tee -a $TRAINL
 	elif [[ $2 -eq 1 ]]; then
 		echo -e "${RED}FAIL${NCL}" | tee -a $TRAINL
 	fi
+	echo
 }
 
 function exec_case(){
 	kase=$1
+	slen=${#kase}
 	printf "  ${CYA}%s: %s${NCL}\n\n" "Execute Gaudi Test Cases" $kase | tee -a $TRAINL
 
 	if [[ $kase =~ "all"  ]]; then
@@ -1346,7 +1352,8 @@ function exec_case(){
 		sql="INSERT INTO GDRESULT (bmc_mac, test_date, testid, result, loip, exip, city, region, postal, note, debug) \
 		     VALUES ( '${bmc1}', '${start_YYYY}', " 
 
-		if [[ ${exe[$i]} =~ "$kase"  ]]; then
+		#  [[ $slen < 3 && $slen == $i ]]
+		if [[ ${exe[$i]} =~ "$kase" ]]; then
 			ROOT_CAUSES=''
 			eval "${exe[$i]} $i"
 
@@ -1357,7 +1364,6 @@ function exec_case(){
 			sql="$sql '${seq[$i]}', '${RST}', '${loip}', '${exip}', '${city}', '${region}', '${postal}', '${EXETESTNOTE}', '${ROOT_CAUSES}');"
 			echo $sql >> $OUTPUT/_caseresult
 		fi
-
 	done
 	echo
 
