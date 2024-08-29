@@ -216,7 +216,7 @@ function prerun-syscheck(){
 	BUSY=$(hl-smi |  grep "N/A   N/A    N/A" | wc -l)
 	if [ $BUSY -ne 8 ]
 	then
-		echo -e "${RED}Warn: Not All 8 GPU Found - $BUSY ${NCL}"
+		echo -e "${RED}Warn: Not All 8 GPU Available - $BUSY ${NCL}"
 		clean_runner
 		BUSY=$(hl-smi |  grep "N/A   N/A    N/A" | wc -l)
 		if [[ $BUSY -ne 8 ]]; then
@@ -417,6 +417,7 @@ function log2-metabasedb(){
 	declare -A pkg
 	grep '\-------' -B 36 $M0 | grep -v '\-------' > 1
 	while read -r key value; do
+		[[ $value =~ "," ]] && value=$(echo "$value" | sed -r 's/,/ /g')
 		pkg["$key"]="$value"
 	done < 1
 	rm -rf 1
@@ -1045,7 +1046,7 @@ function ts_qua1090_NIC_Base_Pairs(){ #desc: check NIC_Base_Pairs
 	cd $GPATH
 	rm -rf ${GLOG}/* &>/dev/null
 	hl_qual -gaudi2 -c all -rmod parallel -i 50 -nic_base -test_type pairs -dis_mon &>/dev/null &
-	[[ `ps -ef | grep hl_qual | grep gaudi | wc -l` != 0 ]] || echo -e  "${GRN}running...${NCL}"
+	[[ `ps -ef | grep hl_qual | grep gaudi | wc -l` != 0 ]] || echo -e  "${GRN}  running...${NCL}"
 
 	progress_bar 35
 	cd - &>/dev/null
