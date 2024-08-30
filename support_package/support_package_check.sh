@@ -1032,7 +1032,7 @@ function ts_qua1080_HBM_Stress_Full(){ #desc: check HBM_Stress_Test
 	cd $GPATH
 	rm -rf ${GLOG}/* &>/dev/null
 	hl_qual -gaudi2 -full_hbm_data_check_test -i 3 -rmod parallel -c all -dis_mon &>/dev/null &
-	progress_bar 342
+	progress_bar 360
 
 	runt=$(($(date +%s) - start))
 	echo -e "  -full_hbm_data_check_test : ${runt}${NCL}"
@@ -1351,6 +1351,7 @@ EOM
 
 function clean_runner(){
 	pkill runner
+	pkill hl_qual
 	hl-smi | grep -P "AIP +PID" -A 9 | awk '{print $3}' | grep -P "\d+" | xargs kill -9 &>/dev/null
 }
 
