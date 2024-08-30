@@ -10,11 +10,18 @@ GMODEL=`hl-smi -L | head -n 12 | grep Product | awk '{print $4}'`
 [[ $GD2 == 0 ]] && GPATH="/opt/habanalabs/qual/gaudi2/bin"
 [[ $GD3 == 0 ]] && GPATH="/opt/habanalabs/qual/gaudi3/bin"
 export PATH=.:$GPATH:$PATH
+export __python_cmd=python3
 
 GOPT="-gaudi2"
 [[ $GD3 == 0 ]] && GOPT="-gaudi3"
 
 GLOG=/var/log/habana_logs/qual
+
+#HABANALABS_HLTHUNK_TESTS_BIN_PATH=/opt/habanalabs/src/hl-thunk/tests
+#HABANA_PLUGINS_LIB_PATH=/usr/lib/habanatools/habana_plugins
+#RDMA_CORE_ROOT=/opt/habanalabs/rdma-core/src 
+#GC_KERNEL_PATH=/usr/lib/habanalabs/libtpc_kernels.so
+#RDMA_CORE_LIB=/opt/habanalabs/rdma-core/src/build/lib
 
 #----
 
@@ -893,16 +900,15 @@ function ts_qua1060_Memory_BW_memOnly(){ #desc: check Memory_BW_Test memOnly
 
 	cd $GPATH
 	rm -rf ${GLOG}/* &>/dev/null
-	hl_qual -gaudi2 -mb -memOnly -rmod parallel -c all -dis_mon &>/dev/null &
+	__python_cmd=python3 hl_qual -gaudi2 -mb -memOnly -rmod parallel -c all -dis_mon &>/dev/null &
 	progress_bar 30
 
-	printf "  -hbm_dma_stress : "
+	printf "  -mb -memOnly: "
 	hl_qual_exec_time
 	printf "${NCL}\n"
 
 	runt=$(($(date +%s) - start))
 	cd - &>/dev/null
-	#echo -e ${runt}${NCL}
 
 	glog=$(ls -rt ${GLOG} | tail -n 1)
 	rslt=$(tail -n 1 ${GLOG}/${glog})
@@ -919,16 +925,86 @@ function ts_qua1060_Memory_BW_memOnly(){ #desc: check Memory_BW_Test memOnly
 	fi
 }
 
+function ts_qua1062_Memory_BW_pciOnly(){ #desc: check Memory_BW_Test pciOnly
+	printf "  ${GRN}qual: Memory_BW_Test pciOnly: "
+	local start=$(date +%s)
+
+	cd $GPATH
+	rm -rf ${GLOG}/* &>/dev/null
+	__python_cmd=python3 hl_qual -gaudi2 -mb -pciOnly -rmod parallel -c all -dis_mon &>/dev/null &
+	progress_bar 15
+
+	printf "  -mb -pciOnly: "
+	hl_qual_exec_time
+	printf "${NCL}\n"
+
+	runt=$(($(date +%s) - start))
+	cd - &>/dev/null
+
+	glog=$(ls -rt ${GLOG} | tail -n 1)
+	rslt=$(tail -n 1 ${GLOG}/${glog})
+
+	cp ${GLOG}/${glog} $OUTPUT/_${glog}-'Memory_pciOnly'
+
+	if [[ $rslt == "PASSED" ]]; then
+		print_result ${FUNCNAME} 0
+		res[$1]=0 
+	else
+		passert "pci only test fail-${runt}"
+		print_result ${FUNCNAME} 1
+		res[$1]=1
+	fi
+}
+
+function ts_qua1064_Memory_bidirection(){ #desc: check Memory_BW_Test bidirection
+	printf "  ${GRN}qual: Memory_BW_Test bidirection: "
+	local start=$(date +%s)
+
+	cd $GPATH
+	rm -rf ${GLOG}/* &>/dev/null
+	__python_cmd=python3 hl_qual -gaudi2 -mb -b -memOnly -rmod parallel -c all -dis_mon &>/dev/null &
+	progress_bar 35
+
+	printf "  -mb -b -memOnly: "
+	hl_qual_exec_time
+	printf "${NCL}\n"
+
+	runt=$(($(date +%s) - start))
+	cd - &>/dev/null
+
+	glog=$(ls -rt ${GLOG} | tail -n 1)
+	rslt=$(tail -n 1 ${GLOG}/${glog})
+
+	cp ${GLOG}/${glog} $OUTPUT/_${glog}-'Memory_bidirection'
+
+	if [[ $rslt == "PASSED" ]]; then
+		print_result ${FUNCNAME} 0
+		res[$1]=0 
+	else
+		passert "memory bidirection test fail-${runt}"
+		print_result ${FUNCNAME} 1
+		res[$1]=1
+	fi
+}
+
 function ts_qua1070_PCI_BW_Test(){ #desc: check PCI_BW_Test
 	printf "  ${GRN}qual: PCI_BW_Test: "
 	local start=$(date +%s)
 
 	cd $GPATH
 	rm -rf ${GLOG}/* &>/dev/null
-	__python_cmd=python3 hl_qual -gaudi2 -mb -memOnly -rmod parallel -c all -dis_mon &>/dev/null
-	runt=$(($(date +%s) - start))
-	echo -e "  -mb -memOnly : ${runt}${NCL}"
+	if [[ $GD2 == 0 ]]; then
+		__python_cmd=python3 hl_qual -gaudi2 -t 20 -p -b -gen gen4 -rmod parallel -c all -dis_mon &>/dev/null &
+	else
+		__python_cmd=python3 hl_qual -gaudi3 -t 20 -p -b -c all -rmod parallel -dis_mon &
+	fi
+	progress_bar 145
 
+	printf "  pci -p -b: "
+	hl_qual_exec_time
+	printf "${NCL}\n"
+	
+	runt=$(($(date +%s) - start))
 	cd - &>/dev/null
 
 	glog=$(ls -rt ${GLOG} | tail -n 1)
@@ -938,7 +1014,7 @@ function ts_qua1070_PCI_BW_Test(){ #desc: check PCI_BW_Test
 
 	if [[ $rslt == "PASSED" ]]; then
 		print_result ${FUNCNAME} 0
-		res[$1]=0 
+		res[$1]=0
 	else
 		passert "memory test fail-${runt}"
 		print_result ${FUNCNAME} 1
@@ -1293,7 +1369,8 @@ EOF
 
 function hl_qual_exec_time(){
 	# hl_qual still running
-	[[ `ps -ef | grep hl_qual | grep gaudi | wc -l` != 0 ]] || sleep 10 
+	local run=$(ps -ef | grep hl_qual | grep gaudi | wc -l)
+	[[ $run != 0 ]] && sleep 10 
 
 	local lll=${GLOG}/$(ls -rt ${GLOG} | tail -n 1)
 	local rrr=$(tail -n 1 ${lll})
@@ -1304,6 +1381,8 @@ function hl_qual_exec_time(){
 }
 
 function reload_hl_drivers(){
+	[[ $GD3 == 0 ]] && return
+
 	echo "  reload hl drive with timeout_locked=0"
 	rmmod habanalabs &
 	progress_bar 90
