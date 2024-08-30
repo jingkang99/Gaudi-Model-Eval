@@ -1385,7 +1385,7 @@ function reload_hl_drivers(){
 
 	echo "  reload hl drive with timeout_locked=0"
 	rmmod habanalabs &
-	progress_bar 90
+	progress_bar 105
 
 	[[ $1 =~ "lock" ]] && modprobe habanalabs timeout_locked=0 || modprobe habanalabs
 	progress_bar 30
@@ -1398,7 +1398,7 @@ function reload_hl_drivers(){
 		echo "  habanalabs reload fail, redo"
 		[[ $1 =~ "lock" ]] && modprobe habanalabs timeout_locked=0 || modprobe habanalabs
 		lsmod  | grep -P "habanalabs *2" &>/dev/null &
-		progress_bar 30
+		progress_bar 40
 		[[ $? != 0 ]] && exit 9
 	fi
 }
