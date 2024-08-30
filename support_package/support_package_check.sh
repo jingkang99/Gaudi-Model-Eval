@@ -815,7 +815,7 @@ function ts_gpu1010_check_gpu_cnt(){ #desc: check gpu count: 8
 	[[ $GD2 == 0 ]] && gcn=$(lspci -d :1020: -nn | wc -l) || gcn=$(lspci -d :1060: -nn | wc -l)
 
 	[[ $cnt == 8 && $gcn == 8 ]] && (print_result ${FUNCNAME} 0; res[$1]=0) \
-					|| (print_result ${FUNCNAME} 1; res[$1]=1)
+					|| (print_result ${FUNCNAME} 1; res[$1]=1; exit 1)
 }
 
 function ts_gpu1020_check_cpld(){ #desc: check gpu cpld: 10
@@ -1389,6 +1389,18 @@ function reload_hl_drivers(){
 
 	[[ $1 =~ "lock" ]] && modprobe habanalabs timeout_locked=0 || modprobe habanalabs
 	progress_bar 30
+	
+	lsmod  | grep -P "habanalabs *2" &>/dev/null
+	
+	if [[ $? == 0 ]]; then
+		echo "  habanalabs driver reloaded"
+	else
+		echo "  habanalabs reload fail, redo"
+		[[ $1 =~ "lock" ]] && modprobe habanalabs timeout_locked=0 || modprobe habanalabs
+		lsmod  | grep -P "habanalabs *2" &>/dev/null &
+		progress_bar 30
+		[[ $? != 0 ]] && exit 9
+	fi
 }
 
 function check_oam(){
