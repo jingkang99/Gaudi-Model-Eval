@@ -1094,7 +1094,7 @@ function ts_qua1084_HBM_Stress_TPC(){ #desc: check HBM_Stress_TPC
 	cd $GPATH
 	rm -rf ${GLOG}/* &>/dev/null
 	hl_qual -gaudi2 -hbm_tpc_stress -i 3 -rmod parallel -c all -dis_mon &>/dev/null &
-	progress_bar 300
+	progress_bar 325
 	cd - &>/dev/null
 
 	runt=$(($(date +%s) - start))
