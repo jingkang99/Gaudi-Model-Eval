@@ -7,13 +7,11 @@ GD2=1 && GD3=1
 GMODEL=`hl-smi -L | head -n 12 | grep Product | awk '{print $4}'`
 [[ $GMODEL =~ 'HL-225' ]] && GD2=0 || GD3=0
 
-[[ $GD2 == 0 ]] && GPATH="/opt/habanalabs/qual/gaudi2/bin"
-[[ $GD3 == 0 ]] && GPATH="/opt/habanalabs/qual/gaudi3/bin"
+HLQ=""
+[ $GD2 == 0 ] && { GPATH="/opt/habanalabs/qual/gaudi2/bin"; HLQ="-gaudi2"; }
+[ $GD3 == 0 ] && { GPATH="/opt/habanalabs/qual/gaudi3/bin"; HLQ="-gaudi3"; }
 export PATH=.:$GPATH:$PATH
 export __python_cmd=python3
-
-GOPT="-gaudi2"
-[[ $GD3 == 0 ]] && GOPT="-gaudi3"
 
 GLOG=/var/log/habana_logs/qual
 
@@ -183,15 +181,18 @@ function parse_args(){
 				govnor=$(cat /sys/devices/system/cpu/cpu0/cpufreq/scaling_governor)
 				echo -e "\n${YLW}CPU Scaling:${NCL} ${GRN}${govnor}${NCL}"
                 exit 0 ;;
-            -sh | --set-hugepage)
+            -co | --check-oam)
+				check_gpu_oam_cpld
+				echo -e "${YLW}OAM CPLD Version:${NCL} " $OAM_CPLDS
+                exit 0 ;;
+			-sh | --set-hugepage)
 				echo -e "${YLW}set scaling_governor to performance${NCL}"
 				echo -e "${YLW}set vm.nr_hugepages  to 153600${NCL}"
                 echo performance | tee /sys/devices/system/cpu/cpu*/cpufreq/scaling_governor
 				sysctl -w vm.nr_hugepages=153600
                 exit 0 ;;
-            -co | --check-oam)
-				check_gpu_oam_cpld
-				echo -e "${YLW}OAM CPLD Version:${NCL} " $OAM_CPLDS
+            -rd | --reload-driver)
+				reload_hl_drivers
                 exit 0 ;;
             -hq | --hl_qual)
 				echo -e "${YLW}hl_qual Verification Order${NCL}"
@@ -996,7 +997,7 @@ function ts_qua1070_PCI_BW_Test(){ #desc: check PCI_BW_Test
 	if [[ $GD2 == 0 ]]; then
 		__python_cmd=python3 hl_qual -gaudi2 -t 20 -p -b -gen gen4 -rmod parallel -c all -dis_mon &>/dev/null &
 	else
-		__python_cmd=python3 hl_qual -gaudi3 -t 20 -p -b -c all -rmod parallel -dis_mon &
+		__python_cmd=python3 hl_qual -gaudi3 -t 20 -p -b -c all -rmod parallel -dis_mon &>/dev/null &
 	fi
 	progress_bar 145
 
@@ -1155,7 +1156,7 @@ function ts_qua1092_NIC_Base_Allreduce(){ #desc: check NIC_Base_allreduce 20
 
 	cd $GPATH
 	rm -rf ${GLOG}/* &>/dev/null
-	hl_qual -gaudi2 -c all -rmod parallel -i 50 -ep 100 -nic_base -test_type allreduce -dis_mon &>/dev/null &
+	hl_qual -gaudi2 -c all -rmod parallel -i 50 -nic_base -test_type allreduce -ep 100 -dis_mon &>/dev/null &
 	progress_bar 25
 
 	printf "  -nic_base allreduce: "
@@ -1182,6 +1183,8 @@ function ts_qua1092_NIC_Base_Allreduce(){ #desc: check NIC_Base_allreduce 20
 }
 
 function ts_qua1100_E2E_Concurrency(){ #desc: check E2E_Concurrency_Test
+	# requiers timeout_locked = 0
+
 	clean_runner
 	printf "  ${GRN}qual: E2E_Concurrency_Test: "
 	local start=$(date +%s)
@@ -1247,17 +1250,17 @@ function ts_qua1110_SerDes_BER_Test(){ #desc: check SerDes_BER_Test
 	fi
 }
 
-function ts_qua1120_Functional_Test(){ #desc: check Functional_Test
+function ts_qua1120_F2_High(){ #desc: check Functional_High
 	clean_runner
-	printf "  ${GRN}qual: Functional_Test: "
+	printf "  ${GRN}qual: Functional_High: "
 	local start=$(date +%s)
 
 	cd $GPATH
 	rm -rf ${GLOG}/* &>/dev/null
 	hl_qual -gaudi2 -f2 -t 300 -d -dis_val -serdes -enable_ports_check int -l high -rmod parallel -c all -dis_mon &>/dev/null &
-	progress_bar 395
+	progress_bar 400
 
-	printf "  -f2 : "
+	printf "  -f2 -l high: "
 	hl_qual_exec_time
 	printf "${NCL}\n"
 
@@ -1274,15 +1277,48 @@ function ts_qua1120_Functional_Test(){ #desc: check Functional_Test
 		print_result ${FUNCNAME} 0
 		res[$1]=0 
 	else
-		passert "f2 fail-${runt}"
+		passert "f2 high fail-${runt}"
 		print_result ${FUNCNAME} 1
 		res[$1]=1
 	fi
 }
 
-function ts_qua1130_Power_Stress(){ #desc: check Power_EDP
+function NG_qua1122_F2_Extreme(){ #desc: check Functional_Extreme 
 	clean_runner
-	printf "  ${GRN}qual: Power_EPD: "
+	printf "  ${GRN}qual: Functional_Extreme : "
+	local start=$(date +%s)
+
+	cd $GPATH
+	rm -rf ${GLOG}/* &>/dev/null
+	hl_qual -gaudi2 -f2 -t 120 -d -dis_val -serdes -l extreme -rmod parallel -c all -dis_mon &>/dev/null &
+	progress_bar 450
+
+	printf "  -f2 -l extreme: "
+	hl_qual_exec_time
+	printf "${NCL}\n"
+
+	runt=$(($(date +%s) - start))
+
+	cd - &>/dev/null
+
+	glog=$(ls -rt ${GLOG} | tail -n 1)
+	rslt=$(tail -n 1 ${GLOG}/${glog})
+
+	cp ${GLOG}/${glog} $OUTPUT/_${glog}-'f2'
+
+	if [[ $rslt == "PASSED" ]]; then
+		print_result ${FUNCNAME} 0
+		res[$1]=0 
+	else
+		passert "f2 extreme fail-${runt}"
+		print_result ${FUNCNAME} 1
+		res[$1]=1
+	fi
+}
+
+function ts_qua1130_Power_Inc_EDP(){ #desc: check Power_EDP inc_power
+	clean_runner
+	printf "  ${GRN}qual: Power_Inc_EDP: "
 	local start=$(date +%s)
 
 	cd $GPATH
@@ -1290,7 +1326,7 @@ function ts_qua1130_Power_Stress(){ #desc: check Power_EDP
 	hl_qual -gaudi2 -e -Tw 1 -Ts 2 -sync -inc_power -enable_ports_check int -rmod parallel -c all -dis_mon &>/dev/null &
 	progress_bar 80
 
-	printf "  -inc_power : "
+	printf "  -e -inc_power : "
 	hl_qual_exec_time
 	printf "${NCL}\n"
 
@@ -1313,9 +1349,11 @@ function ts_qua1130_Power_Stress(){ #desc: check Power_EDP
 	fi
 }
 
-function ts_qua1132_Power_Extreme(){ #desc: check Power_extreme
+function ts_qua1132_Power_EDP_Extreme(){ #desc: check Power_EDP_Extreme
+	#Concurrency Power Stress requiers timeout_locked = 0
+
 	clean_runner
-	printf "  ${GRN}qual: Power_extreme: "
+	printf "  ${GRN}qual: Power_EDP_Extreme "
 	local start=$(date +%s)
 
 	cd $GPATH
@@ -1323,7 +1361,7 @@ function ts_qua1132_Power_Extreme(){ #desc: check Power_extreme
 	hl_qual -gaudi2 -t 40 -e -l extreme -Tw 3 -Ts 1 -rmod parallel -c all -dis_mon &>/dev/null &
 	progress_bar 50
 
-	printf "  -extreme : "
+	printf "  -e -extreme : "
 	hl_qual_exec_time
 	printf "${NCL}\n"
 
@@ -1334,13 +1372,48 @@ function ts_qua1132_Power_Extreme(){ #desc: check Power_extreme
 	glog=$(ls -rt ${GLOG} | tail -n 1)
 	rslt=$(tail -n 1 ${GLOG}/${glog})
 
-	cp ${GLOG}/${glog} $OUTPUT/_${glog}-'extreme'
+	cp ${GLOG}/${glog} $OUTPUT/_${glog}-'power_edp_extreme'
 
 	if [[ $rslt == "PASSED" ]]; then
 		print_result ${FUNCNAME} 0
 		res[$1]=0 
 	else
-		passert "power extreme fail-${runt}"
+		passert "power edp extreme fail-${runt}"
+		print_result ${FUNCNAME} 1
+		res[$1]=1
+	fi
+}
+
+function ts_qua1134_Power_StressExtreme(){ #desc: check Power_Stress_Extreme
+	#Concurrency Power Stress requiers timeout_locked = 0
+
+	clean_runner
+	printf "  ${GRN}qual: Power_Stress_Extreme: "
+	local start=$(date +%s)
+
+	cd $GPATH
+	rm -rf ${GLOG}/* &>/dev/null
+	hl_qual -gaudi2 -t 40 -s -l extreme -Tw 3 -Ts 1 -sync -enable_ports_check int -rmod parallel -c all -dis_mon &>/dev/null &	
+	progress_bar 50
+
+	printf "  -s -extreme : "
+	hl_qual_exec_time
+	printf "${NCL}\n"
+
+	runt=$(($(date +%s) - start))
+
+	cd - &>/dev/null
+
+	glog=$(ls -rt ${GLOG} | tail -n 1)
+	rslt=$(tail -n 1 ${GLOG}/${glog})
+
+	cp ${GLOG}/${glog} $OUTPUT/_${glog}-'power_stress_extreme'
+
+	if [[ $rslt == "PASSED" ]]; then
+		print_result ${FUNCNAME} 0
+		res[$1]=0 
+	else
+		passert "power stress extreme fail-${runt}"
 		print_result ${FUNCNAME} 1
 		res[$1]=1
 	fi
