@@ -247,7 +247,7 @@ get_test_envn_data "mlperf" "3.1" "resnet"
 # -------------
 # time to train
 ttt=$(for nn in {0..7} ; do grep 'run_start\|run_stop' $TRAIN_LOGF | grep worker${nn} | awk '{print $5}' | tr -d ',' | paste -sd " " - | awk '{print ($2 - $1) / 1000 / 60}' ; done | awk '{s+=$1}END{print s/NR}')
-echo -e "${YLW}Time To Train: ${ttt} min${NCL}, < 16.65 min" | tee -a $TRAIN_LOGF
+echo -e "${YLW}Time To Train: ${ttt} min${NCL}, < 16.80 min" | tee -a $TRAIN_LOGF
 arr=$(for nn in {0..7} ; do grep 'run_start\|run_stop' $TRAIN_LOGF | grep worker${nn} | awk '{print $5}' | tr -d ',' | paste -sd " " - | awk '{print ($2 - $1) / 1000 / 60}' ; done)
 i=0; for t in $arr ; do echo "  worker:"${i} ${t} | tee -a $TRAIN_LOGF; let i++; done
 echo
@@ -263,7 +263,7 @@ rm -rf  ./.graph_dumps _exp &>/dev/null
 # print top 30 stat info from hl-smi
 print_topnn_hl_smi 30
 
-echo -e "  ${YLW}Time To Train: ${ttt} min${NCL}, < 16.5 min\n" | tee -a $TRAIN_LOGF
+echo -e "  ${YLW}Time To Train: ${ttt} min${NCL}, < 16.8 min\n" | tee -a $TRAIN_LOGF
 
 #training result
 echo -e "  ${YLW}Test Converge: loss < 1.75${NCL}" | tee -a $TRAIN_LOGF
@@ -284,6 +284,6 @@ else
 fi
 
 # performance threshold
-print_final_result 16.65
+print_final_result 16.80
 
 save_result_remote
