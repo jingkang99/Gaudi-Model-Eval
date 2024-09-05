@@ -198,6 +198,10 @@ function parse_args(){
 				echo -e "${YLW}hl_qual Verification Order${NCL}"
 				print_hl_qual_plan
 				exit 0 ;;
+            -m | --matrix)
+				echo -e "${YLW}Latest Support Matrix${NCL}"
+				support_matrix
+				exit 0 ;;
             -h | --help )
                 print_synopsis
                 exit 0
@@ -213,6 +217,25 @@ function parse_args(){
                 ;;
         esac
     done
+}
+
+function support_matrix(){
+	Support_Matrix=/tmp/Support_Matrix.html
+	curl -s  https://docs.habana.ai/en/latest/Support_Matrix/Support_Matrix.html -o $Support_Matrix
+
+	mapfile -t modl < <(grep "SPI Firmware"			$Support_Matrix -B 2 | grep HL |  awk -F'[<|>]' '{print $9}' )
+	mapfile -t fwhl < <(grep "Intel Gaudi Software"	$Support_Matrix -A 2 | grep "Build Number" -A 2 | grep 1.1 |  awk -F'[<|>]' '{print $5}' )
+	mapfile -t spiv < <(grep "SPI Firmware"			$Support_Matrix -A 1 | grep fw | awk -F'[<|>]' '{print $5}' )
+	mapfile -t cpld < <(grep "class.*HL-"			$Support_Matrix -A 8 | grep CPLD -A 1 | awk -F'[<|>]' '{print $5}' | grep . )
+
+	mapfile -t pcie < <(grep "PCIe Retimer"			$Support_Matrix -A 1 | grep -v strong |  awk -F'[<|>]' '{print $5}'  | grep . )
+	mapfile -t serd < <(grep "SerDes Retimer"		$Support_Matrix -A 1 | grep -v strong |  awk -F'[<|>]' '{print $5}'  | grep . )
+
+	printf "Gaudi  %10s %15s %20s %10s %20s %20s\n" "Model" "Software" "SPI Firmware" "CPLD" "PCIE Retimer" "SerDes Retimer" 
+	printf "    3  %10s %15s %20s %10s %20s %20s\n" ${modl[0]} ${fwhl[0]} ${spiv[0]} ${cpld[0]} ${pcie[0]} ${serd[0]}
+	printf "    2  %10s %15s %20s %10s %20s %20s\n" ${modl[1]} ${fwhl[1]} ${spiv[1]} ${cpld[1]} ${pcie[1]} ${serd[1]}
+
+	rm -rf $Support_Matrix &>/dev/null
 }
 
 function prerun-syscheck(){
