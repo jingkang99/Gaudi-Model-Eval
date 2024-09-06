@@ -240,6 +240,9 @@ function support_matrix(){
 
 function prerun-syscheck(){
 	SECONDS=0
+	
+	wget -q --spider http://google.com &>/dev/null
+	[ $? -eq 0 ] && INTERNET=0 || INTERNET=1
 
 	apt install -y ipmitool expect sqlite3 postgresql-client sysstat zip libsigsegv2 &>/dev/null
 	pip3 install numpy  &>/dev/null
@@ -1442,6 +1445,41 @@ function ts_qua1134_Power_StressExtreme(){ #desc: check Power_Stress_Extreme
 	fi
 }
 
+function ts_hcc2000_hccl_all_reduce(){ #desc: check node2node all_reduce
+	[ $INTERNET -ne 0 ] && { echo "  skip"; return; }
+
+	clean_runner
+	printf "  ${GRN}hccl comm: all_reduce\n"
+	local start=$(date +%s)
+
+	hlog=$(pwd)/${OUTPUT}/_hccl-a.log
+
+	git clone --depth=1 https://github.com/HabanaAI/hccl_demo &>/dev/null
+	cd hccl_demo
+	git pull &>/dev/null
+
+	HCCL_COMM_ID=127.0.0.1:5555 python3 run_hccl_demo.py --nranks 8 --node_id 0 --size 256m --test all_reduce --loop 1000 --ranks_per_node 8 &>$hlog &
+	progress_bar 50
+	cd - &>/dev/null
+
+	printf "  --nranks 8 --test all_reduce : "
+
+	runt=$(($(date +%s) - start))
+
+	rslt=$(grep BENCHMARK.*:  $hlog | awk '{print $5}' | head -n 1)
+	echo -e "  NW Bandwidth: $rslt > 256" 
+	printf "${NCL}\n"
+
+	if [[ $rslt > 256 ]]; then
+		print_result ${FUNCNAME} 0
+		res[$1]=0 
+	else
+		passert "hccl-all_reduce fail-${runt}"
+		print_result ${FUNCNAME} 1
+		res[$1]=1
+	fi
+}
+
 EOM
 }
 
@@ -1608,7 +1646,7 @@ rm -rf testcases.sh insert2db.sql &>/dev/null
 
 # list cases and exit
 if [[ $L_TESTCASES -eq 1 ]]; then
-	printf "\n${CYA} %30s   %s${NCL}\n" "Gaudi Support Package Test Cases" "Description"
+	printf "\n${CYA} %30s         %s${NCL}\n" "Gaudi Support Package Test Cases" "Description"
 
 	for (( i=0; i<${#tss[@]}; i++ )); do
 		casef=${tss[$i]/function /}
