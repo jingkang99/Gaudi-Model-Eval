@@ -145,7 +145,7 @@ def main():
                         help='For Saving the current Model')
     parser.add_argument('--hpu', action='store_true', default=False,
                         help='Use hpu device')
-    parser.add_argument('--data-path', type=str, default='../data', metavar='STR',
+    parser.add_argument('--data-path', type=str, default='.', metavar='STR',
                         help='input data path for train and test')
     parser.add_argument('--dl-worker-type', default='MP', type=lambda x: x.upper(),
                         choices=["MT", "MP"], help='select multithreading or multiprocessing')
