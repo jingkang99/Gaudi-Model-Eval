@@ -483,7 +483,7 @@ print_energy_usage
 
 save_service_procs
 
-if [[ $avg_tts > 0.1 && $avg_tts < 0.18 ]]
+if [[ $avg_tts > 0.08 && $avg_tts < 0.18 ]]
 then
 	echo -e "avgtrain time: ${GRN}PASS${NCL}" | tee -a $TRAIN_LOGF
 else

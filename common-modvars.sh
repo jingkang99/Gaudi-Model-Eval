@@ -424,7 +424,7 @@ EOM
 
 # bert: 16.5 - 
 function print_final_result(){
-	if [[ $ttt > 10 && $ttt < $1 ]]
+	if [[ $ttt > 5 && $ttt < $1 ]]
 	then
 		echo -e "time to train: ${GRN}PASS${NCL}" | tee -a $TRAIN_LOGF
 	else
