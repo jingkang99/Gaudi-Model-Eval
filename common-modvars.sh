@@ -422,10 +422,12 @@ _python.log 30log-
 EOM
 }
 
-# bert: 16.5 - 
+# bert: 16.5 - float comparison
 function print_final_result(){
-	if [[ $ttt > 5 && $ttt < $1 ]]
-	then
+	r1=$((`echo "$ttt > 5" | bc`))
+	r2=$((`echo "$ttt < $1"| bc`))
+
+	if [[ $r1 == 1 && $r2 == 1 ]] ; then
 		echo -e "time to train: ${GRN}PASS${NCL}" | tee -a $TRAIN_LOGF
 	else
 		echo -e "time to train: ${RED}FAIL${NCL}" | tee -a $TRAIN_LOGF
