@@ -1,3 +1,4 @@
+echo "stop services"
 service snapd stop 	&>/dev/null
 service fwupd stop	&>/dev/null
 service polkit stop	&>/dev/null
@@ -5,11 +6,14 @@ service upower stop	&>/dev/null
 service packagekit stop &>/dev/null
 service cloud-init stop &>/dev/null
 
-apt purge   -y cloud-init cloud-guest-utils snapd packagekit fwupd polkitd
+echo "apt purge"
+apt purge   -y cloud-init cloud-guest-utils snapd packagekit fwupd polkitd &>/dev/null
 
-apt install -y ipmitool expect sqlite3 postgresql-client toilet lrzsz unzip libboost-dev net-tools sysstat jq
+echo "apt install"
+apt install -y ipmitool expect sqlite3 postgresql-client toilet lrzsz unzip libboost-dev net-tools sysstat jq pdsh &>/dev/null
 
-apt autoremove -y
-apt autoclean  -y
+echo "clean up"
+apt autoremove -y &>/dev/null
+apt autoclean  -y &>/dev/null
 
 mkdir -p bert-perf-result resnet-perf-result
