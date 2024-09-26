@@ -128,3 +128,5 @@ cp tool/root.crt /root/.postgresql/root.crt
 export WANDB_DISABLED=true
 export HF_HOME=/sox/huggingface
 
+alias hkill='hl-smi | grep -A 9 Type | grep == -A 8 | grep -v == | grep -v  N/A | awk '\''{print $3}'\'' | xargs kill -9 2>/dev/null'
+
