@@ -231,11 +231,26 @@ function support_matrix(){
 	mapfile -t pcie < <(grep "PCIe Retimer"			$Support_Matrix -A 1 | grep -v strong |  awk -F'[<|>]' '{print $5}'  | grep . )
 	mapfile -t serd < <(grep "SerDes Retimer"		$Support_Matrix -A 1 | grep -v strong |  awk -F'[<|>]' '{print $5}'  | grep . )
 
+	optimum=`egrep "Optimum for Intel Gaudi.*footnote" $Support_Matrix -A 1 -m 1 | tail -n 1 | awk -F'>' '{print $4}' | awk -F'<' '{print $1}'`
+	transformers=`egrep "Transformers" $Support_Matrix -A 2 -m 1 | tail -n 1 | awk -F'>' '{print $4}' | awk -F'<'  '{print $1}'`
+	pytorch=`grep "strong.*PyTorch<" $Support_Matrix   -A 1 -m 1 | tail -n 1 | awk -F'>' '{print $3}' | awk -F'- ' '{print $1}'`
+	ray=`egrep "strong.*Ray<"        $Support_Matrix   -A 1 -m 1 | tail -n 1 | awk -F'>' '{print $3}' | awk -F'<'  '{print $1}'`
+	lightning=`egrep "strong.*PyTorch Lightning<"   $Support_Matrix -A 5 -m 1 | tail -n 1 | awk -F'>' '{print $4}' | awk -F'<' '{print $1}'`
+	tgi=`egrep "strong.*Text Generation Inference<" $Support_Matrix -A 2 -m 1 | tail -n 1 | awk -F'>' '{print $4}' | awk -F'<' '{print $1}'`
+
 	printf "Gaudi  %10s %15s %20s %10s %20s %20s\n" "Model" "Software" "SPI Firmware" "CPLD" "PCIE Retimer" "SerDes Retimer" 
 	printf "    3  %10s %15s %20s %10s %20s %20s\n" ${modl[0]} ${fwhl[0]} ${spiv[0]} ${cpld[0]} ${pcie[0]} ${serd[0]}
 	printf "    2  %10s %15s %20s %10s %20s %20s\n" ${modl[1]} ${fwhl[1]} ${spiv[1]} ${cpld[1]} ${pcie[1]} ${serd[1]}
+	echo
 
-	rm -rf $Support_Matrix &>/dev/null
+	printf "    pytorch      %10s\n" $pytorch
+	printf "    optimum      %10s\n" $optimum
+	printf "    transformers %10s\n" $transformers
+	printf "    lightning    %10s\n" $lightning
+	printf "    ray          %10s\n" $ray
+	printf "    TGI          %10s\n" $tgi
+
+	#rm -rf $Support_Matrix &>/dev/null
 }
 
 function prerun-syscheck(){
