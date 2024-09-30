@@ -1,7 +1,8 @@
 #!/bin/bash
 
-# Supermiro SPM MLPerf Test for BERT
-# Jing Kang 6/2024
+# Supermiro SPM
+# https://docs.habana.ai/en/latest/Intel_DevCloud_Quick_Start/Intel_DevCloud_Quick_Start.html
+# Jing Kang 9/2024
 
 SRC=`readlink -f "${BASH_SOURCE[0]}" 2>/dev/null||echo $0`
 CUR=`dirname "${SRC}"`
@@ -123,8 +124,10 @@ function update_optimum(){
 	cd $_pwd
 }
 
-function single_card_training(){
+function single_card_bert_training(){
 	cd ${PAR}/optimum-habana/examples/text-classification
+
+	TRAINL=$OUTPUT/train-1-card.log
 
 	SECONDS=0
 	python run_glue.py \
@@ -151,10 +154,62 @@ function single_card_training(){
 	rm -rf .graph_dumps 2>/dev/null
 	TRAIN_TIME=${SECONDS}
 	cd -
+
+	print_result "single"
+}
+
+function multi_card_bert_training(){
+	# 
+	# cd /sox/Gaudi-Model-Eval/optimum-habana/examples/text-classification
+	#
+	cd ${PAR}/optimum-habana/examples/text-classification
+	
+	TRAINL=$OUTPUT/train-8-card.log
+
+	SECONDS=0
+	python ../gaudi_spawn.py  --world_size 8 --use_mpi run_glue.py  \
+	--model_name_or_path bert-large-uncased-whole-word-masking  \
+	--gaudi_config_name Habana/bert-large-uncased-whole-word-masking  \
+	--task_name mrpc  \
+	--do_train  \
+	--do_eval  \
+	--per_device_train_batch_size 32  \
+	--per_device_eval_batch_size   8  \
+	--learning_rate		3e-5  \
+	--num_train_epochs	3     \
+	--max_seq_length 	128   \
+	--seed 2024 \
+	--output_dir  $OUTPUT/output/   \
+	--logging_dir $OUTPUT/tboard/   \
+	--use_habana   \
+	--use_lazy_mode   \
+	--bf16 \
+	--use_hpu_graphs_for_inference  \
+	--throughput_warmup_steps 3 \
+	--overwrite_output_dir | tee -a $TRAINL
+
+	rm -rf .graph_dumps hl-smi_log.txt 2>/dev/null
+	TRAIN_TIME=${SECONDS}
+	cd -
+
+	echo -e "\n  exec multi_card_training\n"
+	print_result "multi"
 }
 
 function print_result(){
 	cd $PWD 2>/dev/null
+
+	if [[ $1 == "single" ]]; then
+		testresult="ai-1-card.txt"
+		TRAINL=$OUTPUT/train-1-card.log
+		threshold=340
+		cardn=1
+	else
+		testresult="ai-8-card.txt"
+		TRAINL=$OUTPUT/train-8-card.log
+		threshold=1100
+		cardn=8
+	fi
 
 	# train_samples_per_second
 	tt=$(egrep "train_samples_per_second\s+=" $TRAINL | sed 's/=//')
@@ -176,17 +231,27 @@ function print_result(){
 	rec_YYYY=$(date '+%Y-%m-%d %H:%M:%S' -d @$rec_time)
 
 	printf " %20s  %15s %15s %15s %15s\n" " " "train_samples/s" "train_steps_/s" "eval_samples/s" "eval_steps/s" 
-	printf " %20s  ${CYA}%15s %15s %15s %15s${NCL}\n" "${rec_YYYY}" ${ta[1]} ${tb[1]} ${ea[1]} ${eb[1]} | tee -a ai-1-card.txt 
+	printf " %20s  ${CYA}%15s %15s %15s %15s${NCL}\n" "${rec_YYYY}" ${ta[1]} ${tb[1]} ${ea[1]} ${eb[1]} | tee -a $testresult
 
 	echo -e "\n  ${YLW}history result${NCL}"
-	tail -n 10 ai-1-card.txt 
+	tail -n 10 $testresult
+	
+	if [[ ${ta[1]} > $threshold ]]; then
+		echo -e "train_samples/s with $cardn card: ${GRN}PASS${NCL}" | tee -a $TRAINL
+	else
+		echo -e "train_samples/s with $cardn card: ${RED}FAIL${NCL}" | tee -a $TRAINL
+		FINALT=1
+	fi
+
 }
 
 PWD=`pwd`
 
 OUTPUT=`dirname $PWD`/optimum-perf/perf_optimum
-TRAINL=$OUTPUT/train.log
+FINALT=0
+
 WANDB_MODE=disabled
+WANDB_DISABLED=true
 
 parse_args "$@"
 prerun-check
@@ -200,12 +265,15 @@ update_optimum
 start_sys_mon
 
 echo -e "\n  exec single_card_training\n"
-single_card_training
+single_card_bert_training
 
-# stop monitoring process
+echo -e "\n  exec multi_card_training\n"
+multi_card_bert_training
+
 stop_sys_mon
 
-print_result
+echo -e "\n  exec single_card_training\n"
+print_result "single"
 
 # log system os info
 get_test_envn_data "optimum" "1.13.2" "text-classification"
@@ -227,13 +295,6 @@ print_topnn_hl_smi 5
 #print_energy_usage
 
 #save_service_procs
-
-if [[ ${ta[1]} > 340 ]]
-then
-	echo -e "train_samples/s: ${GRN}PASS${NCL}" | tee -a $TRAINL
-else
-	echo -e "train_samples/s: ${RED}FAIL${NCL}" | tee -a $TRAINL
-fi
 
 rm -rf _exp 2>/dev/null
 #save_result_remote

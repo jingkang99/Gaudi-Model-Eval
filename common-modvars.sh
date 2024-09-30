@@ -356,7 +356,8 @@ function print_topnn_hl_smi(){
 	echo -e "  ${CYA}cnt PowerDraw   cnt AIP-Util   cnt Temprature  cnt Memory-Usage${NCL}" | tee -a $TRAIN_LOGF
 	for (( i=0; i<${#mem[@]}; i++ ));
 	do
-		echo -e "    ${BCY}${pow[$i]}     ${utl[$i]}       ${tpr[$i]}     ${mem[$i]}${NCL}" | tee -a $TRAIN_LOGF
+		#echo -e "    ${BCY}${pow[$i]}     ${utl[$i]}       ${tpr[$i]}     ${mem[$i]}${NCL}" | tee -a $TRAIN_LOGF
+		printf  "    ${BCY}%-12s  %12s %16s %17s${NCL}\n" "${pow[$i]}" "${utl[$i]}" "${tpr[$i]}" "${mem[$i]}" 
 	done
 	if [[ $(hl-smi -Q name -f csv,noheader | head -n 1) == "HL-225"  ]]; then
 		echo -e "${GRN}  max       550 W    	   100 %            100 C           98304 MB${NCL}\n" | tee -a $TRAIN_LOGF
