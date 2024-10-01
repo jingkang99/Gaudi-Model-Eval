@@ -290,12 +290,18 @@ function print_result(){
 	rec_YYYY=$(date '+%Y-%m-%d %H:%M:%S' -d @$rec_time)
 
 	printf " %20s  %15s %15s %15s %15s\n" " " "train_samples/s" "train_steps_/s" "eval_samples/s" "eval_steps/s" 
-	printf " %20s  ${CYA}%15s %15s %15s %15s${NCL}\n" "${rec_YYYY}" ${ta[1]} ${tb[1]} ${ea[1]} ${eb[1]} | tee -a $testresult
+
+	if [[ $2 == "print_only" ]]; then
+		printf " %20s  ${CYA}%15s %15s %15s %15s${NCL}\n" "${rec_YYYY}" ${ta[1]} ${tb[1]} ${ea[1]} ${eb[1]}
+	else
+		printf " %20s  ${CYA}%15s %15s %15s %15s${NCL}\n" "${rec_YYYY}" ${ta[1]} ${tb[1]} ${ea[1]} ${eb[1]} | tee -a $testresult
+	fi
 
 	echo -e "\n  ${YLW}history result${NCL}"
 	tail -n 10 $testresult
-	
-	if [[ ${ta[1]} > $threshold ]]; then
+
+	r1=$((`echo "${ta[1]} > $threshold" | bc`))
+	if [[ r1 -eq 1 ]]; then
 		echo -e "train_samples/s with $cardn card: ${GRN}PASS${NCL}" | tee -a $TRAINL
 	else
 		echo -e "train_samples/s with $cardn card: ${RED}FAIL${NCL}" | tee -a $TRAINL
@@ -308,8 +314,8 @@ PWD=`pwd`
 OUTPUT=`dirname $PWD`/optimum-perf/perf_optimum
 FINALT=0
 
-WANDB_MODE=disabled
-WANDB_DISABLED=true
+export WANDB_MODE=disabled
+export WANDB_DISABLED=true
 
 parse_args "$@"
 prerun-check
@@ -334,10 +340,10 @@ multi_card_deepspeed_training
 stop_sys_mon
 
 echo -e "\n  result: ${YLW}multi_card mpi${NCL} training\n"
-print_result "mpi"
+print_result "mpi"    "print_only" 
 
 echo -e "\n  result: ${YLW}single_card ${NCL} training\n"
-print_result "single"
+print_result "single" "print_only" 
 
 echo 
 
