@@ -256,6 +256,8 @@ function stop_sys_mon(){
 	pkill hl-smi
 	pkill free
 	pkill tee
+	pkill expect
+	pkill monitor-pwrdu-status.sh
 }
 
 function get_test_envn_data(){

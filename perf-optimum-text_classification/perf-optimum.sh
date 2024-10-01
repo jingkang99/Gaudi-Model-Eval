@@ -136,7 +136,6 @@ function single_card_bert_training(){
 	--task_name mrpc   \
 	--do_train   \
 	--do_eval    \
-	--do_predict \
 	--per_device_train_batch_size 32 \
 	--learning_rate 	3e-5  \
 	--num_train_epochs	3     \
@@ -152,7 +151,7 @@ function single_card_bert_training(){
 	--overwrite_output_dir | tee -a $TRAINL
 
 	rm -rf .graph_dumps 2>/dev/null
-	TRAIN_TIME=${SECONDS}
+	TRAIN_TIME1=${SECONDS}
 	cd -
 
 	print_result "single"
@@ -167,12 +166,12 @@ function multi_card_bert_training(){
 	TRAINL=$OUTPUT/train-8-card.log
 
 	SECONDS=0
-	python ../gaudi_spawn.py  --world_size 8 --use_mpi run_glue.py  \
+	python ../gaudi_spawn.py --world_size 8 --use_mpi run_glue.py  \
 	--model_name_or_path bert-large-uncased-whole-word-masking  \
 	--gaudi_config_name Habana/bert-large-uncased-whole-word-masking  \
 	--task_name mrpc  \
 	--do_train  \
-	--do_eval  \
+	--do_eval   \
 	--per_device_train_batch_size 32  \
 	--per_device_eval_batch_size   8  \
 	--learning_rate		3e-5  \
@@ -189,11 +188,66 @@ function multi_card_bert_training(){
 	--overwrite_output_dir | tee -a $TRAINL
 
 	rm -rf .graph_dumps hl-smi_log.txt 2>/dev/null
-	TRAIN_TIME=${SECONDS}
+	TRAIN_TIME2=${SECONDS}
 	cd -
 
 	echo -e "\n  exec multi_card_training\n"
-	print_result "multi"
+	print_result "mpi"
+}
+
+function multi_card_deepspeed_training(){
+	cd ${PAR}/optimum-habana/examples/text-classification
+
+	TRAINL=$OUTPUT/train-8-deep.log
+
+	cat > ds_config.json <<- EOM
+{
+    "steps_per_print": 1,
+    "train_batch_size": "auto",
+    "train_micro_batch_size_per_gpu": "auto",
+    "gradient_accumulation_steps": "auto",
+    "bf16": {
+        "enabled": true
+    },
+    "gradient_clipping": 1.0,
+    "zero_optimization": {
+        "stage": 2,
+        "overlap_comm": false,
+        "reduce_scatter": false,
+        "contiguous_gradients": false
+    }
+}
+EOM
+
+	SECONDS=0
+	python ../gaudi_spawn.py --world_size 8 --use_deepspeed run_glue.py \
+	--model_name_or_path bert-large-uncased-whole-word-masking \
+	--gaudi_config_name Habana/bert-large-uncased-whole-word-masking \
+	--task_name mrpc \
+	--do_train \
+	--do_eval  \
+	--per_device_train_batch_size 32 \
+	--per_device_eval_batch_size   8 \
+	--learning_rate		3e-5 \
+	--num_train_epochs	3 	 \
+	--max_seq_length	128  \
+	--seed 2024 \
+	--output_dir  $OUTPUT/output/   \
+	--logging_dir $OUTPUT/tboard/   \
+	--use_habana	\
+	--use_lazy_mode \
+	--bf16 \
+	--use_hpu_graphs_for_inference  \
+	--throughput_warmup_steps 3 \
+	--deepspeed ds_config.json  \
+	--overwrite_output_dir | tee -a $TRAINL
+
+	rm -rf .graph_dumps hl-smi_log.txt 2>/dev/null
+	TRAIN_TIME3=${SECONDS}
+	cd -
+
+	echo -e "\n  exec multi_card deepspeed training\n"
+	print_result "deepspeed"
 }
 
 function print_result(){
@@ -204,10 +258,15 @@ function print_result(){
 		TRAINL=$OUTPUT/train-1-card.log
 		threshold=340
 		cardn=1
-	else
+	elif [[ $1 == "mpi" ]]; then
 		testresult="ai-8-card.txt"
 		TRAINL=$OUTPUT/train-8-card.log
 		threshold=1100
+		cardn=8
+	elif [[ $1 == "deepspeed" ]]; then
+		testresult="ai-8-deep.txt"
+		TRAINL=$OUTPUT/train-8-deep.log
+		threshold=1000
 		cardn=8
 	fi
 
@@ -242,7 +301,6 @@ function print_result(){
 		echo -e "train_samples/s with $cardn card: ${RED}FAIL${NCL}" | tee -a $TRAINL
 		FINALT=1
 	fi
-
 }
 
 PWD=`pwd`
@@ -267,20 +325,32 @@ start_sys_mon
 echo -e "\n  exec single_card_training\n"
 single_card_bert_training
 
-echo -e "\n  exec multi_card_training\n"
+echo -e "\n  exec multi_card ${YLW}mpi${NCL} training\n"
 multi_card_bert_training
+
+echo -e "\n  exec multi_card ${YLW}deepspeed${NCL} training\n"
+multi_card_deepspeed_training
 
 stop_sys_mon
 
-echo -e "\n  exec single_card_training\n"
+echo -e "\n  result: ${YLW}multi_card mpi${NCL} training\n"
+print_result "mpi"
+
+echo -e "\n  result: ${YLW}single_card ${NCL} training\n"
 print_result "single"
+
+echo 
 
 # log system os info
 get_test_envn_data "optimum" "1.13.2" "text-classification"
 
 # -------------
 
-echo
+rec_time=$(date +%s)
+rec_YYYY=$(date '+%Y-%m-%d %H:%M:%S' -d @$rec_time)
+echo "model testing time"
+printf "%15s %15s %15s %15s\n" "${rec_YYYY}" $TRAIN_TIME1  $TRAIN_TIME2  $TRAIN_TIME3 | tee -a test_time.txt
+tail -n 5 test_time.txt
 
 # max power reading
 #hpw=$(sort $OUTPUT/_powerr.log | sort -n | tail -n 1)
@@ -288,9 +358,6 @@ echo
 
 # print top 30 stat info from hl-smi
 print_topnn_hl_smi 5
-
-#echo -e "  e2e_train_time      : ${YLW}${rst[0]} ${NCL}\n" | tee -a $TRAINL;
-#echo -e "  training_sequences/s: ${YLW}${rst[1]} ${NCL}\n" | tee -a $TRAINL;
 
 #print_energy_usage
 
