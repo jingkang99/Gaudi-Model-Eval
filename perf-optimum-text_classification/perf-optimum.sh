@@ -256,7 +256,7 @@ function print_result(){
 	if [[ $1 == "single" ]]; then
 		testresult="ai-1-card.txt"
 		TRAINL=$OUTPUT/train-1-card.log
-		threshold=340
+		threshold=330
 		cardn=1
 	elif [[ $1 == "mpi" ]]; then
 		testresult="ai-8-card.txt"
@@ -348,7 +348,7 @@ get_test_envn_data "optimum" "1.13.2" "text-classification"
 
 rec_time=$(date +%s)
 rec_YYYY=$(date '+%Y-%m-%d %H:%M:%S' -d @$rec_time)
-echo "model testing time"
+echo "model testing time           single           mpi-8     deepspeed-8"
 printf "%15s %15s %15s %15s\n" "${rec_YYYY}" $TRAIN_TIME1  $TRAIN_TIME2  $TRAIN_TIME3 | tee -a test_time.txt
 tail -n 5 test_time.txt
 
