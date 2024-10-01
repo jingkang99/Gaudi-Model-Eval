@@ -123,11 +123,11 @@ PDUSTATUS=
 OAM_CPLDS=
 start_time=
 
-if [[ ! -f ${CUR}/apc-pdu.cnf ]]; then
-	touch ${CUR}/apc-pdu.cnf
-fi
-
 function prerun-check(){
+	if [[ ! -f ${CUR}/apc-pdu.cnf ]]; then
+		touch  ${CUR}/apc-pdu.cnf
+	fi
+
     # add required modules
     apt install -y ipmitool expect sqlite3 postgresql-client &>/dev/null
 
