@@ -191,14 +191,12 @@ function multi_card_bert_training(){
 	TRAIN_TIME2=${SECONDS}
 	cd -
 
-	echo -e "\n  exec multi_card_training\n"
+	echo -e "\n  exec 8-card mpi fine-tuning"
 	print_result "mpi"
 }
 
 function multi_card_deepspeed_training(){
 	cd ${PAR}/optimum-habana/examples/text-classification
-
-	TRAINL=$OUTPUT/train-8-deep.log
 
 	cat > ds_config.json <<- EOM
 {
@@ -219,10 +217,20 @@ function multi_card_deepspeed_training(){
 }
 EOM
 
+	if [[ $1 == "LlamaGuard-7b" ]]; then
+		model_name="meta-llama/LlamaGuard-7b"
+		gaudi_config="Habana/llama"
+		TRAINL=$OUTPUT/train-8-llma.log
+	elif [[ $1 == "bert-large-uncased" ]]; then
+		model_name="bert-large-uncased-whole-word-masking"
+		gaudi_config="Habana/bert-large-uncased-whole-word-masking"
+		TRAINL=$OUTPUT/train-8-bert.log
+	fi
+
 	SECONDS=0
 	python ../gaudi_spawn.py --world_size 8 --use_deepspeed run_glue.py \
-	--model_name_or_path bert-large-uncased-whole-word-masking \
-	--gaudi_config_name Habana/bert-large-uncased-whole-word-masking \
+	--model_name_or_path $model_name   \
+	--gaudi_config_name  $gaudi_config \
 	--task_name mrpc \
 	--do_train \
 	--do_eval  \
@@ -240,14 +248,21 @@ EOM
 	--use_hpu_graphs_for_inference  \
 	--throughput_warmup_steps 3 \
 	--deepspeed ds_config.json  \
+	--add_pad_token true        \
 	--overwrite_output_dir | tee -a $TRAINL
 
 	rm -rf .graph_dumps hl-smi_log.txt 2>/dev/null
-	TRAIN_TIME3=${SECONDS}
 	cd -
 
-	echo -e "\n  exec multi_card deepspeed training\n"
-	print_result "deepspeed"
+	echo -e "\n  exec 8-card $1 deepspeed fine-tuning\n"
+	
+	if [[ $1 == "LlamaGuard-7b" ]]; then
+		print_result "llma"
+		TRAIN_TIME4=${SECONDS}
+	elif [[ $1 == "bert-large-uncased" ]]; then
+		print_result "bert"
+		TRAIN_TIME3=${SECONDS}
+	fi
 }
 
 function print_result(){
@@ -263,10 +278,15 @@ function print_result(){
 		TRAINL=$OUTPUT/train-8-card.log
 		threshold=1100
 		cardn=8
-	elif [[ $1 == "deepspeed" ]]; then
-		testresult="ai-8-deep.txt"
-		TRAINL=$OUTPUT/train-8-deep.log
+	elif [[ $1 == "bert" ]]; then
+		testresult="ai-8-bert.txt"
+		TRAINL=$OUTPUT/train-8-bert.log
 		threshold=1000
+		cardn=8
+	elif [[ $1 == "llma" ]]; then
+		testresult="ai-8-llma.txt"
+		TRAINL=$OUTPUT/train-8-llma.log
+		threshold=120
 		cardn=8
 	fi
 
@@ -298,7 +318,7 @@ function print_result(){
 	fi
 
 	echo -e "\n  ${YLW}history result${NCL}"
-	tail -n 10 $testresult
+	tail -n 5 $testresult
 
 	r1=$((`echo "${ta[1]} > $threshold" | bc`))
 	if [[ r1 -eq 1 ]]; then
@@ -322,6 +342,8 @@ prerun-check
 
 rm -rf   $OUTPUT 2>/dev/null
 mkdir -p $OUTPUT 2>/dev/null
+TRAINL=$OUTPUT/train-1-card.log
+TRAIN_LOGF=$TRAINL
 touch $TRAINL
 
 update_optimum
@@ -331,18 +353,25 @@ start_sys_mon
 echo -e "\n  exec single_card_training\n"
 single_card_bert_training
 
-echo -e "\n  exec multi_card ${YLW}mpi${NCL} training\n"
+echo -e "\n  exec 8-card ${YLW}bert mpi${NCL} training\n"
 multi_card_bert_training
 
-echo -e "\n  exec multi_card ${YLW}deepspeed${NCL} training\n"
-multi_card_deepspeed_training
+echo -e "\n  exec 8-card ${YLW}deepspeed bert-large-uncased${NCL} training\n"
+multi_card_deepspeed_training "bert-large-uncased"
+
+echo -e "\n  exec 8-card ${YLW}deepspeed LlamaGuard${NCL} training\n"
+multi_card_deepspeed_training "LlamaGuard-7b"
 
 stop_sys_mon
 
-echo -e "\n  result: ${YLW}multi_card mpi${NCL} training\n"
+# print history result
+echo -e "\n  result: ${YLW}8-card bert deepspeed${NCL} training\n"
+print_result "bert"    "print_only" 
+
+echo -e "\n  result: ${YLW}8-card bert mpi ${NCL} training\n"
 print_result "mpi"    "print_only" 
 
-echo -e "\n  result: ${YLW}single_card ${NCL} training\n"
+echo -e "\n  result: ${YLW}single_card${NCL} training\n"
 print_result "single" "print_only" 
 
 echo 
@@ -354,8 +383,8 @@ get_test_envn_data "optimum" "1.13.2" "text-classification"
 
 rec_time=$(date +%s)
 rec_YYYY=$(date '+%Y-%m-%d %H:%M:%S' -d @$rec_time)
-echo "model testing time           single           mpi-8     deepspeed-8"
-printf "%15s %15s %15s %15s\n" "${rec_YYYY}" $TRAIN_TIME1  $TRAIN_TIME2  $TRAIN_TIME3 | tee -a test_time.txt
+echo "model testing time           single           bert-mpi-8     bert-deepspeed-8     llamaGuard-dsp-8"
+printf "%15s %15s %15s %15s %17s\n" "${rec_YYYY}" $TRAIN_TIME1 $TRAIN_TIME2 $TRAIN_TIME3 $TRAIN_TIME4 | tee -a test_time.txt
 tail -n 5 test_time.txt
 
 # max power reading

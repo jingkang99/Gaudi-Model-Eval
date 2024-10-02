@@ -266,10 +266,10 @@ function stop_sys_mon(){
 	pkill hl-smi
 	pkill free
 	pkill tee
-	pkill   expect
-	killall expect
-	pkill   monitor-pwrdu-status.sh
-	killall monitor-pwrdu-status.sh
+	pkill   expect	&>/dev/null
+	killall expect	&>/dev/null
+	pkill   monitor-pwrdu-status.sh &>/dev/null
+	killall monitor-pwrdu-status.sh	&>/dev/null
 }
 
 function get_test_envn_data(){
@@ -366,7 +366,7 @@ function print_topnn_hl_smi(){
 	mapfile -t tpr < <( awk '{print $12}' $OUTPUT/_hl-smi.log | sort -n | uniq -c | tail -n $cnt )
 	mapfile -t pow < <( awk '{print $16}' $OUTPUT/_hl-smi.log | sort -n | uniq -c | tail -n $cnt )
 
-	echo -e "  ${CYA}GPU Top 10 Stats - 131 times checked${NCL}" | tee -a $TRAIN_LOGF
+	echo -e "  ${CYA}GPU Top Stats${NCL}" | tee -a $TRAIN_LOGF
 	echo -e "  ${CYA}cnt PowerDraw   cnt AIP-Util   cnt Temprature  cnt Memory-Usage${NCL}" | tee -a $TRAIN_LOGF
 	for (( i=0; i<${#mem[@]}; i++ ));
 	do
