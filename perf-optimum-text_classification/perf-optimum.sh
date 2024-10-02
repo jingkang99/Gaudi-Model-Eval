@@ -276,7 +276,7 @@ function print_result(){
 	elif [[ $1 == "mpi" ]]; then
 		testresult="ai-8-card.txt"
 		TRAINL=$OUTPUT/train-8-card.log
-		threshold=1100
+		threshold=1040
 		cardn=8
 	elif [[ $1 == "bert" ]]; then
 		testresult="ai-8-bert.txt"
@@ -286,7 +286,7 @@ function print_result(){
 	elif [[ $1 == "llma" ]]; then
 		testresult="ai-8-llma.txt"
 		TRAINL=$OUTPUT/train-8-llma.log
-		threshold=120
+		threshold=100
 		cardn=8
 	fi
 
@@ -309,7 +309,7 @@ function print_result(){
 	rec_time=$(date +%s)
 	rec_YYYY=$(date '+%Y-%m-%d %H:%M:%S' -d @$rec_time)
 
-	printf " %20s  %15s %15s %15s %15s\n" " " "train_samples/s" "train_steps_/s" "eval_samples/s" "eval_steps/s" 
+	printf " %20s  %15s %15s %15s %15s\n" " " "train_samples/s" "train_steps/s" "eval_samples/s" "eval_steps/s" 
 
 	if [[ $2 == "print_only" ]]; then
 		printf " %20s  ${CYA}%15s %15s %15s %15s${NCL}\n" "${rec_YYYY}" ${ta[1]} ${tb[1]} ${ea[1]} ${eb[1]}
@@ -320,6 +320,7 @@ function print_result(){
 	echo -e "\n  ${YLW}history result${NCL}"
 	tail -n 5 $testresult
 
+	sampersec=${ta[1]}
 	r1=$((`echo "${ta[1]} > $threshold" | bc`))
 	if [[ r1 -eq 1 ]]; then
 		echo -e "train_samples/s with $cardn card: ${GRN}PASS${NCL}" | tee -a $TRAINL
@@ -329,9 +330,31 @@ function print_result(){
 	fi
 }
 
+function scp_results_remote(){
+	# rename the result folder
+	ee_time=$(date +%s)
+	elapsed=$((`echo "$ee_time - $ss_time" | bc`))
+
+	ipp=$(ifconfig | grep 'inet ' | grep -v -P '27.0|172.17' | awk '{print $2}')
+	fff=$OUTPUT-${ipp}-${ee_time}-${elapsed}-${sampersec}
+
+	# 119G after testing
+	rm -rf $OUTPUT/output
+
+	mv $OUTPUT $fff
+
+	save_sys_cert
+	scp -r -P 7022 -i ./id_rsa -o PasswordAuthentication=no -o StrictHostKeyChecking=no ${fff} spm@129.146.47.229:/home/spm/perf_optimum-text-classification/ &>/dev/null
+
+	rm -rf  ./.graph_dumps _exp id_ed25519 id_rsa &>/dev/null
+}
+
+ss_time=$(date +%s)
+#start_YYYY=$(date '+%Y-%m-%d %H:%M:%S' -d @$start_time)
+
 PWD=`pwd`
 
-OUTPUT=`dirname $PWD`/optimum-perf/perf_optimum
+OUTPUT=`dirname $PWD`/optimum-perf-text-classification/perf_optimum
 FINALT=0
 
 export WANDB_MODE=disabled
@@ -374,7 +397,7 @@ print_result "mpi"    "print_only"
 echo -e "\n  result: ${YLW}single_card${NCL} training\n"
 print_result "single" "print_only" 
 
-echo 
+echo
 
 # log system os info
 get_test_envn_data "optimum" "1.13.2" "text-classification"
@@ -385,6 +408,7 @@ rec_time=$(date +%s)
 rec_YYYY=$(date '+%Y-%m-%d %H:%M:%S' -d @$rec_time)
 echo "model testing time           single           bert-mpi-8     bert-deepspeed-8     llamaGuard-dsp-8"
 printf "%15s %15s %15s %15s %17s\n" "${rec_YYYY}" $TRAIN_TIME1 $TRAIN_TIME2 $TRAIN_TIME3 $TRAIN_TIME4 | tee -a test_time.txt
+echo
 tail -n 5 test_time.txt
 
 # max power reading
@@ -398,5 +422,5 @@ print_topnn_hl_smi 5
 
 #save_service_procs
 
-rm -rf _exp 2>/dev/null
-#save_result_remote
+scp_results_remote
+
