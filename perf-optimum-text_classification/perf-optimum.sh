@@ -124,7 +124,7 @@ function update_optimum(){
 	cd $_pwd
 }
 
-function single_card_bert_training(){
+function single_card_bert_finetune(){
 	cd ${PAR}/optimum-habana/examples/text-classification
 
 	TRAINL=$OUTPUT/train-1-card.log
@@ -133,7 +133,7 @@ function single_card_bert_training(){
 	python run_glue.py \
 	--model_name_or_path bert-large-uncased-whole-word-masking \
 	--gaudi_config_name Habana/bert-large-uncased-whole-word-masking  \
-	--task_name mrpc   \
+	--task_name $TASK_NAME \
 	--do_train   \
 	--do_eval    \
 	--per_device_train_batch_size 32 \
@@ -157,19 +157,19 @@ function single_card_bert_training(){
 	print_result "single"
 }
 
-function multi_card_bert_training(){
+function multi_8c_mpi_bert_finetune(){
 	# 
 	# cd /sox/Gaudi-Model-Eval/optimum-habana/examples/text-classification
 	#
 	cd ${PAR}/optimum-habana/examples/text-classification
 	
-	TRAINL=$OUTPUT/train-8-card.log
+	TRAINL=$OUTPUT/train-8c-mpi.log
 
 	SECONDS=0
 	python ../gaudi_spawn.py --world_size 8 --use_mpi run_glue.py  \
 	--model_name_or_path bert-large-uncased-whole-word-masking  \
 	--gaudi_config_name Habana/bert-large-uncased-whole-word-masking  \
-	--task_name mrpc  \
+	--task_name $TASK_NAME \
 	--do_train  \
 	--do_eval   \
 	--per_device_train_batch_size 32  \
@@ -195,7 +195,7 @@ function multi_card_bert_training(){
 	print_result "mpi"
 }
 
-function multi_card_deepspeed_training(){
+function multi_8c_deepspeed_finetune(){
 	cd ${PAR}/optimum-habana/examples/text-classification
 
 	cat > ds_config.json <<- EOM
@@ -219,7 +219,8 @@ EOM
 
 	if [[ $1 == "LlamaGuard-7b" ]]; then
 		model_name="meta-llama/LlamaGuard-7b"
-		gaudi_config="Habana/llama"
+		gaudi_config="Habana/llama
+		"
 		TRAINL=$OUTPUT/train-8-llma.log
 	elif [[ $1 == "bert-large-uncased" ]]; then
 		model_name="bert-large-uncased-whole-word-masking"
@@ -231,7 +232,7 @@ EOM
 	python ../gaudi_spawn.py --world_size 8 --use_deepspeed run_glue.py \
 	--model_name_or_path $model_name   \
 	--gaudi_config_name  $gaudi_config \
-	--task_name mrpc \
+	--task_name $TASK_NAME \
 	--do_train \
 	--do_eval  \
 	--per_device_train_batch_size 32 \
@@ -268,26 +269,24 @@ EOM
 function print_result(){
 	cd $PWD 2>/dev/null
 
+	cardn=8
 	if [[ $1 == "single" ]]; then
-		testresult="ai-1-card.txt"
+		testresult="ft-1-card.txt"
 		TRAINL=$OUTPUT/train-1-card.log
 		threshold=330
 		cardn=1
 	elif [[ $1 == "mpi" ]]; then
-		testresult="ai-8-card.txt"
-		TRAINL=$OUTPUT/train-8-card.log
+		testresult="ft-8c-mpi.txt"
+		TRAINL=$OUTPUT/train-8c-mpi.log
 		threshold=1040
-		cardn=8
 	elif [[ $1 == "bert" ]]; then
-		testresult="ai-8-bert.txt"
+		testresult="ft-8-bert.txt"
 		TRAINL=$OUTPUT/train-8-bert.log
 		threshold=1000
-		cardn=8
 	elif [[ $1 == "llma" ]]; then
-		testresult="ai-8-llma.txt"
+		testresult="ft-8-llma.txt"
 		TRAINL=$OUTPUT/train-8-llma.log
 		threshold=100
-		cardn=8
 	fi
 
 	# train_samples_per_second
@@ -298,23 +297,41 @@ function print_result(){
 	tt=$(egrep "train_steps_per_second\s+=" $TRAINL | sed 's/=//')
 	tb=($tt)
 
-	# eval_samples_per_second
+	# train_runtime
+	tt=$(egrep "train_runtime\s+=" $TRAINL | sed 's/=//')
+	tc=($tt)
+
+	# ---------- eval_samples_per_second
 	tt=$(egrep "eval_samples_per_second\s+=" $TRAINL | sed 's/=//')
 	ea=($tt)
 
 	# eval_steps_per_second
 	tt=$(egrep "eval_steps_per_second\s+=" $TRAINL | sed 's/=//')
 	eb=($tt)
+	
+	# eval_runtime
+	tt=$(egrep "eval_runtime\s+=" $TRAINL | sed 's/=//')
+	ec=($tt)
+
+	if   [[ $1 == "single" ]]; then
+		train_rt1=${tc[1]}
+	elif [[ $1 == "mpi" ]]; then
+		train_rt2=${tc[1]}
+	elif [[ $1 == "bert" ]]; then
+		train_rt3=${tc[1]}
+	elif [[ $1 == "llma" ]]; then
+		train_rt4=${tc[1]}
+	fi
 
 	rec_time=$(date +%s)
 	rec_YYYY=$(date '+%Y-%m-%d %H:%M:%S' -d @$rec_time)
 
-	printf " %20s  %15s %15s %15s %15s\n" " " "train_samples/s" "train_steps/s" "eval_samples/s" "eval_steps/s" 
+	printf " %20s  %15s %15s %15s %15s %15s %15s\n" " " "train_samples/s" "train_steps/s" "eval_samples/s" "eval_steps/s" "train_runtime" "eval_runtime"
 
 	if [[ $2 == "print_only" ]]; then
-		printf " %20s  ${CYA}%15s %15s %15s %15s${NCL}\n" "${rec_YYYY}" ${ta[1]} ${tb[1]} ${ea[1]} ${eb[1]}
+		printf " %20s  ${CYA}%15s %15s %15s %15s %15s %15s${NCL}\n" "${rec_YYYY}" ${ta[1]} ${tb[1]} ${ea[1]} ${eb[1]} ${tc[1]} ${ec[1]}
 	else
-		printf " %20s  ${CYA}%15s %15s %15s %15s${NCL}\n" "${rec_YYYY}" ${ta[1]} ${tb[1]} ${ea[1]} ${eb[1]} | tee -a $testresult
+		printf " %20s  ${CYA}%15s %15s %15s %15s %15s %15s${NCL}\n" "${rec_YYYY}" ${ta[1]} ${tb[1]} ${ea[1]} ${eb[1]} ${tc[1]} ${ec[1]}| tee -a $testresult
 	fi
 
 	echo -e "\n  ${YLW}history result${NCL}"
@@ -349,16 +366,14 @@ function scp_results_remote(){
 	rm -rf  ./.graph_dumps _exp id_ed25519 id_rsa &>/dev/null
 }
 
+# ----- start test
+
 ss_time=$(date +%s)
-#start_YYYY=$(date '+%Y-%m-%d %H:%M:%S' -d @$start_time)
 
 PWD=`pwd`
 
 OUTPUT=`dirname $PWD`/optimum-perf-text-classification/perf_optimum
 FINALT=0
-
-export WANDB_MODE=disabled
-export WANDB_DISABLED=true
 
 parse_args "$@"
 prerun-check
@@ -369,21 +384,23 @@ TRAINL=$OUTPUT/train-1-card.log
 TRAIN_LOGF=$TRAINL
 touch $TRAINL
 
+TASK_NAME=${GLUE[0]}
+
 update_optimum
 
 start_sys_mon
 
 echo -e "\n  exec single_card_training\n"
-single_card_bert_training
+single_card_bert_finetune
 
 echo -e "\n  exec 8-card ${YLW}bert mpi${NCL} training\n"
-multi_card_bert_training
+multi_8c_mpi_bert_finetune
 
 echo -e "\n  exec 8-card ${YLW}deepspeed bert-large-uncased${NCL} training\n"
-multi_card_deepspeed_training "bert-large-uncased"
+multi_8c_deepspeed_finetune "bert-large-uncased"
 
 echo -e "\n  exec 8-card ${YLW}deepspeed LlamaGuard${NCL} training\n"
-multi_card_deepspeed_training "LlamaGuard-7b"
+multi_8c_deepspeed_finetune "LlamaGuard-7b"
 
 stop_sys_mon
 
@@ -406,10 +423,18 @@ get_test_envn_data "optimum" "1.13.2" "text-classification"
 
 rec_time=$(date +%s)
 rec_YYYY=$(date '+%Y-%m-%d %H:%M:%S' -d @$rec_time)
-echo "model testing time           single           bert-mpi-8     bert-deepspeed-8     llamaGuard-dsp-8"
-printf "%15s %15s %15s %15s %17s\n" "${rec_YYYY}" $TRAIN_TIME1 $TRAIN_TIME2 $TRAIN_TIME3 $TRAIN_TIME4 | tee -a test_time.txt
+echo -e "fine tuning ${YLW}$TASK_NAME${NCL}"
+echo "model testing time           1-card           bert-mpi-8     bert-deepspeed-8     llamaGuard-deepd"
+printf "%15s ${CYA}%15s %20s %20s %20s${NCL}\n" "${rec_YYYY}" $TRAIN_TIME1 $TRAIN_TIME2 $TRAIN_TIME3 $TRAIN_TIME4 | tee -a test_time.txt
 echo
 tail -n 5 test_time.txt
+
+echo
+echo "train_runtime                1-card           bert-mpi-8     bert-deepspeed-8     llamaGuard-deepd"
+printf "%15s ${CYA}%15s %20s %20s %20s${NCL}\n" "${rec_YYYY}" $train_rt1 $train_rt2 $train_rt3 $train_rt4 | tee -a runtimeg_${TASK_NAME}
+echo
+tail -n 5 runtimeg_${TASK_NAME}
+echo
 
 # max power reading
 #hpw=$(sort $OUTPUT/_powerr.log | sort -n | tail -n 1)
@@ -422,5 +447,13 @@ print_topnn_hl_smi 5
 
 #save_service_procs
 
+if [[ $FINALT == 0 ]] ; then
+	echo -e "fine-tune ${YLW}GLUE ${TASK_NAME}${NCL}: ${GRN}PASS${NCL}" | tee -a $TRAIN_LOGF
+else
+	echo -e "fine-tune ${YLW}GLUE ${TASK_NAME}${NCL}: ${RED}FAIL${NCL}" | tee -a $TRAIN_LOGF
+fi
+
 scp_results_remote
 
+echo
+echo -e "${BLU}Test Complete: ${elapsed} sec${NCL}\n"

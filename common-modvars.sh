@@ -7,6 +7,9 @@ MLPERFROOT=/sox/Gaudi-Model-Eval
 alias bcd="cd $MLPERFROOT/bert-perf-result/$(  ls -tr $MLPERFROOT/bert-perf-result   | tail -n 1)"
 alias rcd="cd $MLPERFROOT/resnet-perf-result/$(ls -tr $MLPERFROOT/resnet-perf-result | tail -n 1)"
 
+export WANDB_MODE=disabled
+export WANDB_DISABLED=true
+
 GD2=1 && GD3=1
 GMODEL=`hl-smi -L | head -n 12 | grep Product | awk '{print $4}'`
 [[ $GMODEL =~ 'HL-225' ]] && GD2=0 || GD3=0
@@ -122,6 +125,9 @@ PDUCHK=
 PDUSTATUS=
 OAM_CPLDS=
 start_time=
+
+# The General Language Understanding Evaluation (GLUE) benchmark
+GLUE=("mrpc" "cola" "sst2" "stsb" "qqp" "mnli" "qnli" "rte" "wnli")
 
 function prerun-check(){
 	if [[ ! -f ${CUR}/apc-pdu.cnf ]]; then
