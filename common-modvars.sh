@@ -367,10 +367,10 @@ function get_test_envn_data(){
 function print_topnn_hl_smi(){
 	# print top 10 stat
 	local cnt=$1
-	mapfile -t mem < <( awk '{print $10}' $OUTPUT/_hl-smi.log | sort -n | uniq -c | tail -n $cnt )
-	mapfile -t utl < <( awk '{print $14}' $OUTPUT/_hl-smi.log | sort -n | uniq -c | tail -n $cnt )
-	mapfile -t tpr < <( awk '{print $12}' $OUTPUT/_hl-smi.log | sort -n | uniq -c | tail -n $cnt )
-	mapfile -t pow < <( awk '{print $16}' $OUTPUT/_hl-smi.log | sort -n | uniq -c | tail -n $cnt )
+	mapfile -t mem < <( awk '{print $10}' $OUTPUT/_hl-smi.log | sort -n | uniq -c | tail -n $cnt | sort -r )
+	mapfile -t utl < <( awk '{print $14}' $OUTPUT/_hl-smi.log | sort -n | uniq -c | tail -n $cnt | sort -r )
+	mapfile -t tpr < <( awk '{print $12}' $OUTPUT/_hl-smi.log | sort -n | uniq -c | tail -n $cnt | sort -r )
+	mapfile -t pow < <( awk '{print $16}' $OUTPUT/_hl-smi.log | sort -n | uniq -c | tail -n $cnt | sort -r )
 
 	echo -e "  ${CYA}GPU Top Stats${NCL}" | tee -a $TRAIN_LOGF
 	echo -e "  ${CYA}cnt PowerDraw   cnt AIP-Util   cnt Temprature  cnt Memory-Usage${NCL}" | tee -a $TRAIN_LOGF

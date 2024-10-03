@@ -451,10 +451,10 @@ find $OUTPUT -name *.pt -type f -delete &>/dev/null
 rm -rf  ./.graph_dumps _exp &>/dev/null 
 
 # print top 30 stat info from hl-smi
-print_topnn_hl_smi 30
+print_topnn_hl_smi 20
 
 echo -e "  ${CYA}average_perf_per_step, Higher is Better. data processed/training, 20 steps/training, total steps:6700 ${NCL}${BCY}" | tee -a $TRAIN_LOGF;
-mapfile -t aaa < <(grep "average_perf_per_step : " $OUTPUT/train.log | awk -F "average_perf_per_step : " '{print $2}' | awk -F "." '{print $1}' | sort | uniq -c)
+mapfile -t aaa < <(grep "average_perf_per_step : " $OUTPUT/train.log | awk -F "average_perf_per_step : " '{print $2}' | awk -F "." '{print $1}' | sort | uniq -c | sort -h | tail -n 10)
 echo -n -e ${BCY}
 for (( i=0; i<${#aaa[@]}; i=$(($i + 2)) ));
 do
@@ -481,7 +481,7 @@ echo -e "  model eval time: ${eval_t}\n" | tee -a $TRAIN_LOGF;
 # PDU energy usage
 print_energy_usage
 
-save_service_procs
+#save_service_procs
 
 if [[ $avg_tts > 0.08 && $avg_tts < 0.18 ]]
 then
