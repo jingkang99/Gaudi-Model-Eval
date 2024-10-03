@@ -187,6 +187,10 @@ function prerun-check(){
 	export PATH=/opt/python-llm/bin:/opt/habanalabs/openmpi-${mpiver}/bin:${PAR}/tool:$PATH
 	export PT_HPU_LAZY_MODE=1
 	SECONDS=0
+	
+	sync
+	echo 1 | tee /proc/sys/vm/compact_memory
+	echo 3 | tee /proc/sys/vm/drop_caches
 }
 
 # check Gaudi interal ports 
