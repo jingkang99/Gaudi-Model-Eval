@@ -188,9 +188,9 @@ function prerun-check(){
 	export PT_HPU_LAZY_MODE=1
 	SECONDS=0
 	
-	sync
-	echo 1 | tee /proc/sys/vm/compact_memory
-	echo 3 | tee /proc/sys/vm/drop_caches
+	sync &>/dev/null
+	echo 1 | tee /proc/sys/vm/compact_memory &>/dev/null
+	echo 3 | tee /proc/sys/vm/drop_caches    &>/dev/null
 }
 
 # check Gaudi interal ports 
@@ -271,11 +271,12 @@ function start_sys_mon(){
 }
 
 function stop_sys_mon(){
+	pkill tee
+	pkill free
 	pkill watch
 	pkill mpstat
 	pkill hl-smi
-	pkill free
-	pkill tee
+	pkill netstat
 	pkill   expect	&>/dev/null
 	killall expect	&>/dev/null
 	pkill   monitor-pwrdu-status.sh &>/dev/null
