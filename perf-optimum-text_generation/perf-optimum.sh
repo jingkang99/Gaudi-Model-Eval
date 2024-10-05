@@ -175,6 +175,8 @@ function print_result(){
 		printf " %20s  ${CYA}%25s %25s %25s${NCL}\n" "${rec_YYYY}" $tt $tg $tm
 	else
 		printf " %20s  ${CYA}%25s %25s %25s${NCL}\n" "${rec_YYYY}" $tt $tg $tm | tee -a $testresult
+
+		printf "%15s ${CYA}%15s %15s  %20s${NCL}\n"  "${rec_YYYY}" $mname $TRAIN_TIME1 $tt | tee -a test_time.txt
 	fi
 
 	echo -e "\n  ${YLW}history result${NCL}"
@@ -269,6 +271,7 @@ printf "${banner[*]}\n"
 model_1="meta-llama/Llama-2-7b-hf"
 benchmark_text_generation $model_1
 
+echo -e '\n------------------------------\n'
 model_2="meta-llama/Llama-2-70b-hf"
 benchmark_text_generation $model_2
 
@@ -288,8 +291,6 @@ rec_time=$(date +%s)
 rec_YYYY=$(date '+%Y-%m-%d %H:%M:%S' -d @$rec_time)
 
 echo "testing time          name                exec_time     throughput"
-printf "%15s ${CYA}%15s %15s  %20s${NCL}\n" "${rec_YYYY}" $mname $TRAIN_TIME1 $tt | tee -a test_time.txt
-echo
 tail -n 5 test_time.txt
 
 # max power reading
