@@ -402,7 +402,7 @@ start_sys_mon
 
 printf "${banner[*]}\n"
 
-echo -e "\n  exec single_card_training\n"
+echo -e "  exec single_card_training\n"
 single_card_bert_finetune
 
 echo -e "\n  exec 8-card ${YLW}bert mpi${NCL} training\n"
