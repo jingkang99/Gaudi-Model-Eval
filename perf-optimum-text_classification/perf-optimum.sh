@@ -352,7 +352,7 @@ function print_result(){
 	if [[ r1 -eq 1 ]]; then
 		echo -e "train_samples/s with $cardn card: ${GRN}PASS${NCL}" | tee -a $TRAINL
 	else
-		echo -e "train_samples/s with $cardn card: ${RED}FAIL${NCL}" | tee -a $TRAINL
+		echo -e "train_samples/s with $cardn card: ${RED}FAIL${NCL} : ${ta[1]} < ${threshold}" | tee -a $TRAINL
 		FINALT=1
 	fi
 }
