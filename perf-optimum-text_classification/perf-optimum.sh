@@ -10,6 +10,17 @@ PAR=`dirname "${CUR}"`
 
 source $PAR/common-modvars.sh
 
+banner=(''																					
+   $RED"  _            _          _               _  __ _           _   _              \n"$NCL
+   $RED" | |          | |        | |             (_)/ _(_)         | | (_)             \n"$NCL
+   $GRN" | |_ _____  _| |_    ___| | __ _ ___ ___ _| |_ _  ___ __ _| |_ _  ___  _ __   \n"$NCL
+   $GRN" | __/ _ \ \/ / __|  / __| |/ _' / __/ __| |  _| |/ __/ _' | __| |/ _ \| '_ \  \n"$NCL
+   $GRN" | ||  __/>  <| |_  | (__| | (_| \__ \__ \ | | | | (_| (_| | |_| | (_) | | | | \n"$NCL
+   $BLU"  \__\___/_/\_\\__|   \___|_|\__,_|___/___/_|_| |_|\___\__,_|\__|_|\___/|_| |_| \n"$NCL
+   $BLU"                                                                               \n"$NCL
+   $BLU"                                                                               \n"$NCL
+)
+
 function print_synopsis()
 {
     cat << EOF
@@ -389,6 +400,8 @@ TASK_NAME=${GLUE[0]}
 update_optimum
 
 start_sys_mon
+
+printf "${banner[*]}\n"
 
 echo -e "\n  exec single_card_training\n"
 single_card_bert_finetune
