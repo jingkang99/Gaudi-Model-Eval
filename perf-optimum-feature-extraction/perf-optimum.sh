@@ -288,7 +288,7 @@ echo
 rec_time=$(date +%s)
 rec_YYYY=$(date '+%Y-%m-%d %H:%M:%S' -d @$rec_time)
 
-echo "testing time          name                exec_time     throughput"
+echo "  testing time                          name                     exec_time         throughput"
 tail -n 6 test_time.txt
 
 # max power reading
