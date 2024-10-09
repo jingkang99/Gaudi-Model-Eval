@@ -317,6 +317,7 @@ function t5_8c_deepspeed_finetune(){
 	--learning_rate		3e-5 \
 	--num_train_epochs	2 	 \
 	--max_seq_length	384  \
+	--doc_stride		128  \
 	--seed 2024 \
 	--output_dir  $OUTPUT/output/   \
 	--logging_dir $OUTPUT/tboard/   \
