@@ -355,7 +355,7 @@ function print_result(){
 	elif [[ $1 == "mpi" ]]; then
 		testresult="ft-8c-mpi.txt"
 		TRAINL=$OUTPUT/train-8c-mpi.log
-		threshold=1840
+		threshold=1820
 	elif [[ $1 == "bert" ]]; then
 		testresult="ft-8-bert.txt"
 		TRAINL=$OUTPUT/train-8-bert.log
@@ -511,13 +511,13 @@ get_test_envn_data "optimum" "1.13.2" "question-answering"
 rec_time=$(date +%s)
 rec_YYYY=$(date '+%Y-%m-%d %H:%M:%S' -d @$rec_time)
 
-echo -e "${YLW}model testing time${NCL}           1-card          bert-mpi-8       bert-deepspeed           t5-small-dp"
+echo -e "${YLW}model testing time${NCL}           1-card           bert-mpi-8       bert-deepspeed          t5-small-dp"
 printf "%15s ${CYA}%15s %20s %20s %20s${NCL}\n" "${rec_YYYY}" $TRAIN_TIME1 $TRAIN_TIME2 $TRAIN_TIME3 $TRAIN_TIME4 | tee -a test_time.txt
 echo
 tail -n 5 test_time.txt
 
 echo
-echo -e "${YLW}train_runtime${NCL}                1-card          bert-mpi-8       bert-deepspeed           t5-small-dp"
+echo -e "${YLW}train_runtime${NCL}                1-card           bert-mpi-8       bert-deepspeed          t5-small-dp"
 printf "%15s ${CYA}%15s %20s %20s %20s${NCL}\n" "${rec_YYYY}" $train_rt1 $train_rt2 $train_rt3 $train_rt4 | tee -a runtimeg_${TASK_NAME}
 echo
 tail -n 5 runtimeg_${TASK_NAME}
