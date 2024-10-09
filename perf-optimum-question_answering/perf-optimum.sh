@@ -10,15 +10,16 @@ PAR=`dirname "${CUR}"`
 
 source $PAR/common-modvars.sh
 
-banner=(''																					
-   $RED"  _            _          _               _  __ _           _   _              \n"$NCL
-   $RED" | |          | |        | |             (_)/ _(_)         | | (_)             \n"$NCL
-   $GRN" | |_ _____  _| |_    ___| | __ _ ___ ___ _| |_ _  ___ __ _| |_ _  ___  _ __   \n"$NCL
-   $GRN" | __/ _ \ \/ / __|  / __| |/ _' / __/ __| |  _| |/ __/ _' | __| |/ _ \| '_ \  \n"$NCL
-   $GRN" | ||  __/>  <| |_  | (__| | (_| \__ \__ \ | | | | (_| (_| | |_| | (_) | | | | \n"$NCL
-   $BLU"  \__\___/_/\_\\__|   \___|_|\__,_|___/___/_|_| |_|\___\__,_|\__|_|\___/|_| |_| \n"$NCL
-   $BLU"                                                                               \n"$NCL
-)
+banner=(''
+   $RED"                         _   _                                                 _             \n"$NCL
+   $RED"                        | | (_)                                               (_)            \n"$NCL
+   $GRN"    __ _ _   _  ___  ___| |_ _  ___  _ __     __ _ _ __  _____      _____ _ __ _ _ __   __ _ \n"$NCL
+   $GRN"   / _\` | | | |/ _ \/ __| __| |/ _ \| '_ \   / _\` | '_ \/ __\ \ /\ / / _ \ '__| | '_ \ / _\` |\n"$NCL
+   $GRN"  | (_| | |_| |  __/\__ \ |_| | (_) | | | | | (_| | | | \__  \\ V  V /  __/ |  | | | | | (_| |\n"$NCL
+   $BLU"   \__, |\__,_|\___||___/\__|_|\___/|_| |_|  \__,_|_| |_|___/ \_/\_/ \___|_|  |_|_| |_|\__, |\n"$NCL
+   $BLU"      | |                                                                               __/ |\n"$NCL
+   $BLU"      |_|                                                                              |___/ \n"$NCL
+ )
 
 function print_synopsis()
 {
@@ -135,30 +136,34 @@ function update_optimum(){
 }
 
 function single_card_bert_finetune(){
-	cd ${PAR}/optimum-habana/examples/text-classification
+	cd ${PAR}/optimum-habana/examples/question-answering
 
 	TRAINL=$OUTPUT/train-1-card.log
 
 	SECONDS=0
-	python run_glue.py \
+
+	PT_HPU_LAZY_MODE=0 python run_qa.py \
 	--model_name_or_path bert-large-uncased-whole-word-masking \
-	--gaudi_config_name Habana/bert-large-uncased-whole-word-masking  \
-	--task_name $TASK_NAME \
-	--do_train   \
-	--do_eval    \
+	--gaudi_config_name Habana/bert-large-uncased-whole-word-masking \
+	--dataset_name squad \
+	--do_train \
+	--do_eval  \
 	--per_device_train_batch_size 32 \
-	--learning_rate 	3e-5  \
-	--num_train_epochs	3     \
-	--max_seq_length 	128   \
+	--per_device_eval_batch_size   8 \
+	--learning_rate		3e-5 \
+	--num_train_epochs	3 	 \
+	--max_seq_length	384  \
 	--seed 2024 \
+	--doc_stride 128 \
 	--output_dir  $OUTPUT/output/   \
 	--logging_dir $OUTPUT/tboard/   \
-	--use_habana    \
-	--use_lazy_mode \
-	--bf16 \
-	--use_hpu_graphs_for_inference \
+	--use_habana \
+	--torch_compile_backend hpu_backend \
+	--torch_compile \
+	--use_lazy_mode false \
 	--throughput_warmup_steps 3 \
-	--overwrite_output_dir 2>&1 | tee -a $TRAINL
+	--bf16 \
+	--overwrite_output_dir | tee -a $TRAINL
 
 	rm -rf .graph_dumps 2>/dev/null
 	TRAIN_TIME1=${SECONDS}
@@ -171,30 +176,35 @@ function multi_8c_mpi_bert_finetune(){
 	# 
 	# cd /sox/Gaudi-Model-Eval/optimum-habana/examples/text-classification
 	#
-	cd ${PAR}/optimum-habana/examples/text-classification
+	cd ${PAR}/optimum-habana/examples/question-answering
 	
 	TRAINL=$OUTPUT/train-8c-mpi.log
 
 	SECONDS=0
-	python ../gaudi_spawn.py --world_size 8 --use_mpi run_glue.py  \
-	--model_name_or_path bert-large-uncased-whole-word-masking  \
-	--gaudi_config_name Habana/bert-large-uncased-whole-word-masking  \
-	--task_name $TASK_NAME \
-	--do_train  \
-	--do_eval   \
-	--per_device_train_batch_size 32  \
-	--per_device_eval_batch_size   8  \
-	--learning_rate		3e-5  \
-	--num_train_epochs	3     \
-	--max_seq_length 	128   \
-	--seed 2024 \
+
+	PT_HPU_LAZY_MODE=0 python ../gaudi_spawn.py \
+	--world_size 8 --use_mpi run_qa.py \
+	--model_name_or_path bert-large-uncased-whole-word-masking \
+	--gaudi_config_name Habana/bert-large-uncased-whole-word-masking \
+	--dataset_name squad \
+	--do_train \
+	--do_eval \
+	--per_device_train_batch_size 32 \
+	--per_device_eval_batch_size   8 \
+	--learning_rate		3e-5 \
+	--num_train_epochs	3    \
+	--max_seq_length	384  \
+	--seed 2024		 \
+	--doc_stride 128 \
 	--output_dir  $OUTPUT/output/   \
 	--logging_dir $OUTPUT/tboard/   \
-	--use_habana   \
-	--use_lazy_mode   \
-	--bf16 \
-	--use_hpu_graphs_for_inference  \
+	--output_dir /tmp/squad_output/ \
+	--use_habana	\
+	--torch_compile	\
+	--torch_compile_backend hpu_backend \
+	--use_lazy_mode false \
 	--throughput_warmup_steps 3 \
+	--bf16 \
 	--overwrite_output_dir 2>&1 | tee -a $TRAINL
 
 	rm -rf .graph_dumps hl-smi_log.txt 2>/dev/null
@@ -205,9 +215,7 @@ function multi_8c_mpi_bert_finetune(){
 	print_result "mpi"
 }
 
-function multi_8c_deepspeed_finetune(){
-	cd ${PAR}/optimum-habana/examples/text-classification
-
+function create_ds_config (){
 	cat > ds_config.json <<- EOM
 {
     "steps_per_print": 1,
@@ -226,12 +234,17 @@ function multi_8c_deepspeed_finetune(){
     }
 }
 EOM
+}
 
-	if [[ $1 == "LlamaGuard-7b" ]]; then
-		model_name="meta-llama/LlamaGuard-7b"
-		gaudi_config="Habana/llama
-		"
-		TRAINL=$OUTPUT/train-8-llma.log
+function multi_8c_deepspeed_finetune(){
+	cd ${PAR}/optimum-habana/examples/question-answering
+	
+	create_ds_config
+
+	if [[ $1 == "Llama-2-7b-chat-hf" ]]; then
+		model_name="meta-llama/Llama-2-7b-chat-hf"
+		gaudi_config="Habana/llama"
+		TRAINL=$OUTPUT/train-llma7b.log
 	elif [[ $1 == "bert-large-uncased" ]]; then
 		model_name="bert-large-uncased-whole-word-masking"
 		gaudi_config="Habana/bert-large-uncased-whole-word-masking"
@@ -239,17 +252,17 @@ EOM
 	fi
 
 	SECONDS=0
-	python ../gaudi_spawn.py --world_size 8 --use_deepspeed run_glue.py \
+	python ../gaudi_spawn.py --world_size 8 --use_deepspeed run_qa.py \
 	--model_name_or_path $model_name   \
 	--gaudi_config_name  $gaudi_config \
-	--task_name $TASK_NAME \
+	--dataset_name squad \
 	--do_train \
 	--do_eval  \
 	--per_device_train_batch_size 32 \
 	--per_device_eval_batch_size   8 \
 	--learning_rate		3e-5 \
-	--num_train_epochs	3 	 \
-	--max_seq_length	128  \
+	--num_train_epochs	2 	 \
+	--max_seq_length	384  \
 	--seed 2024 \
 	--output_dir  $OUTPUT/output/   \
 	--logging_dir $OUTPUT/tboard/   \
@@ -259,20 +272,74 @@ EOM
 	--use_hpu_graphs_for_inference  \
 	--throughput_warmup_steps 3 \
 	--deepspeed ds_config.json  \
-	--add_pad_token true        \
+	--max_train_samples 45080   \
 	--overwrite_output_dir 2>&1 | tee -a $TRAINL
 
 	rm -rf .graph_dumps hl-smi_log.txt 2>/dev/null
 	cd -
 
 	echo -e "\n  exec 8-card $1 deepspeed fine-tuning\n"
-	
-	if [[ $1 == "LlamaGuard-7b" ]]; then
-		print_result "llma"
-		TRAIN_TIME4=${SECONDS}
-	elif [[ $1 == "bert-large-uncased" ]]; then
+
+	if [[ $1 == "bert-large-uncased" ]]; then
 		print_result "bert"
 		TRAIN_TIME3=${SECONDS}
+	fi
+}
+
+function t5_8c_deepspeed_finetune(){
+	cd ${PAR}/optimum-habana/examples/question-answering
+
+	create_ds_config
+
+	if [[ $1 == "t5-small" ]]; then
+		model_name="t5-small"
+		gaudi_config="Habana/t5"
+		TRAINL=$OUTPUT/train-t5-small.log
+	elif [[ $1 == "bert-large-uncased" ]]; then
+		model_name="bert-large-uncased-whole-word-masking"
+		gaudi_config="Habana/bert-large-uncased-whole-word-masking"
+		TRAINL=$OUTPUT/train-8-bert.log
+	fi
+
+	SECONDS=0
+	python ../gaudi_spawn.py --world_size 8 --use_deepspeed run_seq2seq_qa.py \
+	--model_name_or_path $model_name   \
+	--gaudi_config_name  $gaudi_config \
+	--dataset_name squad_v2    \
+	--version_2_with_negative  \
+	--context_column context   \
+	--question_column question \
+	--answer_column answers    \
+	--do_train \
+	--do_eval  \
+	--per_device_train_batch_size 32 \
+	--per_device_eval_batch_size   8 \
+	--learning_rate		3e-5 \
+	--num_train_epochs	2 	 \
+	--max_seq_length	384  \
+	--seed 2024 \
+	--output_dir  $OUTPUT/output/   \
+	--logging_dir $OUTPUT/tboard/   \
+	--predict_with_generate 		\
+	--use_habana	\
+	--use_lazy_mode \
+	--bf16 \
+	--pad_to_max_length   \
+	--save_strategy epoch \
+	--use_hpu_graphs_for_inference    \
+	--ignore_pad_token_for_loss False \
+	--throughput_warmup_steps 3 \
+	--deepspeed ds_config.json  \
+	--overwrite_output_dir 2>&1 | tee -a $TRAINL
+
+	rm -rf .graph_dumps hl-smi_log.txt 2>/dev/null
+	cd -
+
+	echo -e "\n  exec 8-card $1 deepspeed fine-tuning\n"
+
+	if [[ $1 == "t5-small" ]]; then
+		print_result "t5-small"
+		TRAIN_TIME4=${SECONDS}
 	fi
 }
 
@@ -283,20 +350,20 @@ function print_result(){
 	if [[ $1 == "single" ]]; then
 		testresult="ft-1-card.txt"
 		TRAINL=$OUTPUT/train-1-card.log
-		threshold=330
+		threshold=260
 		cardn=1
 	elif [[ $1 == "mpi" ]]; then
 		testresult="ft-8c-mpi.txt"
 		TRAINL=$OUTPUT/train-8c-mpi.log
-		threshold=1040
+		threshold=1840
 	elif [[ $1 == "bert" ]]; then
 		testresult="ft-8-bert.txt"
 		TRAINL=$OUTPUT/train-8-bert.log
-		threshold=1000
-	elif [[ $1 == "llma" ]]; then
-		testresult="ft-8-llma.txt"
-		TRAINL=$OUTPUT/train-8-llma.log
-		threshold=100
+		threshold=1100
+	elif [[ $1 == "t5-small" ]]; then
+		testresult="ft-t5-sml.txt"		
+		TRAINL=$OUTPUT/train-t5-small.log
+		threshold=2400
 	fi
 
 	# train_samples_per_second
@@ -329,7 +396,7 @@ function print_result(){
 		train_rt2=${tc[1]}
 	elif [[ $1 == "bert" ]]; then
 		train_rt3=${tc[1]}
-	elif [[ $1 == "llma" ]]; then
+	elif [[ $1 == "t5-small" ]]; then
 		train_rt4=${tc[1]}
 	fi
 
@@ -371,7 +438,7 @@ function scp_results_remote(){
 	mv $OUTPUT $fff
 
 	save_sys_cert
-	scp -r -P 7022 -i ./id_rsa -o PasswordAuthentication=no -o StrictHostKeyChecking=no ${fff} spm@129.146.47.229:/home/spm/perf_optimum-text-classification/ &>/dev/null
+	scp -r -P 7022 -i ./id_rsa -o PasswordAuthentication=no -o StrictHostKeyChecking=no ${fff} spm@129.146.47.229:/home/spm/question-answering/ &>/dev/null
 
 	rm -rf  ./.graph_dumps _exp id_ed25519 id_rsa &>/dev/null
 }
@@ -382,17 +449,21 @@ ss_time=$(date +%s)
 
 PWD=`pwd`
 
-OUTPUT=`dirname $PWD`/optimum-perf-text-classification/perf_optimum
+OUTPUT=`dirname $PWD`/optimum-perf-question-answering/perf_optimum
 FINALT=0
 
 parse_args "$@"
 prerun-check
+
+printf "${banner[*]}\n"
 
 rm -rf   $OUTPUT 2>/dev/null
 mkdir -p $OUTPUT 2>/dev/null
 TRAINL=$OUTPUT/train-1-card.log
 TRAIN_LOGF=$TRAINL
 touch $TRAINL
+TRAIN_TIME1=0
+train_rt1=0
 
 TASK_NAME=${GLUE[0]}
 
@@ -400,49 +471,53 @@ update_optimum
 
 start_sys_mon
 
-printf "${banner[*]}\n"
-
-echo -e "  exec single_card_training\n"
-single_card_bert_finetune
+#echo -e "  exec single_card_training\n"
+#single_card_bert_finetune
 
 echo -e "\n  exec 8-card ${YLW}bert mpi${NCL} training\n"
 multi_8c_mpi_bert_finetune
 
-echo -e "\n  exec 8-card ${YLW}deepspeed bert-large-uncased${NCL} training\n"
+echo -e "\n  exec 8-card ${YLW}deepspeed bert${NCL} training\n"
 multi_8c_deepspeed_finetune "bert-large-uncased"
 
-echo -e "\n  exec 8-card ${YLW}deepspeed LlamaGuard${NCL} training\n"
-multi_8c_deepspeed_finetune "LlamaGuard-7b"
+echo -e "\n  exec 8-card ${YLW}deepspeed t5-small${NCL} training\n"
+t5_8c_deepspeed_finetune "t5-small"
 
 stop_sys_mon
 
+echo -e '\n------------------------------\n'
+
 # print history result
-echo -e "\n  result: ${YLW}8-card bert deepspeed${NCL} training\n"
+echo -e "  result: ${YLW}8-card bert deepspeed${NCL} training\n"
 print_result "bert"    "print_only" 
 
-echo -e "\n  result: ${YLW}8-card bert mpi ${NCL} training\n"
+echo -e '\n------------------------------\n'
+
+echo -e "  result: ${YLW}8-card bert mpi ${NCL} training\n"
 print_result "mpi"    "print_only" 
 
-echo -e "\n  result: ${YLW}single_card${NCL} training\n"
-print_result "single" "print_only" 
+echo -e '\n------------------------------\n'
+
+#echo -e "  result: ${YLW}single_card${NCL} training\n"
+#print_result "single" "print_only" 
 
 echo
 
 # log system os info
-get_test_envn_data "optimum" "1.13.2" "text-classification"
+get_test_envn_data "optimum" "1.13.2" "question-answering"
 
 # -------------
 
 rec_time=$(date +%s)
 rec_YYYY=$(date '+%Y-%m-%d %H:%M:%S' -d @$rec_time)
-echo -e "fine tuning ${YLW}$TASK_NAME${NCL}"
-echo "model testing time           1-card           bert-mpi-8     bert-deepspeed-8     llamaGuard-deepd"
+
+echo -e "${YLW}model testing time{NCL}           1-card           bert-mpi-8        bert-deepspeed       t5-small-deepspeed"
 printf "%15s ${CYA}%15s %20s %20s %20s${NCL}\n" "${rec_YYYY}" $TRAIN_TIME1 $TRAIN_TIME2 $TRAIN_TIME3 $TRAIN_TIME4 | tee -a test_time.txt
 echo
 tail -n 5 test_time.txt
 
 echo
-echo "train_runtime                1-card           bert-mpi-8     bert-deepspeed-8     llamaGuard-deepd"
+echo -e "${YLW}train_runtime{NCL}                1-card           bert-mpi-8       bert-deepspeed          t5-small-dp"
 printf "%15s ${CYA}%15s %20s %20s %20s${NCL}\n" "${rec_YYYY}" $train_rt1 $train_rt2 $train_rt3 $train_rt4 | tee -a runtimeg_${TASK_NAME}
 echo
 tail -n 5 runtimeg_${TASK_NAME}
@@ -453,16 +528,16 @@ echo
 #echo -e "${YLW}Maximum Power: ${hpw} watts${NCL}" | tee -a $TRAINL
 
 # print top 30 stat info from hl-smi
-print_topnn_hl_smi 5
+print_topnn_hl_smi 8
 
 #print_energy_usage
 
 #save_service_procs
 
 if [[ $FINALT == 0 ]] ; then
-	echo -e "fine-tune ${YLW}GLUE ${TASK_NAME}${NCL}: ${GRN}PASS${NCL}" | tee -a $TRAIN_LOGF
+	echo -e "question-answering ${YLW}fine-tune${NCL}: ${GRN}PASS${NCL}" | tee -a $TRAIN_LOGF
 else
-	echo -e "fine-tune ${YLW}GLUE ${TASK_NAME}${NCL}: ${RED}FAIL${NCL}" | tee -a $TRAIN_LOGF
+	echo -e "question-answering ${YLW}fine-tune${NCL}: ${RED}FAIL${NCL}" | tee -a $TRAIN_LOGF
 fi
 
 scp_results_remote

@@ -10,7 +10,6 @@ PAR=`dirname "${CUR}"`
 
 source $PAR/common-modvars.sh
 
-
 banner=(''
     $RED" _            _                                     _   _             \n"$NCL
     $RED"| |          | |                                   | | (_)            \n"$NCL
@@ -214,7 +213,7 @@ function benchmark_text_generation(){
 	--batch_size	   1000	\
 	--warmup		   3	\
 	--seed			   2024 \
-	--n_iterations	   10   | tee -a $TRAINL
+	--n_iterations	   10   2>&1 | tee -a $TRAINL
 
 	rm -rf .graph_dumps hl-smi_log.txt 2>/dev/null
 	TRAIN_TIME1=${SECONDS}
@@ -277,7 +276,7 @@ benchmark_text_generation $model_2
 
 stop_sys_mon
 
-echo
+echo -e '\n------------------------------\n'
 
 print_result $model_1 "print_only" 
 
@@ -291,7 +290,7 @@ rec_time=$(date +%s)
 rec_YYYY=$(date '+%Y-%m-%d %H:%M:%S' -d @$rec_time)
 
 echo "testing time          name                exec_time     throughput"
-tail -n 5 test_time.txt
+tail -n 6 test_time.txt
 
 # max power reading
 #hpw=$(sort $OUTPUT/_powerr.log | sort -n | tail -n 1)
