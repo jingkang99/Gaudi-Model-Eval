@@ -184,7 +184,7 @@ function multi_8c_mpi_bert_finetune(){
 
 	PT_HPU_LAZY_MODE=0 python ../gaudi_spawn.py \
 	--world_size 8 --use_mpi run_qa.py \
-	--model_name_or_path bert-large-uncased-whole-word-masking \
+	--model_name_or_path       bert-large-uncased-whole-word-masking \
 	--gaudi_config_name Habana/bert-large-uncased-whole-word-masking \
 	--dataset_name squad \
 	--do_train \
@@ -198,7 +198,6 @@ function multi_8c_mpi_bert_finetune(){
 	--doc_stride 128 \
 	--output_dir  $OUTPUT/output/   \
 	--logging_dir $OUTPUT/tboard/   \
-	--output_dir /tmp/squad_output/ \
 	--use_habana	\
 	--torch_compile	\
 	--torch_compile_backend hpu_backend \
