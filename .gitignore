@@ -2,3 +2,10 @@
 __pycache__
 .graph_dumps
 hl-smi_log.txt
+optimum-habana
+perf-optimum*
+support_package*
+bvt0*
+bert*
+resnet*
+tool*
