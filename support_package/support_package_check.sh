@@ -259,7 +259,7 @@ function prerun-syscheck(){
 	wget -q --spider http://google.com &>/dev/null
 	[ $? -eq 0 ] && INTERNET=0 || INTERNET=1
 
-	apt install -y ipmitool expect sqlite3 postgresql-client sysstat zip libsigsegv2 &>/dev/null
+	apt install -y ipmitool expect sqlite3 postgresql-client sysstat zip libsigsegv2 git &>/dev/null
 	pip3 install numpy  &>/dev/null
 
 	BUSY=$(hl-smi |  grep "N/A   N/A    N/A" | wc -l)
@@ -582,7 +582,7 @@ function log2-metabasedb(){
 
 	ss=$(echo $vv | sed "s/, /', '/g")
 	ss="'"${ss}"'"
-
+
 	sql="INSERT INTO GDSUPPORT(${kk}) VALUES ($ss);"
 
 	if [[ "$1" == "sql" ]]; then
@@ -1470,6 +1470,9 @@ function ts_hcc2000_hccl_all_reduce(){ #desc: check node2node all_reduce
 	hlog=$(pwd)/${OUTPUT}/_hccl-a.log
 
 	git clone --depth=1 https://github.com/HabanaAI/hccl_demo &>/dev/null
+	rm -rf hccl_demo/hccl_demo &>/dev/null
+	cp hccl_demo2 hccl_demo/hccl_demo
+	chmod 777     hccl_demo/hccl_demo
 	cd hccl_demo
 	git pull &>/dev/null
 
@@ -1615,6 +1618,8 @@ function exec_case(){
 }
 
 # -------- main start
+
+apt install -y ipmitool expect sqlite3 postgresql-client sysstat zip libsigsegv2 git &>/dev/null
 
 parse_args "$@"
 
