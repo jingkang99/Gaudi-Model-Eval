@@ -170,7 +170,7 @@ function prerun-check(){
 	pip list | grep habana &>/dev/null
 	if [ $? -eq 0 ]
 	then
-		echo -e "  ${YLW}Start MLPerf LLMs Testing${NCL} ${start_time}" | tee -a $tmpf
+		echo -e "  ${YLW}Start LLM Perf Testing${NCL} ${start_time}" | tee -a $tmpf
 		echo -e "  ${YLW}Gaudi internal ports UP count: ${NCL} " ${UP_PORTS} | tee -a $tmpf
 		
 		check_gpu_oam_cpld
