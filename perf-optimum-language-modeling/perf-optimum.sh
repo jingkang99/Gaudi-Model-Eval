@@ -135,7 +135,7 @@ function update_optimum(){
 	cd $_pwd
 }
 
-function finetune_8c_mpi(){
+function finetune_llama1-7b_mpi(){
 	cd ${PAR}/optimum-habana/examples/language-modeling
 
 	local model="${1:-huggyllama/llama-7b}"
@@ -181,6 +181,59 @@ function finetune_8c_mpi(){
 	--overwrite_output_dir 2>&1 | tee -a $TRAINL
 
 	rm -rf .graph_dumps hl-smi_log.txt 2>/dev/null
+	TRAIN_TIME1=${SECONDS}
+	cd -
+	echo -e "\n  fine-tuning in mpi mode on ${YLW}LORA $model${NCL} with ${YLW}$datas${NCL}"
+	print_result $model
+}
+
+function finetune_llama2-7b_fp8_mpi(){
+	cd ${PAR}/optimum-habana/examples/language-modeling
+
+	local model="${1:-meta-llama/Llama-2-7b-hf}"
+	local mname=`echo $model | awk -F'/' '{print $2}'| tr '[:upper:]' '[:lower:]'`
+	local datas="${2:-tatsu-lab/alpaca}"
+
+	TRAINL=$OUTPUT/train-mpi-${mname}.log
+
+	SECONDS=0
+	
+	LOWER_LIST=ops_bf16.txt python ../gaudi_spawn.py --world_size 8 --use_mpi run_lora_clm.py \
+	--model_name_or_path $model \
+	--dataset_name 		 $datas \
+	--do_train  \
+	--do_eval   \
+	--bf16 True \
+	--fp8 True	\
+	--output_dir  $OUTPUT/output/    \
+	--logging_dir $OUTPUT/tboard/    \
+	--num_train_epochs 3 \
+	--per_device_train_batch_size 16 \
+	--gradient_accumulation_steps 1  \
+	--eval_strategy "no" \
+	--save_strategy "no" \
+	--learning_rate 3e-4 \
+	--warmup_ratio 0.03  \
+	--max_grad_norm 0.3  \
+	--logging_steps 20   \
+	--lr_scheduler_type "constant" \
+	--use_habana    \
+	--use_lazy_mode \
+	--throughput_warmup_steps 3 \
+	--lora_rank=8       \
+	--lora_alpha=16     \
+	--lora_dropout=0.05 \
+	--lora_target_modules "q_proj" "v_proj" \
+	--dataset_concatenation \
+	--max_seq_length 512    \
+	--ddp_bucket_cap_mb 50  \
+	--adam_epsilon 1e-08    \
+	--validation_split_percentage 10 \
+	--low_cpu_mem_usage True \
+	--pipelining_fwd_bwd \
+	--overwrite_output_dir 2>&1 | tee -a $TRAINL
+
+	rm -rf .graph_dumps hl-smi_log.txt 2>/dev/null
 	TRAIN_TIME2=${SECONDS}
 	cd -
 	echo -e "\n  fine-tuning in mpi mode on ${YLW}LORA $model${NCL} with ${YLW}$datas${NCL}"
@@ -208,54 +261,118 @@ function create_ds_config (){
 EOM
 }
 
-function multi_8c_deepspeed_finetune(){
+function finetune_llama2-70b_lora_deepspeed_zero3(){
 	cd ${PAR}/optimum-habana/examples/language-modeling
-	
+
+	local model="${1:-meta-llama/Llama-2-70b-hf}"
+	local mname=`echo $model | awk -F'/' '{print $2}'| tr '[:upper:]' '[:lower:]'`
+	local datas="${2:-tatsu-lab/alpaca}"
+
+	TRAINL=$OUTPUT/train-dpz-${mname}.log
+
 	create_ds_config
-
-	if [[ $1 == "Llama-2-7b-chat-hf" ]]; then
-		model_name="meta-llama/Llama-2-7b-chat-hf"
-		gaudi_config="Habana/llama"
-		TRAINL=$OUTPUT/train-llma7b.log
-	elif [[ $1 == "bert-large-uncased" ]]; then
-		model_name="bert-large-uncased-whole-word-masking"
-		gaudi_config="Habana/bert-large-uncased-whole-word-masking"
-		TRAINL=$OUTPUT/train-8-bert.log
-	fi
-
 	SECONDS=0
-	python ../gaudi_spawn.py --world_size 8 --use_deepspeed run_qa.py \
-	--model_name_or_path $model_name   \
-	--gaudi_config_name  $gaudi_config \
-	--dataset_name squad \
-	--do_train \
-	--do_eval  \
-	--per_device_train_batch_size 32 \
-	--per_device_eval_batch_size   8 \
-	--learning_rate		3e-5 \
-	--num_train_epochs	2 	 \
-	--max_seq_length	384  \
-	--seed 2024 \
+
+	PT_HPU_MAX_COMPOUND_OP_SIZE=10 \
+	python3 ../gaudi_spawn.py --use_deepspeed --world_size 8 run_lora_clm.py \
+	--model_name_or_path $model \
+	--dataset_name		 $datas \
+	--deepspeed 		dp.json \
+	--do_train  \
+	--do_eval   \
+	--bf16 True \
+	--fp8  True	\
 	--output_dir  $OUTPUT/output/   \
 	--logging_dir $OUTPUT/tboard/   \
-	--use_habana	\
+	--num_train_epochs 2 \
+	--max_seq_len	2048 \
+	--per_device_train_batch_size 10 \
+	--per_device_eval_batch_size   1 \
+	--gradient_checkpointing \
+	--eval_strategy epoch \
+	--eval_delay 	2  \
+	--save_strategy no \
+	--learning_rate	3e-4   \
+	--warmup_ratio	0.03   \
+	--lr_scheduler_type "cosine" \
+	--logging_steps 1 \
+	--dataset_concatenation  \
+	--attn_softmax_bf16 True \
+	--use_habana \
 	--use_lazy_mode \
-	--bf16 \
-	--use_hpu_graphs_for_inference  \
+	--pipelining_fwd_bwd \
 	--throughput_warmup_steps 3 \
-	--deepspeed ds_config.json  \
-	--max_train_samples 45080   \
+	--lora_rank 4 \
+	--lora_target_modules "q_proj" "v_proj" "k_proj" "o_proj" \
+	--validation_split_percentage 10 \
+	--use_flash_attention True \
+	--flash_attention_causal_mask True \
 	--overwrite_output_dir 2>&1 | tee -a $TRAINL
 
 	rm -rf .graph_dumps hl-smi_log.txt 2>/dev/null
+	TRAIN_TIME3=${SECONDS}
 	cd -
+	echo -e "\n  fine-tuning in deepspeed zero3 mode on ${YLW}LORA $model${NCL} with ${YLW}$datas${NCL}"
+	print_result $model
+}
 
-	echo -e "\n  exec 8-card $1 deepspeed fine-tuning\n"
+function finetune_llama2-70b_lora_mpi_fsdp(){
+	cd ${PAR}/optimum-habana/examples/language-modeling
 
-	if [[ $1 == "bert-large-uncased" ]]; then
-		print_result "bert"
-		TRAIN_TIME3=${SECONDS}
-	fi
+	local model="${1:-meta-llama/Llama-2-70b-hf}"
+	local mname=`echo $model | awk -F'/' '{print $2}'| tr '[:upper:]' '[:lower:]'`
+	local datas="${2:-tatsu-lab/alpaca}"
+
+	TRAINL=$OUTPUT/train-fsdp-${mname}.log
+
+	create_ds_config
+	SECONDS=0
+
+	LOWER_LIST=ops_bf16.txt PT_HPU_LAZY_MODE=0 \
+	python3 ../gaudi_spawn.py --world_size 8 --use_mpi run_lora_clm.py \
+	--model_name_or_path $model \
+	--dataset_name		 $datas \
+	--do_train  \
+	--do_eval   \
+	--bf16 True \
+	--output_dir  $OUTPUT/output/   \
+	--logging_dir $OUTPUT/tboard/   \
+	--num_train_epochs 2 \
+	--max_seq_len	2048 \
+	--gradient_checkpointing \
+	--per_device_train_batch_size 10 \
+	--per_device_eval_batch_size  1  \
+	--save_strategy no \
+	--learning_rate 0.0004 \
+	--warmup_ratio 0.03 \
+	--lr_scheduler_type "constant" \
+	--logging_steps 1 \
+	--dataset_concatenation \
+	--use_habana \
+	--throughput_warmup_steps 3 \
+	--lora_rank 4 \
+	--lora_target_modules "q_proj" "v_proj" "k_proj" "o_proj" \
+	--attn_softmax_bf16 True \
+	--validation_split_percentage 4 \
+	--use_lazy_mode False \
+	--fsdp_config fsdp_config.json \
+	--fsdp auto_wrap \
+	--eval_strategy epoch \
+	--eval_delay 2 \
+	--pipelining_fwd_bwd False \
+	--use_fused_rope False \
+	--torch_compile_backend hpu_backend \
+	--torch_compile \
+	--gradient_accumulation_steps 2 \
+	--use_flash_attention True \
+	--flash_attention_causal_mask True \
+	--overwrite_output_dir 2>&1 | tee -a $TRAINL
+
+	rm -rf .graph_dumps hl-smi_log.txt 2>/dev/null
+	TRAIN_TIME4=${SECONDS}
+	cd -
+	echo -e "\n  fine-tuning in mpi fsdp mode on ${YLW}LORA $model${NCL} with ${YLW}$datas${NCL}"
+	print_result "llama-2-70b-fsdp"
 }
 
 function print_result(){
@@ -264,23 +381,24 @@ function print_result(){
 	local model="${1:-huggyllama/llama-7b}"
 	local mname=`echo $model | awk -F'/' '{print $2}'| tr '[:upper:]' '[:lower:]'`
 
+	TRAINL=$OUTPUT/train-mpi-${mname}.log
+
 	cardn=8
 	if [[ $1 == "huggyllama/llama-7b" ]]; then
-		testresult="ft-1-card.txt"
-		TRAINL=$OUTPUT/train-mpi-${mname}.log
+		testresult="ft-llama1-7b.txt"
 		threshold=150
-	elif [[ $1 == "mpi" ]]; then
-		testresult="ft-8c-mpi.txt"
-		TRAINL=$OUTPUT/train-8c-mpi.log
-		threshold=1820
-	elif [[ $1 == "bert" ]]; then
-		testresult="ft-8-bert.txt"
-		TRAINL=$OUTPUT/train-8-bert.log
-		threshold=1050
-	elif [[ $1 == "t5-small" ]]; then
-		testresult="ft-t5-sml.txt"		
-		TRAINL=$OUTPUT/train-t5-small.log
-		threshold=2200
+	elif [[ $1 == "meta-llama/Llama-2-7b-hf" ]]; then
+		testresult="ft-llama2-7b.txt"
+		TRAINL=$OUTPUT/train-mpi-${mname}.log
+		threshold=170
+	elif [[ $1 == "meta-llama/Llama-2-70b-hf" ]]; then
+		testresult="ft-llama-2-70b.txt"
+		TRAINL=$OUTPUT/train-dpz-${mname}.log
+		threshold=3.7
+	elif [[ $1 == "llama-2-70b-fsdp" ]]; then
+		testresult="ft-llama-2-70b-fsdp.txt"
+		TRAINL=$OUTPUT/train-fsdp-llama-2-70b-hf.log
+		threshold=1.5
 	fi
 
 	# train_samples_per_second
@@ -307,13 +425,13 @@ function print_result(){
 	tt=$(egrep "eval_runtime\s+=" $TRAINL | sed 's/=//')
 	ec=($tt)
 
-	if   [[ $1 == "single" ]]; then
+	if [[ $1 == "huggyllama/llama-7b" ]]; then
 		train_rt1=${tc[1]}
-	elif [[ $1 == "mpi" ]]; then
+	elif [[ $1 == "meta-llama/Llama-2-7b-hf" ]]; then
 		train_rt2=${tc[1]}
-	elif [[ $1 == "bert" ]]; then
+	elif [[ $1 == "meta-llama/Llama-2-70b-hf" ]]; then
 		train_rt3=${tc[1]}
-	elif [[ $1 == "t5-small" ]]; then
+	elif [[ $1 == "llama-2-70b-fsdp" ]]; then
 		train_rt4=${tc[1]}
 	fi
 
@@ -385,26 +503,38 @@ touch $TRAINL
 TRAIN_TIME1=0
 train_rt1=0
 
-TASK_NAME=${GLUE[0]}
+TASK_NAME='alpaca'
 
 update_optimum
 
 start_sys_mon
 
-model=huggyllama/llama-7b
-echo -e "\n  exec 8-card ${YLW}${model} mpi${NCL} training\n"
-finetune_8c_mpi $model
+echo -e "\n fine-tune ${YLW}${model} mpi${NCL}\n"
+finetune_llama1-7b_mpi
 
-echo -e "\n  exec 8-card ${YLW}deepspeed bert${NCL} training\n"
-#multi_8c_deepspeed_finetune "bert-large-uncased"
+echo -e "\n fine-tune ${YLW}llama2-7b fp8${NCL}\n"
+finetune_llama2-7b_fp8_mpi
+
+echo -e "\n fine-tune ${YLW}llama2-70b deepspeed zero3${NCL}\n"
+finetune_llama2-70b_lora_deepspeed_zero3
+
+echo -e "\n fine-tune ${YLW}llama2-70b fsdp${NCL}\n"
+finetune_llama2-70b_lora_mpi_fsdp
 
 stop_sys_mon
 
 echo -e '\n------------------------------\n'
 
-# print history result
-echo -e "  result: ${YLW}8-card bert deepspeed${NCL} training\n"
-#print_result "bert"    "print_only" 
+#print history result
+
+echo -e "  result: ${YLW}llama2-70b deepspeed zero3${NCL} fine-tune\n"
+print_result "meta-llama/Llama-2-70b-hf" "print_only" 
+
+echo -e "  result: ${YLW}llama2-7b fp8${NCL} fine-tune\n"
+print_result "meta-llama/Llama-2-7b-hf"	 "print_only" 
+
+echo -e "  result: ${YLW}llama1-7b${NCL} fine-tune\n"
+print_result "huggyllama/llama-7b"		 "print_only" 
 
 echo -e '\n------------------------------\n'
 
@@ -425,10 +555,11 @@ tail -n 5 test_time.txt
 
 echo
 echo -e "${YLW}train_runtime${NCL}                1-card           bert-mpi-8       bert-deepspeed          t5-small-dp"
-printf "%15s ${CYA}%15s %20s %20s %20s${NCL}\n" "${rec_YYYY}" $train_rt1 $train_rt2 $train_rt3 $train_rt4 | tee -a runtimeg_${TASK_NAME}
+printf "%15s ${CYA}%15s %20s %20s %20s${NCL}\n" "${rec_YYYY}" $train_rt1 $train_rt2 $train_rt3 $train_rt4 | tee -a runtme_${TASK_NAME}
 echo
 tail -n 5 runtimeg_${TASK_NAME}
 echo
+
 
 # max power reading
 #hpw=$(sort $OUTPUT/_powerr.log | sort -n | tail -n 1)

@@ -470,13 +470,17 @@ echo -e "  ${CYA}average_training_time_step: ${NCL}${YLW}${avg_tts}${NCL} < 0.16
 # training summary
 # grep training_sequences_per_second $OUTPUT/train.log | awk -F ':' '{for (i=5; i<NF; i++) printf $i":"; print $NF}';echo | tee -a $TRAIN_LOGF;
 mapfile -t rst < <( grep e2e_train_time $OUTPUT/train.log | awk '{printf("%s %s %s %s\n", $9, $12, $15, $19);}' | awk '{OFS=RS;$1=$1}1' )
-echo -e "  e2e_train_time      : ${YLW}${rst[0]} ${NCL}\n" | tee -a $TRAIN_LOGF;
-echo -e "  training_sequences/s: ${YLW}${rst[1]} ${NCL}\n" | tee -a $TRAIN_LOGF;
-echo -e "  final_loss          : ${YLW}${rst[2]} ${NCL}\n" | tee -a $TRAIN_LOGF;
-echo -e "  raw_train_time      : ${YLW}${rst[3]} ${NCL}\n" | tee -a $TRAIN_LOGF;
+echo -e "  e2e_train_time      : ${YLW}${rst[0]} ${NCL}" | tee -a $TRAIN_LOGF;
+echo -e "  training_sequences/s: ${YLW}${rst[1]} ${NCL}" | tee -a $TRAIN_LOGF;
+echo -e "  final_loss          : ${YLW}${rst[2]} ${NCL}" | tee -a $TRAIN_LOGF;
+echo -e "  raw_train_time      : ${YLW}${rst[3]} ${NCL}" | tee -a $TRAIN_LOGF;
 
 eval_t=$(grep "eval used time" $TRAIN_LOGF  | grep 1,0 | awk '{print $4}' | cut -c 1-6)
-echo -e "  model eval time: ${eval_t}\n" | tee -a $TRAIN_LOGF;
+echo -e "  model eval time     : ${YLW}${eval_t} ${NCL}" | tee -a $TRAIN_LOGF;
+
+intern=$(grep "Iteration: 100%" $TRAIN_LOGF | tail -n 10 | awk '{print $10}' | awk -F'it' '{print $1}' | awk '{s+=$1}END{print s/NR}')
+intern=$(printf "%.2f" ${intern} )
+echo -e "  iteration 100% it/s : ${YLW}${intern} ${NCL}" | tee -a $TRAIN_LOGF;
 
 # PDU energy usage
 print_energy_usage
@@ -494,4 +498,3 @@ fi
 print_final_result 16.5
 
 save_result_remote
-

@@ -130,3 +130,12 @@ export HF_HOME=/sox/huggingface
 
 alias hkill='hl-smi | grep -A 9 Type | grep == -A 8 | grep -v == | grep -v  N/A | awk '\''{print $3}'\'' | xargs kill -9 2>/dev/null'
 
+function psnic(){
+	mapfile -t aoc < <( lspci | grep Eth | awk '{print $1}' );
+	for nic in "${aoc[@]}" ; do
+		iface=$(dmesg | grep  $nic | grep renamed | awk '{print $5}' | awk -F':' '{print $1}')
+		ifconfig $iface up
+		upord=$(ethtool $iface | grep Link | awk -F':' '{print $2}')
+		echo -e "$nic \t $iface \t $upord"
+	done
+}

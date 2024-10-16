@@ -582,7 +582,7 @@ function log2-metabasedb(){
 
 	ss=$(echo $vv | sed "s/, /', '/g")
 	ss="'"${ss}"'"
-
+
 	sql="INSERT INTO GDSUPPORT(${kk}) VALUES ($ss);"
 
 	if [[ "$1" == "sql" ]]; then
@@ -1074,7 +1074,7 @@ function ts_qua1080_HBM_Stress_Full(){ #desc: check HBM_Stress_Test
 	cd $GPATH
 	rm -rf ${GLOG}/* &>/dev/null
 	hl_qual -gaudi2 -full_hbm_data_check_test -i 3 -rmod parallel -c all -dis_mon &>/dev/null &
-	progress_bar 360
+	progress_bar 400
 
 	runt=$(($(date +%s) - start))
 	echo -e "  -full_hbm_data_check_test : ${runt}${NCL}"
@@ -1135,7 +1135,7 @@ function ts_qua1084_HBM_Stress_TPC(){ #desc: check HBM_Stress_TPC
 	cd $GPATH
 	rm -rf ${GLOG}/* &>/dev/null
 	hl_qual -gaudi2 -hbm_tpc_stress -i 3 -rmod parallel -c all -dis_mon &>/dev/null &
-	progress_bar 325
+	progress_bar 660
 	cd - &>/dev/null
 
 	runt=$(($(date +%s) - start))
