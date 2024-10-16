@@ -523,22 +523,23 @@ finetune_llama2-70b_lora_mpi_fsdp
 
 stop_sys_mon
 
-echo -e '\n------------------------------\n'
-
 #print history result
+echo -e '\n------------------------------\n'
 
 echo -e "  result: ${YLW}llama2-70b deepspeed zero3${NCL} fine-tune\n"
 print_result "meta-llama/Llama-2-70b-hf" "print_only" 
 
+echo -e '\n------------------------------\n'
+
 echo -e "  result: ${YLW}llama2-7b fp8${NCL} fine-tune\n"
 print_result "meta-llama/Llama-2-7b-hf"	 "print_only" 
+
+echo -e '\n------------------------------\n'
 
 echo -e "  result: ${YLW}llama1-7b${NCL} fine-tune\n"
 print_result "huggyllama/llama-7b"		 "print_only" 
 
 echo -e '\n------------------------------\n'
-
-echo
 
 # log system os info
 get_test_envn_data "optimum" "1.13.2" "language-modeling"
@@ -548,25 +549,24 @@ get_test_envn_data "optimum" "1.13.2" "language-modeling"
 rec_time=$(date +%s)
 rec_YYYY=$(date '+%Y-%m-%d %H:%M:%S' -d @$rec_time)
 
-echo -e "${YLW}model testing time${NCL}           1-card           bert-mpi-8       bert-deepspeed          t5-small-dp"
+echo -e "${YLW}model testing time${NCL}         llama-7b        llama2-7b-fp8      llama2-70b-zero      llama2-70b-fsdp"
 printf "%15s ${CYA}%15s %20s %20s %20s${NCL}\n" "${rec_YYYY}" $TRAIN_TIME1 $TRAIN_TIME2 $TRAIN_TIME3 $TRAIN_TIME4 | tee -a test_time.txt
 echo
 tail -n 5 test_time.txt
 
 echo
-echo -e "${YLW}train_runtime${NCL}                1-card           bert-mpi-8       bert-deepspeed          t5-small-dp"
-printf "%15s ${CYA}%15s %20s %20s %20s${NCL}\n" "${rec_YYYY}" $train_rt1 $train_rt2 $train_rt3 $train_rt4 | tee -a runtme_${TASK_NAME}
+echo -e "${YLW}model testing time${NCL}         llama-7b        llama2-7b-fp8      llama2-70b-zero      llama2-70b-fsdp"
+printf "%15s ${CYA}%15s %20s %20s %20s${NCL}\n" "${rec_YYYY}" $train_rt1 $train_rt2 $train_rt3 $train_rt4 | tee -a runtime${TASK_NAME}
 echo
-tail -n 5 runtimeg_${TASK_NAME}
+tail -n 5 runtime${TASK_NAME}
 echo
-
 
 # max power reading
 #hpw=$(sort $OUTPUT/_powerr.log | sort -n | tail -n 1)
 #echo -e "${YLW}Maximum Power: ${hpw} watts${NCL}" | tee -a $TRAINL
 
 # print top 30 stat info from hl-smi
-print_topnn_hl_smi 8
+print_topnn_hl_smi 10
 
 #print_energy_usage
 
