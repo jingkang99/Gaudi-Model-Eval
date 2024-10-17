@@ -274,7 +274,7 @@ echo | tee -a $TRAIN_LOGF
 # PDU energy usage
 print_energy_usage
 
-save_service_procs
+#save_service_procs
 
 if [[ $lss > 1 && $lss < 1.75 ]]
 then
