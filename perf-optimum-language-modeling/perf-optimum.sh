@@ -581,4 +581,4 @@ fi
 scp_results_remote
 
 echo
-echo -e "${BLU}Test Complete: ${elapsed} sec${NCL}\n"
+echo -e "${BLU}Test Complete: ${elapsed} sec${NCL}\n" | tee -a completet.txt
