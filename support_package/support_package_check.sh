@@ -1477,11 +1477,15 @@ function ts_hcc2000_hccl_all_reduce(){ #desc: check node2node all_reduce
 	hlog=$(pwd)/${OUTPUT}/_hccl-a.log
 
 	git clone --depth=1 https://github.com/HabanaAI/hccl_demo &>/dev/null
-	rm -rf hccl_demo/hccl_demo &>/dev/null
+
 	cp hccl_demo2 hccl_demo/hccl_demo
 	chmod 777     hccl_demo/hccl_demo
 	cd hccl_demo
-	git pull &>/dev/null
+
+	if [[ -n $city ]]; then
+		git pull &>/dev/null
+		make
+	fi
 
 	HCCL_COMM_ID=127.0.0.1:5555 python3 run_hccl_demo.py --nranks 8 --node_id 0 --size 256m --test all_reduce --loop 1000 --ranks_per_node 8 &>$hlog &
 	progress_bar 50
