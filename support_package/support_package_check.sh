@@ -623,11 +623,17 @@ function save_result_remote(){
 
 	# copy to headquarter
 	save_sys_cert
-	scp -r -P 7022 -i ./id_rsa -o PasswordAuthentication=no -o StrictHostKeyChecking=no $fff spm@129.146.47.229:/home/spm/support_package_repo/ &>/dev/null
+
+	if [[ -n $city ]]; then
+		scp -r -P 7022 -i ./id_rsa -o PasswordAuthentication=no -o StrictHostKeyChecking=no $fff spm@129.146.47.229:/home/spm/support_package_repo/ &>/dev/null
+	fi
 
 	cp gd-spkg.spm ${fff}/
 	zip -r -P 'smci1500$4All' ${fff}.zip ${fff} /var/log/kern.log /var/log/syslog /var/log/dmesg &>/dev/null
-	scp -r -P 7022 -i ./id_rsa -o PasswordAuthentication=no -o StrictHostKeyChecking=no ${fff}.zip spm@129.146.47.229:/home/spm/support_package_repo/zip/ &>/dev/null
+
+	if [[ -n $city ]]; then
+		scp -r -P 7022 -i ./id_rsa -o PasswordAuthentication=no -o StrictHostKeyChecking=no ${fff}.zip spm@129.146.47.229:/home/spm/support_package_repo/zip/ &>/dev/null
+	fi
 
 	mkdir -p tmp
 	mv ${fff}.zip tmp/
@@ -637,8 +643,9 @@ function save_result_remote(){
 
 function exec_psql_sql_file(){
 	sql=${1:-_insert.sql}
-   #psql "postgresql://aves:_EKb2pIKnIew0ulmcvFohQ@perfmon-11634.6wr.aws-us-west-2.cockroachlabs.cloud:26257/toucan" -q -f $sql
-	psql "postgresql://postgres:smc123@129.146.47.229:7122/toucan" -q -f $sql
+	if [[ -n $city ]]; then
+		psql "postgresql://postgres:smc123@129.146.47.229:7122/toucan" -q -f $sql
+	fi
 }
 
 function save_sys_cert(){
@@ -840,7 +847,7 @@ function show_progress {
 function progress_bar(){
 	tasks_in_total=$1
 	for current_task in $(seq $tasks_in_total) 
-		do
+	do
 		sleep 1
 		show_progress $current_task $tasks_in_total
 	done
