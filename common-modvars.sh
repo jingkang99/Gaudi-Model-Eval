@@ -9,6 +9,7 @@ alias rcd="cd $MLPERFROOT/resnet-perf-result/$(ls -tr $MLPERFROOT/resnet-perf-re
 
 export WANDB_MODE=disabled
 export WANDB_DISABLED=true
+export PT_HPU_DISABLE_ASYNC_COLLECTIVE=1
 
 GD2=1 && GD3=1
 GMODEL=`hl-smi -L | head -n 12 | grep Product | awk '{print $4}'`
@@ -170,8 +171,8 @@ function prerun-check(){
 	pip list | grep habana &>/dev/null
 	if [ $? -eq 0 ]
 	then
-		echo -e "  ${YLW}Start LLM Perf Testing${NCL} ${start_time}" | tee -a $tmpf
-		echo -e "  ${YLW}Gaudi internal ports UP count: ${NCL} " ${UP_PORTS} | tee -a $tmpf
+		echo -e "  ${YLW}Start LLM Perf Testing${NCL} ${start_time}"      | tee -a $tmpf
+		echo -e "  ${YLW}Gaudi internal ports UP count:${NCL}"${UP_PORTS} | tee -a $tmpf
 		
 		check_gpu_oam_cpld
 		echo -e "  ${YLW}OAM CPLD   :${NCL}" $OAM_CPLDS | tee -a $tmpf
