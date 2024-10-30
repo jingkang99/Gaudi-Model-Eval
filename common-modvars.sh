@@ -173,12 +173,13 @@ function prerun-check(){
 	then
 		echo -e "  ${YLW}Start LLM Perf Testing${NCL} ${start_time}"      | tee -a $tmpf
 		echo -e "  ${YLW}Gaudi internal ports UP count:${NCL}"${UP_PORTS} | tee -a $tmpf
-		
+
 		check_gpu_oam_cpld
 		echo -e "  ${YLW}OAM CPLD   :${NCL}" $OAM_CPLDS | tee -a $tmpf
 		echo -e "  ${YLW}PDU Console:${NCL}" `head -n 1  ${CUR}/apc-pdu.cnf` ${PDUSTATUS} | tee -a $tmpf
 		echo
 		echo performance | tee /sys/devices/system/cpu/cpu*/cpufreq/scaling_governor &>/dev/null
+		echo 1           | tee /sys/devices/system/cpu/cpu*/cpuidle/state2/disable   &>/dev/null
 	else
 		echo -e "${RED}ERROR: habana python module not found${NCL}"
 		exit 1
