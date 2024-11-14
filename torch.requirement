@@ -1,0 +1,8 @@
+pip install --upgrade pip
+pip install matplotlib boto3 colorlog ipdb h5py html2text nltk progressbar gdown mpi4py pillow peft evaluate
+pip install git+https://github.com/NVIDIA/dllogger.git@26a0f8f1958de2c0c460925ff6102a4d2486d6c
+pip install git+https://github.com/mlperf/logging.git 
+
+pip install --upgrade-strategy eager optimum[habana]
+pip install git+https://github.com/HabanaAI/DeepSpeed.git@1.18.0
+
