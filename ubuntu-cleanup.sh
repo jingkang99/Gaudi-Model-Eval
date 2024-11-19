@@ -6,6 +6,9 @@ service upower stop	&>/dev/null
 service packagekit stop &>/dev/null
 service cloud-init stop &>/dev/null
 
+apt update
+apt upgrade
+
 echo "apt purge"
 apt purge   -y cloud-init cloud-guest-utils snapd packagekit fwupd polkitd &>/dev/null
 
