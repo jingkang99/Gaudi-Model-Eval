@@ -23,11 +23,11 @@ export MLPERF_DIR=/sox/habana-intel/Model-References/MLPERF3.1/Training
 export PYTORCH_BERT_DATA=$DATASET/ptbert-data
 export BERT_IMPLEMENTATIONS=/sox/habana-intel/Model-References/MLPERF3.1/Training/benchmarks/bert/implementations
 
-export CONTAINER_NAME=mlperf3_1
-export DOCKER_IMAGE=vault.habana.ai/gaudi-docker/1.16.0/ubuntu22.04/habanalabs/pytorch-installer-2.2.2:latest
-
 export PATH=/opt/habanalabs/openmpi-4.1.5/bin:$PATH
 export PT_HPU_LAZY_MODE=1
+
+export WANDB_DISABLED=true
+export HF_HOME=/sox/huggingface
 
 # pytorch env, installed with required modules
 [ ! -d "$PYTHON_LLM_VEN" ] && ln -s /sox/python-llm /opt/python-llm
@@ -56,6 +56,15 @@ alias jns='jupyter notebook --ip 0.0.0.0 --port 8888 --allow-root'
 alias upp='nmap -sn 172.24.189.11/27| grep 172'
 alias cls="echo '' > /var/log/syslog; echo '' > /var/log/kern.log; rm -rf /var/log/habana_logs/*"
 
+alias gov='cat /sys/devices/system/cpu/cpu*/cpufreq/scaling_governor | uniq -c'
+alias hkill='hl-smi | grep -A 9 Type | grep == -A 8 | grep -v == | grep -v  N/A | awk '\''{print $3}'\'' | xargs kill -9 2>/dev/null'
+
+MLPERFROOT=/sox/Gaudi-Model-Eval
+
+alias acd='cd /sox/habana-intel/Model-References/MLPERF3.1/Training/benchmarks'
+alias bcd="cd $MLPERFROOT/bert-perf-result/$(  ls -tr $MLPERFROOT/bert-perf-result   | tail -n 1)"
+alias rcd="cd $MLPERFROOT/resnet-perf-result/$(ls -tr $MLPERFROOT/resnet-perf-result | tail -n 1)"
+
 RED='\033[0;31m'
 YLW='\033[0;33m'
 BLU='\033[0;34m'
@@ -63,16 +72,16 @@ BCY='\033[1;36m'
 CYA='\033[0;36m'
 NCL='\033[0m'
 
+M_SIZE=$(echo $(grep MemTotal /proc/meminfo | awk '{print $2}')/1024/1014 + 1| bc)
+CPU_TP=$(grep "model name" /proc/cpuinfo| head -n 1 |awk -F':' '{print $2}' | xargs)
+CPU_CT=$(grep processor /proc/cpuinfo|wc -l)
+
 function lsg(){
         find . -mindepth 2 -maxdepth 2 -type d -ls | grep $1
 }
 function dush(){
     du -h --max-depth=1 $1
 }
-
-M_SIZE=$(echo $(grep MemTotal /proc/meminfo | awk '{print $2}')/1024/1014 + 1| bc)
-CPU_TP=$(grep "model name" /proc/cpuinfo| head -n 1 |awk -F':' '{print $2}' | xargs)
-CPU_CT=$(grep processor /proc/cpuinfo|wc -l)
 
 function sys_info(){
         echo $M_SIZE'GB' $CPU_CT'Core' $CPU_TP | toilet -f term -F border --gay
@@ -116,19 +125,8 @@ function pir() {
 	awk -F"==" '{print $1}' $REQ | xargs -I{} pip install {}
 }
 
-MLPERFROOT=/sox/Gaudi-Model-Eval
-
-alias acd='cd /sox/habana-intel/Model-References/MLPERF3.1/Training/benchmarks'
-alias bcd="cd $MLPERFROOT/bert-perf-result/$(  ls -tr $MLPERFROOT/bert-perf-result   | tail -n 1)"
-alias rcd="cd $MLPERFROOT/resnet-perf-result/$(ls -tr $MLPERFROOT/resnet-perf-result | tail -n 1)"
-
 mkdir -p /root/.postgresql 2>/dev/null
 cp tool/root.crt /root/.postgresql/root.crt
-
-export WANDB_DISABLED=true
-export HF_HOME=/sox/huggingface
-
-alias hkill='hl-smi | grep -A 9 Type | grep == -A 8 | grep -v == | grep -v  N/A | awk '\''{print $3}'\'' | xargs kill -9 2>/dev/null'
 
 function psnic(){
 	mapfile -t aoc < <( lspci | grep Eth | awk '{print $1}' );
