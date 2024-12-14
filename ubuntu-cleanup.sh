@@ -6,6 +6,8 @@ service upower stop	&>/dev/null
 service packagekit stop &>/dev/null
 service cloud-init stop &>/dev/null
 
+systemctl disable systemd-networkd-wait-online.service &>/dev/null
+
 apt update
 apt upgrade
 
