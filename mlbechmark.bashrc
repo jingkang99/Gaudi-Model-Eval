@@ -68,6 +68,7 @@ alias rcd="cd $MLPERFROOT/resnet-perf-result/$(ls -tr $MLPERFROOT/resnet-perf-re
 alias spi='hl-smi -q  | grep SPI'
 alias cpld='hl-smi -q | grep "CPLD Ver"'
 alias hccl="HCCL_COMM_ID=127.0.0.1:5555 python3 run_hccl_demo.py --nranks 8 --node_id 0 --size 32m --test all_reduce --loop 1000 --ranks_per_node 8"
+alias oam='hl-smi -L | grep SPI -B 12 | grep -P "accel|Serial|SPI"'
 
 RED='\033[0;31m'
 YLW='\033[0;33m'
