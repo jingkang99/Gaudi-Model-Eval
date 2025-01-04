@@ -65,10 +65,11 @@ alias acd='cd /sox/habana-intel/Model-References/MLPERF3.1/Training/benchmarks'
 alias bcd="cd $MLPERFROOT/bert-perf-result/$(  ls -tr $MLPERFROOT/bert-perf-result   | tail -n 1)"
 alias rcd="cd $MLPERFROOT/resnet-perf-result/$(ls -tr $MLPERFROOT/resnet-perf-result | tail -n 1)"
 
-alias spi='hl-smi -q  | grep SPI'
-alias cpld='hl-smi -q | grep "CPLD Ver"'
-alias hccl="HCCL_COMM_ID=127.0.0.1:5555 python3 run_hccl_demo.py --nranks 8 --node_id 0 --size 32m --test all_reduce --loop 1000 --ranks_per_node 8"
+alias spi='hl-smi -q | grep SPI'
 alias oam='hl-smi -L | grep SPI -B 12 | grep -P "accel|Serial|SPI"'
+alias cpld='hl-smi -q | grep "CPLD Ver"'
+alias pcnt='hl-smi -Q bus_id -f csv,noheader | xargs -I % hl-smi -i % -n link | grep UP | wc -l'
+alias hccl="HCCL_COMM_ID=127.0.0.1:5555 python3 run_hccl_demo.py --nranks 8 --node_id 0 --size 32m --test all_reduce --loop 1000 --ranks_per_node 8"
 
 RED='\033[0;31m'
 YLW='\033[0;33m'
