@@ -4,5 +4,5 @@ pip install git+https://github.com/NVIDIA/dllogger.git@26a0f8f1958de2c0c460925ff
 pip install git+https://github.com/mlperf/logging.git 
 
 pip install --upgrade-strategy eager optimum[habana]
-pip install git+https://github.com/HabanaAI/DeepSpeed.git@1.18.0
+pip install git+https://github.com/HabanaAI/DeepSpeed.git@1.19.0
 
