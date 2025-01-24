@@ -72,6 +72,7 @@ alias pcnt='hl-smi -Q bus_id -f csv,noheader | xargs -I % hl-smi -i % -n link | 
 alias hccl="HCCL_COMM_ID=127.0.0.1:5555 python3 run_hccl_demo.py --nranks 8 --node_id 0 --size 32m --test all_reduce --loop 1000 --ranks_per_node 8"
 alias oopt="cat /sys/class/accel/accel*/device/status"
 alias apth='apt list --installed | grep haba'
+alias erom='hl-smi --fw-version | grep erom -A 1 | grep  gaudi'
 
 RED='\033[0;31m'
 YLW='\033[0;33m'
