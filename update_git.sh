@@ -15,10 +15,11 @@ src=(		/sox/code		\
 		/sox/tool		\
 		/sox/web3		\
 		/sox/llms		\
+		/sox/intel		\
 		/sox/tutml		\
 		/sox/hfgit		\
 		/sox/mlperf		\
-		/sox/mlperf		\
+		/sox/habana		\
 		/sox/nvidia		\
 		/sox/google		\
 		/sox/huggingface/hub/server
