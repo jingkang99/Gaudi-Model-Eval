@@ -1,0 +1,3 @@
+# 64 count
+ipmitool sensor | grep -P '(NVMe_SSDA|OAM|UBB|BMC|MB|CPU|PSU|FAN)'| wc -l
+

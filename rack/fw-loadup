@@ -1,0 +1,1 @@
+sudo modprobe habanalabs_en && sudo modprobe habanalabs_ib && sudo modprobe habanalabs_cn && sudo modprobe habanalabs

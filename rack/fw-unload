@@ -1,0 +1,2 @@
+sudo rmmod habanalabs; sudo rmmod habanalabs_cn; sudo rmmod habanalabs_ib; sudo rmmod habanalabs_en
+
