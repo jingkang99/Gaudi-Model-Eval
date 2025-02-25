@@ -1,0 +1,67 @@
+# jingk @ 2/24/25
+
+RED='\033[0;31m'
+YLW='\033[0;33m'
+BLU='\033[0;34m'
+GRN='\033[0;32m'
+BCY='\033[1;36m'
+CYA='\033[0;36m'
+NCL='\033[0m' 
+
+ipp=$(ifconfig | grep 'inet ' | grep -v -P '27.0|172.17' | awk '{print $2}')
+log=_${ipp}_$(date '+%Y-%m-%d~%H-%M-%S').log
+oam="saa -c GetGPUInfo"
+
+function saarun(){
+	saa -i ${bmcip} -u ADMIN -p ${bmcpw} -c $1 | grep -v SuperServer | grep -v Copyright | grep . | tee -a $log
+}
+
+function remote(){
+	cmdexec=$(printf "ssh -o \"StrictHostKeyChecking no\" %s \"%s\"\n" ${osipa} "${1}")
+	echo $cmdexec
+	eval $cmdexec
+}
+
+mapfile -t line < <( cat node.list )
+
+for (( i=0; i< ${#line[@]}; i++ )); do
+	str=(`echo ${line[$i]} | sed 's/\t+/\n/g'`)
+	bmcip=${str[0]}
+	bmcpw=${str[1]}
+	osipa=${str[2]}
+
+	saarun 'GetBmcInfo'
+	saarun 'GetBiosInfo'
+	saarun 'GetCpldInfo'
+	saarun 'GetGPUInfo'
+
+	#rsync saa ${osipa}:/usr/local/bin/
+	#remote "$oam"
+done
+
+printf "\n\n${BCY}      ---- report ----${NCL}\n" 
+
+printf "${GRN}BMC${NCL}\n" 
+grep "BMC version"  $log | sed  -r 's/(version\.+)/-/g' | awk -F'-' '{print $2}' | sort | uniq -c
+
+printf "${GRN}BIOS${NCL}\n" 
+grep "BIOS version" $log | sed  -r 's/(version\.+)/-/g' | awk -F'-' '{print $2}' | sort | uniq -c
+
+printf "${GRN}Motherboard CPLD 1${NCL}\n" 
+grep "Motherboard CPLD 1" $log | sed  -r 's/(version\.+)/-/g' | awk -F'-' '{print $2}' | sort | uniq -c
+
+printf "${GRN}Motherboard CPLD 2${NCL}\n" 
+grep "Motherboard CPLD 2" $log | sed  -r 's/(version\.+)/-/g' | awk -F'-' '{print $2}' | sort | uniq -c
+
+printf "${GRN}UBB cpld-1${NCL}\n" 
+grep "UBB_Primary_CPLD" $log | sed  -r 's/(version\.+)/-/g' | awk -F'-' '{print $2}' | sort | uniq -c
+
+for (( i=1; i< 9; i++ )); do
+	printf "${GRN}UBB Retimer %s${NCL}\n" ${i}
+	grep "Retimer ${i}" $log | sed  -r 's/(version\.+)/-/g' | awk -F'-' '{print $2}' | sort | uniq -c
+done
+
+for (( i=1; i< 4; i++ )); do
+	printf "${GRN}Serdes Retimer %s${NCL}\n" ${i}
+	grep "UBB_Serdes_Retimer_${i}" $log | sed  -r 's/(version\.+)/-/g' | awk -F'-' '{print $2}' | sort | uniq -c
+done
