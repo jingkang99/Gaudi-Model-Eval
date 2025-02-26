@@ -1,5 +1,8 @@
 # jingk @ 2/24/25
 
+CHECK_OAM_CPLD=1
+
+SECONDS=0
 RED='\033[0;31m'
 YLW='\033[0;33m'
 BLU='\033[0;34m'
@@ -39,6 +42,20 @@ for (( i=0; i< ${#line[@]}; i++ )); do
 	#remote "$oam"
 done
 
+# login remote server to check oam cpld
+for (( i=0; i< ${#line[@]}; i++ )); do
+	[[ CHECK_OAM_CPLD -eq 0 ]] && break
+
+	str=(`echo ${line[$i]} | sed 's/\t+/\n/g'`)
+	bmcip=${str[0]}
+	bmcpw=${str[1]}
+	osipa=${str[2]}
+
+	#rsync saa ${osipa}:/usr/local/bin/
+	printf "      ---- %-17s %s\n" ${bmcip} ${osipa}
+	remote "$oam" | tee -a $log
+done
+
 printf "\n\n${BCY}      ---- report ----${NCL}\n" 
 
 printf "${GRN}BMC${NCL}\n" 
@@ -65,3 +82,13 @@ for (( i=1; i< 4; i++ )); do
 	printf "${GRN}Serdes Retimer %s${NCL}\n" ${i}
 	grep "UBB_Serdes_Retimer_${i}" $log | sed  -r 's/(version\.+)/-/g' | awk -F'-' '{print $2}' | sort | uniq -c
 done
+
+if [[ CHECK_OAM_CPLD -ne 0 ]]; then
+	printf "${GRN}OAM SPI${NCL}\n"
+	grep SPI  $log | awk '{print $5}' | sort | uniq -c
+
+	printf "${GRN}OAM CPLD${NCL}\n"
+	grep 'OAM CPLD' $log | awk '{print $6}' | sort | uniq -c
+fi
+
+printf "${CYA}test done in $SECONDS seconds${NCL}\n"
