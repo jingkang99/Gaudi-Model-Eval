@@ -27,6 +27,26 @@ function remote(){
 
 mapfile -t line < <( cat node.list )
 
+if [[ "$1" == "ping" ]]; then
+	for (( i=0; i< ${#line[@]}; i++ )); do
+		[[ -z ${line[$i]} ]] && continue
+
+		str=(`echo ${line[$i]} | sed 's/\t+/\n/g'`)
+		bmcip=${str[0]}
+		bmcpw=${str[1]}
+		osipa=${str[2]}
+
+		STATUS=$(curl -s -k -m 2 -o /dev/null -w "%{http_code}" https://$bmcip)
+
+		if [[ $STATUS == "200" ]]; then
+			printf "$bmcip\t${GRN}online${NCL}\n"
+		else
+			printf "$bmcip\t${RED}offline${NCL}\n"
+		fi
+	done
+	exit 0
+fi
+
 for (( i=0; i< ${#line[@]}; i++ )); do
 	str=(`echo ${line[$i]} | sed 's/\t+/\n/g'`)
 	bmcip=${str[0]}
@@ -44,7 +64,7 @@ done
 
 # login remote server to check oam cpld
 for (( i=0; i< ${#line[@]}; i++ )); do
-	[[ CHECK_OAM_CPLD -eq 0 ]] && break
+	[[ $CHECK_OAM_CPLD -eq 0 ]] && break
 
 	str=(`echo ${line[$i]} | sed 's/\t+/\n/g'`)
 	bmcip=${str[0]}
@@ -83,7 +103,7 @@ for (( i=1; i< 4; i++ )); do
 	grep "UBB_Serdes_Retimer_${i}" $log | sed  -r 's/(version\.+)/-/g' | awk -F'-' '{print $2}' | sort | uniq -c
 done
 
-if [[ CHECK_OAM_CPLD -ne 0 ]]; then
+if [[ $CHECK_OAM_CPLD -ne 0 ]]; then
 	printf "${GRN}OAM SPI${NCL}\n"
 	grep SPI  $log | awk '{print $5}' | sort | uniq -c
 
