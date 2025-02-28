@@ -1,6 +1,6 @@
 # jingk @ 2/24/25
 
-CHECK_OAM_CPLD=1
+CHECK_OAM_CPLD=0
 
 SECONDS=0
 RED='\033[0;31m'
@@ -25,7 +25,33 @@ function remote(){
 	eval $cmdexec
 }
 
+function saa_check(){
+	saa -i $1 -u ADMIN -p $2 -c GetGPUInfo
+}
+
+function saa_update_ubbcpld(){
+	saa -i $1 -u ADMIN -p $2 -c UpdateGpu --item GAUDI_UBB_CPLD --file ubb_primary_cpld_0x13.svf
+}
+
+function saa_update_ubbretimer(){
+	saa -i $1 -u ADMIN -p $2 -c UpdateGpu --item GAUDI_RETIMER  --file ubb_Retimer_2.12.17.ihx
+}
+
 mapfile -t line < <( cat node.list )
+
+if [[ "$1" == "power" ]]; then
+	for (( i=0; i< ${#line[@]}; i++ )); do
+		[[ -z ${line[$i]} ]] && continue
+
+		str=(`echo ${line[$i]} | sed 's/\t+/\n/g'`)
+		bmcip=${str[0]}
+		bmcpw=${str[1]}
+		osipa=${str[2]}
+
+		ipmitool -H $bmcip -U ADMIN -P $bmcpw power status
+	done
+	exit 0
+fi
 
 if [[ "$1" == "ping" ]]; then
 	for (( i=0; i< ${#line[@]}; i++ )); do
@@ -48,6 +74,8 @@ if [[ "$1" == "ping" ]]; then
 fi
 
 for (( i=0; i< ${#line[@]}; i++ )); do
+	[[ -z ${line[$i]} ]] && continue
+
 	str=(`echo ${line[$i]} | sed 's/\t+/\n/g'`)
 	bmcip=${str[0]}
 	bmcpw=${str[1]}
@@ -57,14 +85,12 @@ for (( i=0; i< ${#line[@]}; i++ )); do
 	saarun 'GetBiosInfo'
 	saarun 'GetCpldInfo'
 	saarun 'GetGPUInfo'
-
-	#rsync saa ${osipa}:/usr/local/bin/
-	#remote "$oam"
 done
 
 # login remote server to check oam cpld
 for (( i=0; i< ${#line[@]}; i++ )); do
 	[[ $CHECK_OAM_CPLD -eq 0 ]] && break
+	[[ -z ${line[$i]} ]] && continue
 
 	str=(`echo ${line[$i]} | sed 's/\t+/\n/g'`)
 	bmcip=${str[0]}
