@@ -15,6 +15,8 @@ ipp=$(ifconfig | grep 'inet ' | grep -v -P '27.0|172.17' | awk '{print $2}')
 log=_${ipp}_$(date '+%Y-%m-%d~%H-%M-%S').log
 oam="saa -c GetGPUInfo"
 
+mapfile -t line < <( cat node.list )
+
 function saarun(){
 	saa -i ${bmcip} -u ADMIN -p ${bmcpw} -c $1 | grep -v SuperServer | grep -v Copyright | grep . | tee -a $log
 }
@@ -37,7 +39,76 @@ function saa_update_ubbretimer(){
 	saa -i $1 -u ADMIN -p $2 -c UpdateGpu --item GAUDI_RETIMER  --file ubb_Retimer_2.12.17.ihx
 }
 
-mapfile -t line < <( cat node.list )
+function stats_on(){
+	key="$1"
+	printf "${BCY}$key${NCL}\n"
+
+	cmdexec=$(printf "grep '%s\.' %s | sed  -r 's/(%s\.+)/-/g' | awk -F'-' '{print \$2}' | sort | uniq -c" "${key}" $log "${key}")
+	eval $cmdexec
+}
+
+if [[ "$1" == "fw" ]]; then
+	for (( i=0; i< ${#line[@]}; i++ )); do
+		[[ -z ${line[$i]} ]] && continue
+
+		str=(`echo ${line[$i]} | sed 's/\t+/\n/g'`)
+		bmcip=${str[0]}
+		bmcpw=${str[1]}
+		osipa=${str[2]}
+
+		printf "checking $bmcip\n"
+		saarun 'GetFirmwareInventoryInfo'
+	done
+
+	printf "\n\n${CYA}      ---- report ----${NCL}\n" 
+
+	stats_on "BMC"
+	stats_on "BIOS"
+	stats_on "CPLD Motherboard"
+	stats_on "CPLD Motherboard 2"
+	stats_on "Retimer 1 at UBB"
+	stats_on "Retimer 2 at UBB"
+	stats_on "Retimer 3 at UBB"
+	stats_on "Retimer 4 at UBB"
+	stats_on "Retimer 5 at UBB"
+	stats_on "Retimer 6 at UBB"
+	stats_on "Retimer 7 at UBB"
+	stats_on "Retimer 8 at UBB"
+
+	stats_on "UBB_Serdes_Retimer_1"
+	stats_on "UBB_Serdes_Retimer_2"
+	stats_on "UBB_Serdes_Retimer_3"
+
+	stats_on "UBB_Primary_CPLD"
+	stats_on "UBB_Secondary_CPLD"
+
+	stats_on "GPU1 System Slot 1"
+	stats_on "GPU2 System Slot 2"
+	stats_on "GPU3 System Slot 3"
+	stats_on "GPU4 System Slot 4"
+	stats_on "GPU5 System Slot 5"
+	stats_on "GPU6 System Slot 6"
+	stats_on "GPU7 System Slot 7"
+	stats_on "GPU8 System Slot 8"
+
+	stats_on "Power Supply 1 PWS-3K02G-2R"
+	stats_on "Power Supply 2 PWS-3K02G-2R"
+	stats_on "Power Supply 3 PWS-3K02G-2R"
+	stats_on "Power Supply 4 PWS-3K02G-2R"
+	stats_on "Power Supply 5 PWS-3K02G-2R"
+	stats_on "Power Supply 6 PWS-3K02G-2R"
+	stats_on "Power Supply 7 PWS-3K02G-2R"
+	stats_on "Power Supply 8 PWS-3K02G-2R"
+
+	stats_on "AOC-ATG-i2TM"
+	stats_on "MCX623106AC-CDAT"
+
+	stats_on "PLX motherboard"
+
+	printf "${CYA}test done in $SECONDS seconds${NCL}\n"
+
+	exit 0
+fi
 
 if [[ "$1" == "power" ]]; then
 	for (( i=0; i< ${#line[@]}; i++ )); do
