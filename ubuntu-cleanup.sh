@@ -10,6 +10,8 @@ service cloud-init stop &>/dev/null
 systemctl disable systemd-networkd.service &>/dev/null
 systemctl disable systemd-networkd-wait-online.service &>/dev/null
 
+apt remove unattended-upgrades
+
 apt update
 apt upgrade
 
