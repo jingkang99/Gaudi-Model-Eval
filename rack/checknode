@@ -110,6 +110,28 @@ if [[ "$1" == "fw" ]]; then
 	exit 0
 fi
 
+if [[ "$1" == "oam" ]]; then
+	for (( i=0; i< ${#line[@]}; i++ )); do
+		[[ -z ${line[$i]} ]] && continue
+
+		str=(`echo ${line[$i]} | sed 's/\t+/\n/g'`)
+		bmcip=${str[0]}
+		bmcpw=${str[1]}
+		osipa=${str[2]}
+
+		STATUS=$(curl -s -k -m 2 -o /dev/null -w "%{http_code}" https://$bmcip)
+		[[ $STATUS != "200" ]] && continue
+
+		ipmitool -H $bmcip -U ADMIN -P $bmcpw power status &>/dev/null
+		[[ $? -ne 0 ]] && continue
+
+		#remote "cat /etc/machine-id;uname -r"
+		remote "hl-smi -q | grep 'CPLD Ver';hl-smi -q | grep SPI"
+
+	done
+	exit 0
+fi
+
 if [[ "$1" == "power" ]]; then
 	for (( i=0; i< ${#line[@]}; i++ )); do
 		[[ -z ${line[$i]} ]] && continue
