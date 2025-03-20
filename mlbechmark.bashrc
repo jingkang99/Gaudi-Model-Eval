@@ -74,6 +74,7 @@ alias oopt="cat /sys/class/accel/accel*/device/status"
 alias apth='apt list --installed | grep haba'
 alias erom='hl-smi --fw-version | grep erom -A 1 | grep  gaudi'
 alias SPI='hl-fw-loader -s | grep Sending -A 6 | grep -P "SPI|Sending"'
+alias gd3='cd /var/log/habana_logs/qual/;tail -n 1 *.log | grep -v == | grep .'
 
 RED='\033[0;31m'
 YLW='\033[0;33m'
