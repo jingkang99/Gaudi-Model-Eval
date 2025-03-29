@@ -34,7 +34,16 @@ if [[ ! -f $CPLD_FILE ]]; then
 fi
 
 echo -e "  oam CPLD: $CPLD_FILE"
-
+SECONDS=0
 for (( i=1; i < 8; i++ )); do
     nohup hl-fw-loader -y -d ${OAM_ID[$i]} -f ${CPLD_FILE} &
 done
+
+sleep 1080
+echo -e "\n${GRN}OAM CPLD updated in${NCL} ${YLW}${SECONDS}${NCL}${GRN} s${NCL}"
+
+hl-smi -q | grep SPI 
+echo
+hl-smi -q | grep "CPLD Ver"
+echo
+hl-smi -L | grep "CPLD Version" -B 15 | grep -P "accel|Serial|SPI|CPLD"
