@@ -1,3 +1,5 @@
+# bash upgcpld.sh HL325_15D_HBN_R0C_20250219a_FPGA_04_TS67B607AE.itb
+
 RED='\033[0;31m'
 YLW='\033[0;33m'
 BLU='\033[0;34m'
@@ -5,6 +7,11 @@ GRN='\033[0;32m'
 BCY='\033[1;36m'
 CYA='\033[0;36m'
 NCL='\033[0m' 
+
+if [[ "$1" == "-h" ]]; then
+	echo -e "\nbash $0 ${YLW}HL325_15D_HBN_R0C_20250219a_FPGA_04_TS67B607AE.itb${NCL}\n"
+	exit 0
+fi
 
 echo -e "$YLW"
 read -r -p "  Confirm to update OAM CPLD simultaneously using $1 (y/n)?" response
@@ -35,7 +42,7 @@ fi
 
 echo -e "  oam CPLD: $CPLD_FILE"
 SECONDS=0
-for (( i=1; i < 8; i++ )); do
+for (( i=0; i < 8; i++ )); do
     nohup hl-fw-loader -y -d ${OAM_ID[$i]} -f ${CPLD_FILE} &
 done
 
