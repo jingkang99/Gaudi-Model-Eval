@@ -198,7 +198,7 @@ function prerun-check(){
 # check Gaudi interal ports 
 function check_gpu_int_port(){
 	UP_PORTS=$(hl-smi -Q bus_id -f csv,noheader | xargs -I % hl-smi -i % -n link | grep UP | wc -l)
-	if [ $UP_PORTS != 168 ]
+	if [ $UP_PORTS != 168 ] || [ $UP_PORTS != 192 ]
 	then
 		echo -e "${RED}ERROR: Gaudi internal ports Not All Up${NCL}"
 		
