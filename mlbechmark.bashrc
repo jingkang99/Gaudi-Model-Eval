@@ -69,7 +69,7 @@ alias spi='hl-smi -q | grep SPI'
 alias oam='hl-smi -L | grep "CPLD Version" -B 15 | grep -P "accel|Serial|SPI|CPLD"'
 alias cpld='hl-smi -q | grep "CPLD Ver"'
 alias pcnt='hl-smi -Q bus_id -f csv,noheader | xargs -I % hl-smi -i % -n link | grep UP | wc -l'
-alias hccl="HCCL_COMM_ID=127.0.0.1:5555 python3 run_hccl_demo.py --nranks 8 --node_id 0 --size 32m --test all_reduce --loop 1000 --ranks_per_node 8"
+alias hccl='HCCL_COMM_ID=127.0.0.1:5555 python3 run_hccl_demo.py --nranks 8 --node_id 0 --size 32m --test all_reduce --loop 1000 --ranks_per_node 8 | tee -a _hccl.log'
 alias oopt="cat /sys/class/accel/accel*/device/status"
 alias apth='apt list --installed | grep haba'
 alias erom='hl-smi --fw-version | grep erom -A 1 | grep  gaudi'
