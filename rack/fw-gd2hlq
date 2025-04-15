@@ -1,0 +1,17 @@
+echo
+
+export GREP_COLORS='ms=01;33'
+
+lspci | grep --color -P "accelerators.*1020"
+
+if [[ $? == 0 ]]; then
+    SECONDS=0
+    echo -e " \n  reload gaudi2 drivers with timeout_locked=0"
+
+    rmmod habanalabs
+    modprobe habanalabs timeout_locked=0
+
+    echo -e "  done in $SECONDS seconds"
+else
+    echo "  this is NOT a gaudi2 server"
+fi
