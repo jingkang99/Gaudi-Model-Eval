@@ -1,3 +1,13 @@
+# jkang, 4/17/2025
+
+RED='\033[0;31m'
+YLW='\033[0;33m'
+BLU='\033[0;34m'
+GRN='\033[0;32m'
+BCY='\033[1;36m'
+CYA='\033[0;36m'
+NCL='\033[0m' 
+
 alias gdl='tail -n 1 /var/log/habana_logs/qual/*.log  | grep -v == | grep .'
 
 export GREP_COLORS='ms=01;33'
@@ -7,6 +17,7 @@ TIME=240
 PCIE=gen4
 DMON=" -dis_mon"
 DRYR="no"
+DRYT="no"
 
 function check_hl_qual_log(){
 	SUMMARY=''
@@ -30,7 +41,6 @@ function server_type(){
 	if [[ $? != 0 ]]; then
 		lspci | grep --color -P "accelerators.*Gaudi2" &>/dev/null
 	fi
-
 	[[ $? == 0 ]] && echo 'gd2' || echo 'gd3'	
 }
 
@@ -42,7 +52,7 @@ function exec_cmd(){
 	[[ $DRYR =~ "no" ]] && printf "  exec: %s s %s\n" $duration "$1"
 }
 
-# --------------------------
+# --------------------- main
 
 if [[ "$1" =~ "log" ]]; then
 	check_hl_qual_log
@@ -55,7 +65,7 @@ elif [[ "$1" =~ "mv" ]]; then
 fi
 
 [[ $* =~ "dry" ]] && DRYR="yes"
-[[ $* =~ "dis" ]] && DMON=""
+[[ $* =~ "dis" ]] && DMON=" -dis_mon" || DMON=""
 
 SECONDS=0
 echo -e "\n  hl_qual tests on ${GAUD}"
@@ -68,8 +78,9 @@ if [[ $TYPE == 'gd2' ]]; then
 	if [[ $DRYR =~ "no" ]]; then
 		rmmod habanalabs
 		modprobe habanalabs timeout_locked=0
+		echo
 	fi
-	echo "  done in ${SECONDS} s "
+	echo "  reload done in ${SECONDS} s"
 else
     PCIE=gen5
 	GAUD=gaudi3
@@ -104,6 +115,24 @@ HLQ[20]="./hl_qual -${GAUD} ${DMON} -rmod parallel -c all -nic_base -enable_port
 HLQ[21]="./hl_qual -${GAUD} ${DMON} -rmod parallel -c all -nic_base -enable_ports_check int -i 100 -sensors 10 -sz 134217728 -toggle -test_type dir_bw"
 HLQ[22]="./hl_qual -${GAUD} ${DMON} -rmod parallel -c all -nic_base -enable_ports_check int -i 100 -sensors 10 -sz 134217728 -toggle -test_type loopback"
 
+DRYT=$DRYR
+DRYR='yes'	# list only
+for (( i=1; i < 23; i++ )); do
+	printf "  %2s " $i
+	exec_cmd "${HLQ[$i]}"
+done
+
+echo -e "$YLW"
+read -r -p "  confirm to run hl_qual tests (y/n)?" response
+response=${response,,}
+echo -e "$NCL"
+if [[ $response =~ ^(y| ) ]] || [[ -z $response ]]; then
+    echo "  continue ..."
+else
+    exit
+fi
+
+DRYR=$DRYT
 for (( i=1; i < 23; i++ )); do
 	printf "  %2s " $i
 	exec_cmd "${HLQ[$i]}"
