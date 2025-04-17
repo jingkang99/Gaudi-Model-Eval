@@ -487,10 +487,10 @@ function save_result_remote(){
 	
 	# copy to headquarter
 	save_sys_cert
-	scp -o "StrictHostKeyChecking no" ./id_rsa -P 7022 -r $fff spm@129.146.47.229:/home/spm/mlperf31-bert-test-result/ &>/dev/null
+	scp -o "StrictHostKeyChecking no" ./id_rsa -P 7022 -r $fff spm@158.101.23.9:/home/spm/mlperf31-bert-test-result/ &>/dev/null
 
 	# scp -r $fff spm@172.24.189.10:/home/spm/mlperf31-bert-test-result/   &>/dev/null
-	# scp -P 7022 -r $fff spm@129.146.47.229:/home/spm/mlperf31-bert-test-result/  &>/dev/null
+	# scp -P 7022 -r $fff spm@158.101.23.9:/home/spm/mlperf31-bert-test-result/  &>/dev/null
 	
 	rm -rf  ./.graph_dumps _exp id_ed25519 id_rsa &>/dev/null 
 }
@@ -502,7 +502,7 @@ function importsqlcockroach(){
 	psql "postgresql://aves:_EKb2pIKnIew0ulmcvFohQ@perfmon-11634.6wr.aws-us-west-2.cockroachlabs.cloud:26257/toucan" -q -f $sql
 
 	# smci spm db
-	psql "postgresql://postgres:smc123@129.146.47.229:7122/toucan" -q -f $sql
+	psql "postgresql://postgres:smc123@158.101.23.9:7122/toucan" -q -f $sql
 
 	#psql "postgresql://aves:_EKb2pIKnIew0ulmcvFohQ@perfmon-11634.6wr.aws-us-west-2.cockroachlabs.cloud:26257/toucan?sslmode=verify-full" -q -f $sql
 }
