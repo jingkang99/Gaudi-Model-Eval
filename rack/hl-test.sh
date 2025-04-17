@@ -75,3 +75,6 @@ fi
 
 cd -
 
+echo
+check_hl_qual_log
+
