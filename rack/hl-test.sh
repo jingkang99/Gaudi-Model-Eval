@@ -9,6 +9,20 @@ CYA='\033[0;36m'
 NCL='\033[0m' 
 
 alias gdl='tail -n 1 /var/log/habana_logs/qual/*.log  | grep -v == | grep .'
+alias oam='hl-smi -L | grep "CPLD Version" -B 15 | grep -P "accel|Serial|SPI|CPLD"'
+alias spi='hl-smi -q | grep SPI'
+alias cpld='hl-smi -q| grep "CPLD Ver"'
+alias erom='hl-smi --fw-version | grep erom -A 1 | grep  gaudi'
+alias apth='apt list --installed | grep haba'
+alias oopt="cat /sys/class/accel/accel*/device/status"
+alias pcnt='hl-smi -Q bus_id -f csv,noheader | xargs -I % hl-smi -i % -n link | grep UP | wc -l'
+alias erom='hl-smi --fw-version | grep erom -A 1 | grep  gaudi'
+alias gck='/opt/habanalabs/qual/gaudi2/bin/manage_network_ifs.sh --status'
+alias hccx='HCCL_COMM_ID=127.0.0.1:5555 python3 run_hccl_demo.py --nranks 8 --node_id 0 --size 1g  --test all_reduce --loop 100000 --ranks_per_node 8'
+alias hccl="HCCL_COMM_ID=127.0.0.1:5555 python3 run_hccl_demo.py --nranks 8 --node_id 0 --size 32m --test all_reduce --loop 1000   --ranks_per_node 8"
+alias ll='ls -alF'
+alias ipp='ifconfig | grep '\''inet '\'' | grep -v 127.0 | awk '\''{print $2}'\'''
+alias itb='strings /lib/firmware/habanalabs/gaudi*/gaudi*-agent-fw_loader-fit.itb | grep -i "Ppboot.*version " | head -n 1'
 
 export GREP_COLORS='ms=01;33'
 export __python_cmd=python3
@@ -18,6 +32,53 @@ PCIE=gen4
 DMON=" -dis_mon"
 DRYR="no"
 DRYT="no"
+SpinnerFrames=("—" "\\" "|" "/")
+
+function server_type(){
+	lspci | grep --color -P "accelerators.*1020" &>/dev/null
+	if [[ $? != 0 ]]; then
+		lspci | grep --color -P "accelerators.*Gaudi2" &>/dev/null
+	fi
+	[[ $? == 0 ]] && GAUD=gaudi2 || GAUD=gaudi3
+	[[ $? == 0 ]] && echo 'gd2'  || echo 'gd3'	
+}
+
+TYPE=$(server_type)
+
+spinner() {
+	local frameRef
+	local commd="${1}"
+	local label="${2-  exec} "
+	local spinnerRef="${3-SpinnerFrames}"
+	local spinnerFrames=$(eval "echo \${!${spinnerRef}[@]}")
+
+	spinnerRun() {
+		while true; do
+		  for frame in ${spinnerFrames[@]}; do
+			frameRef="${spinnerRef}[${frame}]"
+			echo "${label}${!frameRef}"
+			tput cuu1 
+			sleep 0.2
+		  done
+		done
+		echo -e "\r"
+	}
+
+	spinnerRun &
+	local spinnerPid=$!
+	echo ${commd}
+
+	if [[ ${commd} =~ " -Tw" ]]; then
+		/opt/habanalabs/qual/${GAUD}/bin/manage_network_ifs.sh --down &>/dev/null
+		sleep 1
+		/opt/habanalabs/qual/${GAUD}/bin/manage_network_ifs.sh --up   &>/dev/null
+		sleep 40
+	fi
+
+	${commd}
+	kill -9 "${spinnerPid}" 
+	wait $! 2>/dev/null
+}
 
 function check_hl_qual_log(){
 	SUMMARY=''
@@ -33,15 +94,6 @@ function check_hl_qual_log(){
 		fi
 	done
 	echo -e "\n"${SUMMARY}
-}
-
-function server_type(){
-	# GD2 or GD3
-	lspci | grep --color -P "accelerators.*1020" &>/dev/null
-	if [[ $? != 0 ]]; then
-		lspci | grep --color -P "accelerators.*Gaudi2" &>/dev/null
-	fi
-	[[ $? == 0 ]] && echo 'gd2' || echo 'gd3'	
 }
 
 function exec_cmd(){
@@ -78,9 +130,9 @@ if [[ $TYPE == 'gd2' ]]; then
 	if [[ $DRYR =~ "no" ]]; then
 		rmmod habanalabs
 		modprobe habanalabs timeout_locked=0
-		echo
 	fi
 	echo "  reload done in ${SECONDS} s"
+	echo
 else
     PCIE=gen5
 	GAUD=gaudi3
@@ -121,6 +173,7 @@ for (( i=1; i < 23; i++ )); do
 	printf "  %2s " $i
 	exec_cmd "${HLQ[$i]}"
 done
+[[ $DRYT =~ "yes" ]] && exit
 
 echo -e "$YLW"
 read -r -p "  confirm to run hl_qual tests (y/n)?" response
@@ -132,13 +185,15 @@ else
     exit
 fi
 
+# start test
 DRYR=$DRYT
-for (( i=1; i < 23; i++ )); do
-	printf "  %2s " $i
-	exec_cmd "${HLQ[$i]}"
+for (( i=1; i <= ${#HLQ[@]}; i++ )); do
+	printf "  %-2s " $i
+	spinner "${HLQ[$i]}"
 done
 
 cd - &>/dev/null
 
+echo
 check_hl_qual_log
-echo -e "\n  tested in $SECONDS seconds"
+echo -e "\n  hl_qual tested in ${BCY}$SECONDS ${NCL}seconds"

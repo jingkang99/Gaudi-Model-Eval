@@ -75,6 +75,7 @@ alias apth='apt list --installed | grep haba'
 alias erom='hl-smi --fw-version | grep erom -A 1 | grep  gaudi'
 alias SPI='hl-fw-loader -s | grep Sending -A 6 | grep -P "SPI|Sending"'
 alias gdl='tail -n 1 /var/log/habana_logs/qual/*.log | grep -v == | grep .'
+alias itb='strings /lib/firmware/habanalabs/gaudi*/gaudi*-agent-fw_loader-fit.itb | grep -i "Ppboot.*version " | head -n 1'
 
 RED='\033[0;31m'
 YLW='\033[0;33m'
