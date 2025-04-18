@@ -116,7 +116,7 @@ function check_hl_qual_log(){
 			SUMMARY+="retest    ${f}    $COMMDQ\n"
 		fi
 	done
-	echo -e "\n"${SUMMARY}
+	[[ -n $SUMMARY ]] && echo -e "\n"${SUMMARY}
 }
 
 function exec_cmd(){
