@@ -80,6 +80,18 @@ spinner() {
 	wait $! 2>/dev/null
 }
 
+function delta(){
+	date1_seconds=$(date -d "$1" +"%s")
+	date2_seconds=$(date -d "$2" +"%s")
+	duration=$(( $date2_seconds - $date1_seconds ))
+
+	if [[ $3 == "-h" ]]; then
+		printf "%02d hr %02d min %02d sec" $(($duration/3600)) $(($duration %3600 / 60)) $(($duration % 60))
+	else 	
+		printf "%02d:%02d" $(($duration %3600 / 60)) $(($duration % 60))
+	fi
+}
+
 function check_hl_qual_log(){
 	SUMMARY=''
 	ls /var/log/habana_logs/qual/*.log &>/dev/null
@@ -88,7 +100,18 @@ function check_hl_qual_log(){
 	for f in $(ls /var/log/habana_logs/qual/*.log); do
 		RESULT=$(tail -n 1   $f)
 		COMMDQ=$(grep \.\/hl $f)
-		echo -e "$RESULT    $COMMDQ"
+
+		# start time
+		h_sts=$(grep -i "starting config function" $f | sort -n | head -n 1 | awk -F'[' '{print $2}' | awk -F']' '{print $1}' )
+		[[ -z $h_sts ]] && h_sts=$(grep -i "Start running plugin" $f | sort -n | head -n 1 | awk -F'[' '{print $2}' | awk -F']' '{print $1}' )
+		# finish time
+		h_ets=$(grep -i "Finish running plugin with" $f | sort -n | tail -n 1 | awk -F'[' '{print $2}' | awk -F']' '{print $1}' )
+		h_sts=$(echo $h_sts | sed "s/ //g")
+		h_ets=$(echo $h_ets | sed "s/ //g")
+
+		etime=$(delta $h_sts $h_ets)
+		
+		echo -e "$RESULT    $etime    $COMMDQ"
 		if [[ $RESULT =~ "FAILED" ]]; then
 			SUMMARY+="retest    ${f}    $COMMDQ\n"
 		fi
@@ -194,6 +217,5 @@ done
 
 cd - &>/dev/null
 
-echo
 check_hl_qual_log
 echo -e "\n  hl_qual tested in ${BCY}$SECONDS ${NCL}seconds"
