@@ -8,6 +8,8 @@ BCY='\033[1;36m'
 CYA='\033[0;36m'
 NCL='\033[0m' 
 
+LC_CTYPE=C
+
 alias gdl='tail -n 1 /var/log/habana_logs/qual/*.log  | grep -v == | grep .'
 alias oam='hl-smi -L | grep "CPLD Version" -B 15 | grep -P "accel|Serial|SPI|CPLD"'
 alias spi='hl-smi -q | grep SPI'
@@ -75,9 +77,9 @@ spinner() {
 		sleep 40
 	fi
 
-	${commd}
+	${commd} &>/dev/null
 	kill -9 "${spinnerPid}" 
-	wait $! 2>/dev/null
+	wait $!  2>/dev/null
 }
 
 function delta(){
