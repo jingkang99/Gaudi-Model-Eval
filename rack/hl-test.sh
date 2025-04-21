@@ -37,12 +37,9 @@ DRYT="no"
 SpinnerFrames=("—" "\\" "|" "/")
 
 function server_type(){
-	lspci | grep --color -P "accelerators.*1020" &>/dev/null
-	if [[ $? != 0 ]]; then
-	    grep --color -P "accelerators.*(1020|Gaudi2)" &>/dev/null	
-	fi
+	lspci | grep --color -P "accelerators.*(1020|Gaudi2)" &>/dev/null
 	[[ $? == 0 ]] && GAUD=gaudi2 || GAUD=gaudi3
-	[[ $? == 0 ]] && echo 'gd2'  || echo 'gd3'	
+	[[ $GAUD == 'gd2' ]] && echo 'gd2'  || echo 'gd3'
 }
 
 TYPE=$(server_type)
