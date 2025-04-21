@@ -39,7 +39,7 @@ SpinnerFrames=("—" "\\" "|" "/")
 function server_type(){
 	lspci | grep --color -P "accelerators.*1020" &>/dev/null
 	if [[ $? != 0 ]]; then
-		lspci | grep --color -P "accelerators.*Gaudi2" &>/dev/null
+	    grep --color -P "accelerators.*(1020|Gaudi2)" &>/dev/null	
 	fi
 	[[ $? == 0 ]] && GAUD=gaudi2 || GAUD=gaudi3
 	[[ $? == 0 ]] && echo 'gd2'  || echo 'gd3'	
