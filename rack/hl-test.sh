@@ -38,7 +38,7 @@ SpinnerFrames=("—" "\\" "|" "/")
 
 function server_type(){
 	lspci | grep --color -P "accelerators.*(1020|Gaudi2)" &>/dev/null
-	[[ $? == 0 ]] && echo 'gd2'  || echo 'gd3'
+	[[ $? == 0 ]] && echo 'gaudi2'  || echo 'gaudi3'
 }
 
 spinner() {
@@ -64,11 +64,14 @@ spinner() {
 	local spinnerPid=$!
 	echo ${commd}
 
-	if [[ ${commd} =~ " -Tw" ]]; then
-		/opt/habanalabs/qual/${GAUD}/bin/manage_network_ifs.sh --down &>/dev/null
-		sleep 1
-		/opt/habanalabs/qual/${GAUD}/bin/manage_network_ifs.sh --up   &>/dev/null
-		sleep 40
+	pcnt=$(hl-smi -Q bus_id -f csv,noheader | xargs -I % hl-smi -i % -n link | grep UP | wc -l)
+	#if [[ ${commd} =~ " -Tw" ]] && [[ ${pcnt} -lt 168 ]]; then
+	if [[ ${pcnt} -lt 168 ]]; then
+		#GAUD=$(server_type)
+		#/opt/habanalabs/qual/${GAUD}/bin/manage_network_ifs.sh --down &>/dev/null
+		#/opt/habanalabs/qual/${GAUD}/bin/manage_network_ifs.sh --up   &>/dev/null
+		#sleep 40
+		echo -e "  ${YLW}some internal ports down${NCL}"
 	fi
 
 	${commd} &>/dev/null
@@ -139,8 +142,11 @@ fi
 [[ $* =~ "dry" ]] && DRYR="yes"
 [[ $* =~ "dis" ]] && DMON=" -dis_mon" || DMON=""
 
+PORTCHECK=''
+[[ "$*" =~ port.*check ]] && PORTCHECK="-enable_ports_check int"
+
 SECONDS=0
-if [[ $TYPE == 'gd2' ]]; then
+if [[ $TYPE == 'gaudi2' ]]; then
     PCIE=gen4
 	echo "  reload driver with timeout_locked=0"
 
@@ -165,9 +171,9 @@ HLQ[2]="./hl_qual -${GAUD} ${DMON} -rmod parallel -c all -t ${TIME} -f2 -l extre
 HLQ[3]="./hl_qual -${GAUD} ${DMON} -rmod parallel -c all -t ${TIME} -f2 -l high"
 HLQ[4]="./hl_qual -${GAUD} ${DMON} -rmod parallel -c all -t ${TIME} -f2"
 HLQ[5]="./hl_qual -${GAUD} ${DMON} -rmod parallel -c all -t ${TIME} -s"
-HLQ[6]="./hl_qual -${GAUD} ${DMON} -rmod parallel -c all -t ${TIME} -s -enable_ports_check int -l extreme -toggle"
+HLQ[6]="./hl_qual -${GAUD} ${DMON} -rmod parallel -c all -t ${TIME} -s ${PORTCHECK} -l extreme -toggle"
 HLQ[7]="./hl_qual -${GAUD} ${DMON} -rmod parallel -c all -t ${TIME} -p -b -gen ${PCIE}"
-HLQ[8]="./hl_qual -${GAUD} ${DMON} -rmod parallel -c all -t ${TIME} -e2e_concurrency -enable_ports_check int -toggle"
+HLQ[8]="./hl_qual -${GAUD} ${DMON} -rmod parallel -c all -t ${TIME} -e2e_concurrency ${PORTCHECK} -toggle"
 HLQ[9]="./hl_qual -${GAUD} ${DMON} -rmod parallel -c all -mb -memOnly"
 HLQ[10]="./hl_qual -${GAUD} ${DMON} -rmod parallel -c all -ser"
 HLQ[11]="./hl_qual -${GAUD} ${DMON} -rmod parallel -c all -i 3 -full_hbm_data_check_test"
@@ -175,26 +181,33 @@ HLQ[12]="./hl_qual -${GAUD} ${DMON} -rmod parallel -c all -i 3 -hbm_dma_stress"
 HLQ[13]="./hl_qual -${GAUD} ${DMON} -rmod parallel -c all -i 3 -hbm_tpc_stress"
 
 HLQ[14]="./hl_qual -${GAUD} ${DMON} -rmod parallel -c all -t ${TIME} -e -Tw 1 -Ts 2 -sync -enable_ports_check int"
-HLQ[15]="./hl_qual -${GAUD} ${DMON} -rmod parallel -c all -nic_base -enable_ports_check int -i 100 -sensors 10 -ep 50 -sz 134217728 -test_type allreduce"
-HLQ[16]="./hl_qual -${GAUD} ${DMON} -rmod parallel -c all -nic_base -enable_ports_check int -i 100 -sensors 10 -ep 50 -sz 134217728 -test_type allgather"
+HLQ[15]="./hl_qual -${GAUD} ${DMON} -rmod parallel -c all -nic_base ${PORTCHECK} -i 100 -sensors 10 -ep 50 -sz 134217728 -test_type allreduce"
+HLQ[16]="./hl_qual -${GAUD} ${DMON} -rmod parallel -c all -nic_base ${PORTCHECK} -i 100 -sensors 10 -ep 50 -sz 134217728 -test_type allgather"
 
-HLQ[17]="./hl_qual -${GAUD} ${DMON} -rmod parallel -c all -nic_base -enable_ports_check int -i 100 -sensors 10 -sz 134217728 -toggle -test_type pairs"
-HLQ[18]="./hl_qual -${GAUD} ${DMON} -rmod parallel -c all -nic_base -enable_ports_check int -i 100 -sensors 10 -sz 134217728 -toggle -test_type allreduce"
-HLQ[19]="./hl_qual -${GAUD} ${DMON} -rmod parallel -c all -nic_base -enable_ports_check int -i 100 -sensors 10 -sz 134217728 -toggle -test_type allgather"
-HLQ[20]="./hl_qual -${GAUD} ${DMON} -rmod parallel -c all -nic_base -enable_ports_check int -i 100 -sensors 10 -sz 134217728 -toggle -test_type bandwidth"
-HLQ[21]="./hl_qual -${GAUD} ${DMON} -rmod parallel -c all -nic_base -enable_ports_check int -i 100 -sensors 10 -sz 134217728 -toggle -test_type dir_bw"
-HLQ[22]="./hl_qual -${GAUD} ${DMON} -rmod parallel -c all -nic_base -enable_ports_check int -i 100 -sensors 10 -sz 134217728 -toggle -test_type loopback"
+HLQ[17]="./hl_qual -${GAUD} ${DMON} -rmod parallel -c all -nic_base ${PORTCHECK} -i 100 -sensors 10 -sz 134217728 -toggle -test_type pairs"
+HLQ[18]="./hl_qual -${GAUD} ${DMON} -rmod parallel -c all -nic_base ${PORTCHECK} -i 100 -sensors 10 -sz 134217728 -toggle -test_type allreduce"
+HLQ[19]="./hl_qual -${GAUD} ${DMON} -rmod parallel -c all -nic_base ${PORTCHECK} -i 100 -sensors 10 -sz 134217728 -toggle -test_type allgather"
+HLQ[20]="./hl_qual -${GAUD} ${DMON} -rmod parallel -c all -nic_base ${PORTCHECK} -i 100 -sensors 10 -sz 134217728 -toggle -test_type bandwidth"
+HLQ[21]="./hl_qual -${GAUD} ${DMON} -rmod parallel -c all -nic_base ${PORTCHECK} -i 100 -sensors 10 -sz 134217728 -toggle -test_type dir_bw"
+HLQ[22]="./hl_qual -${GAUD} ${DMON} -rmod parallel -c all -nic_base ${PORTCHECK} -i 100 -sensors 10 -sz 134217728 -toggle -test_type loopback"
+
+FROM=1
+TOTO=${#HLQ[@]}
+if [[ "$*" =~ "from" ]]; then
+	FROM=$(echo $* | awk -F 'from' '{print $2}' | awk '{print $1}')
+	TOTO=$(echo $* | awk -F 'to'   '{print $2}' | awk '{print $1}')
+fi
 
 DRYT=$DRYR
-DRYR='yes'	# list only
-for (( i=1; i < 23; i++ )); do
+DRYR='yes'
+for (( i=${FROM}; i <= ${TOTO}; i++ )); do
 	printf "  %2s " $i
 	exec_cmd "${HLQ[$i]}"
 done
 [[ $DRYT =~ "yes" ]] && exit
 
 echo -e "$YLW"
-read -r -p "  confirm to run hl_qual tests (y/n)?" response
+read -r -p "  confirm to run hl_qual tests ${FROM} to ${TOTO} (y/n)?" response
 response=${response,,}
 echo -e "$NCL"
 if [[ $response =~ ^(y| ) ]] || [[ -z $response ]]; then
@@ -205,7 +218,7 @@ fi
 
 # start test
 DRYR=$DRYT
-for (( i=1; i <= ${#HLQ[@]}; i++ )); do
+for (( i=$FROM; i <= $TOTO; i++ )); do
 	printf "  %-2s " $i
 	spinner "${HLQ[$i]}"
 done
