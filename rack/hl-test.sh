@@ -38,7 +38,7 @@ SpinnerFrames=("—" "\\" "|" "/")
 
 function server_type(){
 	lspci | grep --color -P "accelerators.*(1020|Gaudi2)" &>/dev/null
-	[ $GAUD == 'gd2' ] && echo 'gd2'  || echo 'gd3'
+	[[ $? == 0 ]] && echo 'gd2'  || echo 'gd3'
 }
 
 spinner() {
