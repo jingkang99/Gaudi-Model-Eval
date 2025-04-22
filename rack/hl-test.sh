@@ -28,7 +28,7 @@ alias itb='strings /lib/firmware/habanalabs/gaudi*/gaudi*-agent-fw_loader-fit.it
 
 export GREP_COLORS='ms=01;33'
 export __python_cmd=python3
-GAUD=gaudi2
+GAUD=gaudx
 TIME=240
 PCIE=gen4
 DMON=" -dis_mon"
@@ -38,11 +38,8 @@ SpinnerFrames=("—" "\\" "|" "/")
 
 function server_type(){
 	lspci | grep --color -P "accelerators.*(1020|Gaudi2)" &>/dev/null
-	[[ $? == 0 ]] && GAUD=gaudi2 || GAUD=gaudi3
-	[[ $GAUD == 'gd2' ]] && echo 'gd2'  || echo 'gd3'
+	[ $GAUD == 'gd2' ] && echo 'gd2'  || echo 'gd3'
 }
-
-TYPE=$(server_type)
 
 spinner() {
 	local frameRef
@@ -127,6 +124,7 @@ function exec_cmd(){
 }
 
 # --------------------- main
+TYPE=$(server_type)
 
 if [[ "$1" =~ "log" ]]; then
 	check_hl_qual_log
@@ -142,9 +140,6 @@ fi
 [[ $* =~ "dis" ]] && DMON=" -dis_mon" || DMON=""
 
 SECONDS=0
-echo -e "\n  hl_qual tests on ${GAUD}"
-
-TYPE=$(server_type)
 if [[ $TYPE == 'gd2' ]]; then
     PCIE=gen4
 	echo "  reload driver with timeout_locked=0"
@@ -155,14 +150,15 @@ if [[ $TYPE == 'gd2' ]]; then
 	fi
 	echo "  reload done in ${SECONDS} s"
 	echo
+	GAUD=gaudi2
 else
     PCIE=gen5
 	GAUD=gaudi3
 fi
+echo -e "\n  hl_qual tests on ${GAUD}"
 
 cd /opt/habanalabs/qual/${GAUD}/bin
 ./manage_network_ifs.sh --up &>/dev/null
-#./manage_network_ifs.sh --status
 
 HLQ[1]="./hl_qual -${GAUD} ${DMON} -rmod parallel -c all -t ${TIME} -f2 -l extreme -serdes int"
 HLQ[2]="./hl_qual -${GAUD} ${DMON} -rmod parallel -c all -t ${TIME} -f2 -l extreme"
