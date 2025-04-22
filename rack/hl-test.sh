@@ -34,7 +34,7 @@ PCIE=gen4
 DMON=" -dis_mon"
 DRYR="no"
 DRYT="no"
-SpinnerFrames=("—" "\\" "|" "/")
+SPIN=("—" "\\" "|" "/")
 
 function server_type(){
 	lspci | grep --color -P "accelerators.*(1020|Gaudi2)" &>/dev/null
@@ -45,7 +45,7 @@ spinner() {
 	local frameRef
 	local commd="${1}"
 	local label="${2-  exec} "
-	local spinnerRef="${3-SpinnerFrames}"
+	local spinnerRef="${3-SPIN}"
 	local spinnerFrames=$(eval "echo \${!${spinnerRef}[@]}")
 
 	spinnerRun() {
@@ -95,7 +95,7 @@ function check_hl_qual_log(){
 	SUMMARY=''
 	ls /var/log/habana_logs/qual/*.log &>/dev/null
 	[[ $? != 0 ]] && return
-	
+
 	for f in $(ls /var/log/habana_logs/qual/*.log); do
 		RESULT=$(tail -n 1   $f)
 		COMMDQ=$(grep \.\/hl $f)
@@ -127,6 +127,7 @@ function exec_cmd(){
 }
 
 # --------------------- main
+CDIR=$(pwd)
 TYPE=$(server_type)
 
 if [[ "$1" =~ "log" ]]; then
@@ -145,14 +146,17 @@ fi
 PORTCHECK=''
 [[ "$*" =~ port.*check ]] && PORTCHECK="-enable_ports_check int"
 
+RELAODDRV=''
+[[ "$*" =~ reload.* ]] && RELAODDRV="reload driver"
+
 SECONDS=0
 if [[ $TYPE == 'gaudi2' ]]; then
     PCIE=gen4
 	echo "  reload driver with timeout_locked=0"
 
-	if [[ $DRYR =~ "no" ]]; then
-		rmmod habanalabs
-		modprobe habanalabs timeout_locked=0
+	if [[ $DRYR =~ "no" ]] && [[ ! -z $RELAODDRV ]]; then
+		rmmod habanalabs &>/dev/null
+		modprobe habanalabs timeout_locked=0 &>/dev/null
 	fi
 	echo "  reload done in ${SECONDS} s"
 	echo
@@ -180,7 +184,7 @@ HLQ[11]="./hl_qual -${GAUD} ${DMON} -rmod parallel -c all -i 3 -full_hbm_data_ch
 HLQ[12]="./hl_qual -${GAUD} ${DMON} -rmod parallel -c all -i 3 -hbm_dma_stress"
 HLQ[13]="./hl_qual -${GAUD} ${DMON} -rmod parallel -c all -i 3 -hbm_tpc_stress"
 
-HLQ[14]="./hl_qual -${GAUD} ${DMON} -rmod parallel -c all -t ${TIME} -e -Tw 1 -Ts 2 -sync -enable_ports_check int"
+HLQ[14]="./hl_qual -${GAUD} ${DMON} -rmod parallel -c all -t ${TIME} -e -Tw 1 -Ts 2 -sync ${PORTCHECK}"
 HLQ[15]="./hl_qual -${GAUD} ${DMON} -rmod parallel -c all -nic_base ${PORTCHECK} -i 100 -sensors 10 -ep 50 -sz 134217728 -test_type allreduce"
 HLQ[16]="./hl_qual -${GAUD} ${DMON} -rmod parallel -c all -nic_base ${PORTCHECK} -i 100 -sensors 10 -ep 50 -sz 134217728 -test_type allgather"
 
@@ -224,6 +228,7 @@ DRYR=$DRYT
 for (( i=$FROM; i <= $TOTO; i++ )); do
 	printf "  %-2s " $i
 	spinner "${HLQ[$i]}"
+	#${CDIR}/spincmdln sleep 3
 done
 
 cd - &>/dev/null
