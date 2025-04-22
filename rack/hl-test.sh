@@ -206,6 +206,9 @@ for (( i=${FROM}; i <= ${TOTO}; i++ )); do
 done
 [[ $DRYT =~ "yes" ]] && exit
 
+echo performance | sudo tee /sys/devices/system/cpu/cpu*/cpufreq/scaling_governor &>/dev/null
+echo 1 | tee /sys/devices/system/cpu/cpu*/cpuidle/state2/disable &>/dev/null
+
 echo -e "$YLW"
 read -r -p "  confirm to run hl_qual tests ${FROM} to ${TOTO} (y/n)?" response
 response=${response,,}
