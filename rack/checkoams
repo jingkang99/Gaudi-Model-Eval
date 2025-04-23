@@ -1,0 +1,7 @@
+tms=$(date '+%Y-%m-%d_%H-%M-%S' -d @$(date +%s)).txt;\
+hl-smi -L | grep "CPLD Version" -B 15 | grep -P "accel|Serial|SPI|CPLD" | tee -a $tms; \
+hl-smi -q | grep "CPLD Ver" | tee -a $tms; \
+hl-smi -q | grep SPI | tee -a $tms; \
+hl-smi --fw-version  | grep erom -A 1 | grep gaudi | tee -a $tms; \
+cat /sys/class/accel/accel*/device/status | tee -a $tms; \
+hl-smi | tee -a $tms
