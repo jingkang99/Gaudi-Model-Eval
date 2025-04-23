@@ -103,8 +103,11 @@ function check_hl_qual_log(){
 		# start time
 		h_sts=$(grep -i "starting config function" $f | sort -n | head -n 1 | awk -F'[' '{print $2}' | awk -F']' '{print $1}' )
 		[[ -z $h_sts ]] && h_sts=$(grep -i "Start running plugin" $f | sort -n | head -n 1 | awk -F'[' '{print $2}' | awk -F']' '{print $1}' )
+
 		# finish time
-		h_ets=$(grep -i "Finish running plugin with" $f | sort -n | tail -n 1 | awk -F'[' '{print $2}' | awk -F']' '{print $1}' )
+		h_ets=$(grep -i "Finish running plugin with" $f | sort -n | tail -n 1)
+		h_ets=$([[ $h_ets =~ \[([0-9]{2}.*)\] ]] && echo ${BASH_REMATCH[1]})
+
 		h_sts=$(echo $h_sts | sed "s/ //g")
 		h_ets=$(echo $h_ets | sed "s/ //g")
 
@@ -228,7 +231,7 @@ DRYR=$DRYT
 for (( i=$FROM; i <= $TOTO; i++ )); do
 	printf "  %-2s " $i
 	spinner "${HLQ[$i]}"
-	#${CDIR}/spincmdln sleep 3
+	#${CDIR}/spincmdln ${HLQ[$i]}
 done
 
 cd - &>/dev/null
