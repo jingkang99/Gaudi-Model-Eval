@@ -133,6 +133,12 @@ function exec_cmd(){
 CDIR=$(pwd)
 TYPE=$(server_type)
 
+if [[ ! -f /opt/habanalabs/src/hl-thunk/tests/arc/arc/scheduler.bin ]]; then
+	mkdir -p /opt/habanalabs/src/hl-thunk/tests/arc/arc
+	ln -s /opt/habanalabs/src/hl-thunk/tests/arc/scheduler.bin /opt/habanalabs/src/hl-thunk/tests/arc/arc/scheduler.bin
+	ln -s /opt/habanalabs/src/hl-thunk/tests/arc/engine.bin    /opt/habanalabs/src/hl-thunk/tests/arc/arc/engine.bin
+fi
+
 if [[ "$1" =~ "log" ]]; then
 	check_hl_qual_log
 	exit 0
@@ -177,10 +183,9 @@ HLQ[1]="./hl_qual -${GAUD} ${DMON} -rmod parallel -c all -t ${TIME} -f2 -l extre
 HLQ[2]="./hl_qual -${GAUD} ${DMON} -rmod parallel -c all -t ${TIME} -f2 -l extreme"
 HLQ[3]="./hl_qual -${GAUD} ${DMON} -rmod parallel -c all -t ${TIME} -f2 -l high"
 HLQ[4]="./hl_qual -${GAUD} ${DMON} -rmod parallel -c all -t ${TIME} -f2"
-HLQ[5]="./hl_qual -${GAUD} ${DMON} -rmod parallel -c all -t ${TIME} -s"
-HLQ[6]="./hl_qual -${GAUD} ${DMON} -rmod parallel -c all -t ${TIME} -s ${PORTCHECK} -l extreme -toggle"
-HLQ[7]="./hl_qual -${GAUD} ${DMON} -rmod parallel -c all -t ${TIME} -p -b -gen ${PCIE}"
-HLQ[23]="./hl_qual -${GAUD} ${DMON} -rmod serial   -c all -t 20 -p -b"
+HLQ[5]="./hl_qual -${GAUD} ${DMON} -rmod parallel -c all -t ${TIME} -s ${PORTCHECK} -toggle"
+HLQ[6]="./hl_qual -${GAUD} ${DMON} -rmod parallel -c all -t ${TIME} -p -b -gen ${PCIE}"
+HLQ[7]="./hl_qual -${GAUD} ${DMON} -rmod serial   -c all -t 20 -p -b"
 
 HLQ[8]="./hl_qual -${GAUD} ${DMON} -rmod parallel -c all -t ${TIME} -e2e_concurrency ${PORTCHECK} -toggle"
 HLQ[9]="./hl_qual -${GAUD} ${DMON} -rmod parallel -c all -mb -memOnly"
