@@ -180,6 +180,8 @@ HLQ[4]="./hl_qual -${GAUD} ${DMON} -rmod parallel -c all -t ${TIME} -f2"
 HLQ[5]="./hl_qual -${GAUD} ${DMON} -rmod parallel -c all -t ${TIME} -s"
 HLQ[6]="./hl_qual -${GAUD} ${DMON} -rmod parallel -c all -t ${TIME} -s ${PORTCHECK} -l extreme -toggle"
 HLQ[7]="./hl_qual -${GAUD} ${DMON} -rmod parallel -c all -t ${TIME} -p -b -gen ${PCIE}"
+HLQ[23]="./hl_qual -${GAUD} ${DMON} -rmod serial   -c all -t 20 -p -b"
+
 HLQ[8]="./hl_qual -${GAUD} ${DMON} -rmod parallel -c all -t ${TIME} -e2e_concurrency ${PORTCHECK} -toggle"
 HLQ[9]="./hl_qual -${GAUD} ${DMON} -rmod parallel -c all -mb -memOnly"
 HLQ[10]="./hl_qual -${GAUD} ${DMON} -rmod parallel -c all -ser"
