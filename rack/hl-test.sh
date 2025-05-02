@@ -143,9 +143,18 @@ if [[ "$1" =~ "log" ]]; then
 	check_hl_qual_log
 	exit 0
 elif [[ "$1" =~ "mv" ]]; then
-	LOGD=$(date '+%Y-%m-%d')
-	mkdir -p /var/log/habana_logs/qual/$LOGD
-	mv /var/log/habana_logs/qual/*.log /var/log/habana_logs/qual/$LOGD/
+	SNM=$(ipmitool fru | grep "Board Serial" | awk -F': ' '{print $2}')
+	BID=$(hl-smi -L | grep accel0 | awk -F':' '{print $2}')
+	SNO=$(hl-smi -L | grep accel0 -A 15 | grep "Serial Number" | awk -F': ' '{print $2}')
+	SPI=$(hl-smi -L | grep accel0 -A 15 | grep SPI | awk -F'-' '{print $3}')
+	CPL=$(hl-smi -L | grep accel0 -A 15 | grep CPLD | awk '{print $7}')
+	FWV=$(hl-smi --version | awk -F'-' '{print $3}')
+	KNV=$(uname -r | awk -F'-' '{print $1}')
+	DAT=$(date '+%Y-%m-%d')
+	LBL=${SNM}_${KNV}_${BID}_${SNO}_${SPI}_${FWV}_${CPL}_${DAT}
+
+	mkdir -p /var/log/habana_logs/qual/$LBL
+	mv /var/log/habana_logs/qual/*.log /var/log/habana_logs/qual/$LBL/
 	exit 0
 fi
 
