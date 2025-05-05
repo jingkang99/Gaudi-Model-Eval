@@ -1,3 +1,4 @@
+SECONDS=0; \
 tail -n 1  /var/log/habana_logs/qual/*.log | grep -v \= | grep . ; \
 SNM=$(ipmitool fru | grep "Board Serial" | awk -F': ' '{print $2}'); \
 BID=$(hl-smi -L | grep accel0 | awk -F':' '{print $2}'); \
@@ -9,5 +10,7 @@ KNV=$(uname -r | awk -F'-' '{print $1}'); \
 DAT=$(date '+%Y-%m-%d'); \
 LBL=${SNM}_${KNV}_${BID}_${SNO}_${SPI}_${FWV}_${CPL}_${DAT}; \
 mkdir -p /var/log/habana_logs/qual/$LBL ; \
-mv /var/log/habana_logs/qual/*.log /var/log/habana_logs/qual/$LBL/ 
-
+mv /var/log/habana_logs/qual/*.log /var/log/habana_logs/qual/$LBL/; \
+sshpass -p 'smc123' rsync -avi -e "ssh -o StrictHostKeyChecking=no" \
+/var/log/habana_logs/qual/$LBL spm@172.30.195.148:/home/spm/hl_qual_test_results ; \
+echo -e "\nhl_qual logs moved to $LBL in $SECONDS\n"
