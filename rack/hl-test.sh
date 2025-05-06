@@ -97,7 +97,8 @@ function check_hl_qual_log(){
 	[[ $? != 0 ]] && return
 
 	for f in $(ls /var/log/habana_logs/qual/*.log); do
-		RESULT=$(tail -n 1   $f)
+		RESULT=$(grep "hl qual report" $f -A 1 | tail -n 1)
+
 		COMMDQ=$(grep \.\/hl $f)
 
 		# start time
