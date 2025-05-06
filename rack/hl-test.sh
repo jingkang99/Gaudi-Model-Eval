@@ -157,7 +157,12 @@ elif [[ "$1" =~ "mv" ]]; then
 
 	mkdir -p /var/log/habana_logs/qual/$LBL
 	mv /var/log/habana_logs/qual/*.log /var/log/habana_logs/qual/$LBL/
+	echo "logs moved"
+
+	ping -W 1 -c 1 172.30.195.148 &>/dev/null
+	[[ $? == 0 ]] && \
 	sshpass -p 'smc123' rsync -avi -e "ssh -o StrictHostKeyChecking=no" /var/log/habana_logs/qual/$LBL spm@172.30.195.148:/home/spm/hl_qual_test_results
+
 	exit 0
 fi
 
