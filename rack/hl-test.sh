@@ -34,6 +34,7 @@ PCIE=gen4
 DMON=" -dis_mon"
 DRYR="no"
 DRYT="no"
+SNSR=""
 SPIN=("—" "\\" "|" "/")
 
 function server_type(){
@@ -161,7 +162,7 @@ elif [[ "$1" =~ "mv" ]]; then
 fi
 
 [[ $* =~ "dry" ]] && DRYR="yes"
-[[ $* =~ "dis" ]] && DMON=" -dis_mon" || DMON=""
+[[ $* =~ "dis" ]] && DMON=" -dis_mon"   || DMON=""
 
 PORTCHECK=''
 [[ "$*" =~ port.*check ]] && PORTCHECK="-enable_ports_check int"
@@ -181,7 +182,9 @@ if [[ $TYPE == 'gaudi2' ]]; then
 	echo "  reload done in ${SECONDS} s"
 	echo
 	GAUD=gaudi2
+	SNSR="-sensors 10"
 else
+	SNSR=""
     PCIE=gen5
 	GAUD=gaudi3
 fi
@@ -206,15 +209,15 @@ HLQ[12]="./hl_qual -${GAUD} ${DMON} -rmod parallel -c all -i 3 -hbm_dma_stress"
 HLQ[13]="./hl_qual -${GAUD} ${DMON} -rmod parallel -c all -i 3 -hbm_tpc_stress"
 
 HLQ[14]="./hl_qual -${GAUD} ${DMON} -rmod parallel -c all -t ${TIME} -e -Tw 1 -Ts 2 -sync ${PORTCHECK}"
-HLQ[15]="./hl_qual -${GAUD} ${DMON} -rmod parallel -c all -nic_base ${PORTCHECK} -i 100 -sensors 10 -ep 50 -sz 134217728 -test_type allreduce"
-HLQ[16]="./hl_qual -${GAUD} ${DMON} -rmod parallel -c all -nic_base ${PORTCHECK} -i 100 -sensors 10 -ep 50 -sz 134217728 -test_type allgather"
+HLQ[15]="./hl_qual -${GAUD} ${DMON} -rmod parallel -c all -nic_base ${PORTCHECK} -i 100 ${SNSR} -ep 50 -sz 134217728 -test_type allreduce"
+HLQ[16]="./hl_qual -${GAUD} ${DMON} -rmod parallel -c all -nic_base ${PORTCHECK} -i 100 ${SNSR} -ep 50 -sz 134217728 -test_type allgather"
 
-HLQ[17]="./hl_qual -${GAUD} ${DMON} -rmod parallel -c all -nic_base ${PORTCHECK} -i 100 -sensors 10 -sz 134217728 -toggle -test_type pairs"
-HLQ[18]="./hl_qual -${GAUD} ${DMON} -rmod parallel -c all -nic_base ${PORTCHECK} -i 100 -sensors 10 -sz 134217728 -toggle -test_type allreduce"
-HLQ[19]="./hl_qual -${GAUD} ${DMON} -rmod parallel -c all -nic_base ${PORTCHECK} -i 100 -sensors 10 -sz 134217728 -toggle -test_type allgather"
-HLQ[20]="./hl_qual -${GAUD} ${DMON} -rmod parallel -c all -nic_base ${PORTCHECK} -i 100 -sensors 10 -sz 134217728 -toggle -test_type bandwidth"
-HLQ[21]="./hl_qual -${GAUD} ${DMON} -rmod parallel -c all -nic_base ${PORTCHECK} -i 100 -sensors 10 -sz 134217728 -toggle -test_type dir_bw"
-HLQ[22]="./hl_qual -${GAUD} ${DMON} -rmod parallel -c all -nic_base ${PORTCHECK} -i 100 -sensors 10 -sz 134217728 -toggle -test_type loopback"
+HLQ[17]="./hl_qual -${GAUD} ${DMON} -rmod parallel -c all -nic_base ${PORTCHECK} -i 100 ${SNSR} -sz 134217728 -toggle -test_type pairs"
+HLQ[18]="./hl_qual -${GAUD} ${DMON} -rmod parallel -c all -nic_base ${PORTCHECK} -i 100 ${SNSR} -sz 134217728 -toggle -test_type allreduce"
+HLQ[19]="./hl_qual -${GAUD} ${DMON} -rmod parallel -c all -nic_base ${PORTCHECK} -i 100 ${SNSR} -sz 134217728 -toggle -test_type allgather"
+HLQ[20]="./hl_qual -${GAUD} ${DMON} -rmod parallel -c all -nic_base ${PORTCHECK} -i 100 ${SNSR} -sz 134217728 -toggle -test_type bandwidth"
+HLQ[21]="./hl_qual -${GAUD} ${DMON} -rmod parallel -c all -nic_base ${PORTCHECK} -i 100 ${SNSR} -sz 134217728 -toggle -test_type dir_bw"
+HLQ[22]="./hl_qual -${GAUD} ${DMON} -rmod parallel -c all -nic_base ${PORTCHECK} -i 100 ${SNSR} -sz 134217728 -toggle -test_type loopback"
 
 FROM=1
 TOTO=${#HLQ[@]}
