@@ -166,7 +166,7 @@ elif [[ "$1" =~ "mv" ]]; then
 	pstree > _ps.t; \
 	hl-smi -L > _hl-smi.l; \
 	hl-smi    > _hl-smi.0; \
-	apt list --installed > _apt.l &>/dev/null; \
+	apt list --installed | tee _apt.l &>/dev/null; \
 	uname -a  > _uname.l;  \
 	ipmitool sdr > _sdr.1; \
 	ipmitool fru > _fru.1; \
