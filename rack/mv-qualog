@@ -10,7 +10,11 @@ KNV=$(uname -r | awk -F'-' '{print $1}'); \
 DAT=$(date '+%Y-%m-%d'); \
 LBL=${SNM}_${KNV}_${BID}_${SNO}_${SPI}_${FWV}_${CPL}_${DAT}; \
 mkdir -p /var/log/habana_logs/qual/$LBL ; \
-mv /var/log/habana_logs/qual/*.log /var/log/habana_logs/qual/$LBL/; \
-sshpass -p 'smc123' rsync -avi -e "ssh -o StrictHostKeyChecking=no" \
-/var/log/habana_logs/qual/$LBL spm@172.30.195.148:/home/spm/hl_qual_test_results ; \
+mv /var/log/habana_logs/qual/*.log /var/log/habana_logs/qual/$LBL/
+
+ping -W 1 -c 1 172.30.195.148 &>/dev/null
+
+[[ $? == 0 ]] && \
+sshpass -p 'smc123' rsync -avi -e "ssh -o StrictHostKeyChecking=no" /var/log/habana_logs/qual/$LBL spm@172.30.195.148:/home/spm/hl_qual_test_results 
+
 echo -e "\nhl_qual logs moved to $LBL in $SECONDS\n"
