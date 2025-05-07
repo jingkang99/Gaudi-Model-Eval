@@ -156,8 +156,31 @@ elif [[ "$1" =~ "mv" ]]; then
 	LBL=${SNM}_${KNV}_${BID}_${SNO}_${SPI}_${FWV}_${CPL}_${DAT}
 
 	mkdir -p /var/log/habana_logs/qual/$LBL
+	mkdir -p /var/log/habana_logs/qual/$LBL/sysinfo
 	mv /var/log/habana_logs/qual/*.log /var/log/habana_logs/qual/$LBL/
 	echo "logs moved"
+
+	cd /var/log/habana_logs/qual/$LBL/sysinfo; \
+	dmesg  > _dmesg.l;\
+	ps -ef > _ps.l; \
+	pstree > _ps.t; \
+	hl-smi -L > _hl-smi.l; \
+	hl-smi    > _hl-smi.0; \
+	apt list --installed > _apt.l &>/dev/null; \
+	uname -a  > _uname.l;  \
+	ipmitool sdr > _sdr.1; \
+	ipmitool fru > _fru.1; \
+	ipmitool sel elist > _elist.1;  \
+	ipmitool sensor    > _sensor.1; \
+	ipmitool raw 0x30 0x70 0xEF 0x02 0xEC 0x43 0x0C 0x9E 0x01 0x01 >  _ubb.1; \
+	ipmitool raw 0x30 0x70 0xef 0x02 0xec 0x42 0x0c 0x68 0x01 0x01 >> _ubb.1; \
+	systemctl --type=service --state=running > _service.l; \
+	cat /etc/os-release > _os.1; \
+	hl-smi -L | grep "CPLD Version" -B 15 | grep -P "accel|Serial|SPI|CPLD" > _oam.1; \
+	hl-smi -q | grep "CPLD Ver" > _cpld.1; \
+	hl-smi -q | grep SPI        > _spi.1;  \
+	tar czf ts-spm.tgz /var/log/syslog /var/log/kern.log /var/log/habana_logs _dmesg.l _ps.l _ps.t _service.l _hl-smi.l _hl-smi.0 _apt.l _uname.l _elist.1 _sdr.1 _fru.1 _sensor.1 _ubb.1 _os.1 _oam.1 _cpld.1 _spi.1 &>/dev/null; \
+	cd - &>/dev/null
 
 	ping -W 1 -c 1 172.30.195.148 &>/dev/null
 	[[ $? == 0 ]] && \
