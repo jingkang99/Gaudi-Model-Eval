@@ -1,0 +1,50 @@
+#echo $BASH_VERSION
+
+VERSION=1.20.1-97
+
+REPOURL=https://vault.habana.ai/artifactory/rhel/9/9.4
+REDHATV=9
+
+if [[ "$*" =~ "8" ]]; then
+    REPOURL=https://vault.habana.ai/artifactory/rhel/8/8.6
+    REDHATV=8
+fi
+
+declare -A DEB
+
+DEB["habanalabs"]="noarch"
+DEB["habanalabs-container-runtime"]="x86_64"
+
+DEB["habanalabs-firmware"]="x86_64"
+DEB["habanalabs-firmware-odm"]="x86_64"
+DEB["habanalabs-firmware-tools"]="x86_64"
+
+DEB["habanalabs-graph"]="x86_64"
+DEB["habanalabs-hypervisor-msv"]="noarch"
+DEB["habanalabs-hypervisor-utils"]="x86_64"
+DEB["habanalabs-perf-test"]="x86_64"
+
+DEB["habanalabs-qual"]="x86_64"
+DEB["habanalabs-qual-workloads"]="noarch"
+DEB["habanalabs-rdma-core"]="noarch"
+DEB["habanalabs-thunk"]="x86_64"
+
+DEB["habanatools"]="x86_64"
+
+#echo ${!DEB[@]}# key
+#echo ${DEB[@]}	# val
+
+mkdir -p $VERSION
+cd $VERSION
+
+SECONDS=0
+for ddd in ${!DEB[@]}
+do
+	echo    ${REPOURL}/${ddd}-${VERSION}.el${REDHATV}.${DEB[$ddd]}.rpm
+	wget -q ${REPOURL}/${ddd}-${VERSION}.el${REDHATV}.${DEB[$ddd]}.rpm
+done
+
+cd -
+
+echo -e "habana rpm downloaded in ${SECONDS}"
+
