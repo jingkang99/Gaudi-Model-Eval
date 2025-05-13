@@ -145,7 +145,10 @@ if [[ "$1" =~ "log" ]]; then
 	check_hl_qual_log
 	exit 0
 elif [[ "$1" =~ "mv" ]]; then
-	SNM=$(ipmitool fru | grep "Board Serial" | awk -F': ' '{print $2}')
+	PSN=$(ipmitool fru | grep "Product Serial" | awk -F': ' '{print $2}')
+	SNM=$(ipmitool fru | grep "Board Serial"   | awk -F': ' '{print $2}')
+	[[ "$PSN" =~ ^S[0-9] ]] && SNM=$PSN
+
 	BID=$(hl-smi -L | grep accel0 | awk -F':' '{print $2}')
 	SNO=$(hl-smi -L | grep accel0 -A 15 | grep "Serial Number" | awk -F': ' '{print $2}')
 	SPI=$(hl-smi -L | grep accel0 -A 15 | grep SPI | awk -F'-' '{print $3}')
