@@ -100,7 +100,7 @@ function check_hl_qual_log(){
 	for f in $(ls /var/log/habana_logs/qual/*.log); do
 		RESULT=$(grep "hl qual report" $f -A 1 | tail -n 1)
 
-		COMMDQ=$(grep \.\/hl $f)
+		COMMDQ=$(grep -P ^\.\/hl_qual $f)
 
 		# start time
 		h_sts=$(grep -i "starting config function" $f | sort -n | head -n 1 | awk -F'[' '{print $2}' | awk -F']' '{print $1}' )
