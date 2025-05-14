@@ -1,7 +1,9 @@
+RED='\033[0;31m'
+NCL='\033[0m' 
 
 hl-smi &>/dev/null
 if [[ $? == 1 ]]; then
-	echo -e "  error: hl drivers not loaded"
+	echo -e "  error: ${RED}hl drivers not loaded${NCL}"
 	echo -e "  modprobe habanalabs_en &&  modprobe habanalabs_ib &&  modprobe habanalabs_cn &&  modprobe habanalabs"
 	exit 1
 fi
@@ -14,7 +16,7 @@ SNM=$(ipmitool fru | grep "Board Serial"   | awk -F': ' '{print $2}')
 
 tail -n 1 /var/log/habana_logs/qual/*.log | grep -v \= | grep .
 if [[ $? == 1 ]]; then
-	echo -e "  error: hl_qual logs not found"
+	echo -e "  error: ${RED}hl_qual logs not found${NCL}"
 	exit 1
 fi
 
