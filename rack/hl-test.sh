@@ -147,7 +147,7 @@ if [[ "$1" =~ "log" ]]; then
 elif [[ "$1" =~ "mv" ]]; then
 	PSN=$(ipmitool fru | grep "Product Serial" | awk -F': ' '{print $2}')
 	SNM=$(ipmitool fru | grep "Board Serial"   | awk -F': ' '{print $2}')
-	[[ "$PSN" =~ ^S[0-9] ]] && SNM=$PSN
+	[[ "$PSN" =~ ^[A-Z[0-9] ]] && SNM=$PSN
 
 	BID=$(hl-smi -L | grep accel0 | awk -F':' '{print $2}')
 	SNO=$(hl-smi -L | grep accel0 -A 15 | grep "Serial Number" | awk -F': ' '{print $2}')

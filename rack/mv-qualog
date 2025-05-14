@@ -1,8 +1,16 @@
+
+hl-smi &>/dev/null
+if [[ $? == 1 ]]; then
+	echo -e "  error: hl driver no loaded"
+	echo -e "  modprobe habanalabs_en &&  modprobe habanalabs_ib &&  modprobe habanalabs_cn &&  modprobe habanalabs"
+	exit 1
+fi
+
 SECONDS=0
 
 PSN=$(ipmitool fru | grep "Product Serial" | awk -F': ' '{print $2}')
 SNM=$(ipmitool fru | grep "Board Serial"   | awk -F': ' '{print $2}')
-[[ "$PSN" =~ ^S[0-9] ]] && SNM=$PSN
+[[ "$PSN" =~ ^[A-Z[0-9] ]] && SNM=$PSN
 
 tail -n 1  /var/log/habana_logs/qual/*.log | grep -v \= | grep .
 BID=$(hl-smi -L | grep accel0 | awk -F':' '{print $2}')
