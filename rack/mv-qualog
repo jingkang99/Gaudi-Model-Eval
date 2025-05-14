@@ -1,7 +1,7 @@
 
 hl-smi &>/dev/null
 if [[ $? == 1 ]]; then
-	echo -e "  error: hl driver no loaded"
+	echo -e "  error: hl driver not loaded"
 	echo -e "  modprobe habanalabs_en &&  modprobe habanalabs_ib &&  modprobe habanalabs_cn &&  modprobe habanalabs"
 	exit 1
 fi
