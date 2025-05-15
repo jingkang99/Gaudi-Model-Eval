@@ -77,6 +77,11 @@ alias SPI='hl-fw-loader -s | grep Sending -A 6 | grep -P "SPI|Sending"'
 alias gdl='tail -n 1 /var/log/habana_logs/qual/*.log | grep -v == | grep .'
 alias itb='strings /lib/firmware/habanalabs/gaudi*/gaudi*-agent-fw_loader-fit.itb | grep -i "Ppboot.*version " | head -n 1'
 
+alias showlog="/sox/Gaudi-Model-Eval/rack/hl-test.sh log"
+alias showcmd="/sox/Gaudi-Model-Eval/rack/hl-test.sh dry"
+alias mvhllog="/sox/Gaudi-Model-Eval/rack/hl-test.sh mv"
+alias renewip="dhclient -r;dhclient ens1f0;ipp"
+
 RED='\033[0;31m'
 YLW='\033[0;33m'
 BLU='\033[0;34m'
