@@ -98,7 +98,7 @@ function check_hl_qual_log(){
 	[[ $? != 0 ]] && return
 
 	for f in $(ls /var/log/habana_logs/qual/*.log); do
-		RESULT=$(grep "hl qual report" $f -A 1 | tail -n 1)
+		RESULT=$(grep "hl qual report" $f -A 2 | tail -n 1)
 
 		COMMDQ=$(grep -P ^\.\/hl_qual $f)
 
