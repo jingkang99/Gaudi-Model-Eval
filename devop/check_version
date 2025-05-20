@@ -1,0 +1,166 @@
+# https://misc.flogisoft.com/bash/tip_colors_and_formatting
+# https://dev.to/ifenna__/adding-colors-to-bash-scripts-48g4
+
+WHT='\e[97m'
+RED='\e[31m'
+GRN='\e[32m'
+YLW='\e[33m'
+BLU='\e[34m'
+MAG='\e[35m'
+BCY='\e[36m'
+LGR='\e[37m'	# light gray
+GRY='\e[90m'	# gray
+LRD='\e[91m'	# light red
+LGN='\e[92m'	# light grn
+LYW='\e[93m'	# light ylw
+NCL='\e[0m'
+
+function get_comp_ver(){
+	gover=$(curl -k -s https://github.com/golang/go/tags       | tee _gh | grep 'go/releases/tag'   | head -n 1 | awk -F'\"' '{print $6}' | awk -F 'go' '{print $4}')
+	rtver=$(curl -k -s https://github.com/rust-lang/rust/tags  | tee _gh | grep 'rust/releases/tag' | head -n 1 | awk -F'\"' '{print $6}' | awk -F '/'  '{print $6}')
+	nodev=$(curl -k -s https://github.com/nodejs/node/tags     | tee _gh | grep 'node/releases/tag' | head -n 1 | awk -F'\"' '{print $6}' | awk -F 'v'  '{print $2}')
+
+	wails=$(curl -k -s https://github.com/wailsapp/wails   | tee _gh | grep "css-truncate css-truncate-target text-bold" | awk -F'>v' '{print $2}' | awk -F '<' '{print $1}')
+		wails_star=$(grep -P "^ +<strong.*</strong>" _gh | head -n 1 | awk -F '<' '{print $2}' | awk -F '>' '{print $2}')
+
+	tauri=$(curl -k -s https://github.com/tauri-apps/tauri | tee _gh | grep "css-truncate css-truncate-target text-bold" | awk -F' v' '{print $2}' | awk -F '<' '{print $1}')
+		tauri_star=$(grep -P "^ +<strong.*</strong>" _gh | head -n 1 | awk -F '<' '{print $2}' | awk -F '>' '{print $2}')
+
+	react=$(curl -k -s https://github.com/facebook/react   | tee _gh | grep "css-truncate css-truncate-target text-bold" | awk -F'>'  '{print $2}' | awk -F ' ' '{print $1}')
+		react_star=$(grep -P "^ +<strong.*</strong>" _gh | head -n 1 | awk -F '<' '{print $2}' | awk -F '>' '{print $2}')
+	nextj=$(curl -k -s https://github.com/vercel/next.js   | tee _gh | grep "css-truncate css-truncate-target text-bold" | awk -F'>v' '{print $2}' | awk -F '<' '{print $1}')
+		nextj_star=$(grep -P "^ +<strong.*</strong>" _gh | head -n 1 | awk -F '<' '{print $2}' | awk -F '>' '{print $2}')
+	tailw=$(curl -k -s https://github.com/tailwindlabs/tailwindcss  | tee _gh | grep "css-truncate css-truncate-target text-bold" | awk -F'>v' '{print $2}' | awk -F '<' '{print $1}')
+		tailw_star=$(grep -P "^ +<strong.*</strong>" _gh | head -n 1 | awk -F '<' '{print $2}' | awk -F '>' '{print $2}')	
+
+	# ----
+
+	flowb=$(curl -k -s https://github.com/themesberg/flowbite   | tee _gh | grep "css-truncate css-truncate-target text-bold" | awk -F'>v' '{print $2}' | awk -F '<' '{print $1}')
+		flowb_star=$(grep -P "^ +<strong.*</strong>" _gh | head -n 1 | awk -F '<' '{print $2}' | awk -F '>' '{print $2}')
+	shadu=$(curl -k -s https://github.com/shadcn-ui/ui          | tee _gh | grep "css-truncate css-truncate-target text-bold" | awk -F'@'  '{print $2}' | awk -F '<' '{print $1}')
+		shadu_star=$(grep -P "^ +<strong.*</strong>" _gh | head -n 1 | awk -F '<' '{print $2}' | awk -F '>' '{print $2}')
+		
+	daisy=$(curl -k -s https://github.com/saadeghi/daisyui      | tee _gh | grep "css-truncate css-truncate-target text-bold" | awk -F'>v' '{print $2}' | awk -F '<' '{print $1}')
+		daisy_star=$(grep -P "^ +<strong.*</strong>" _gh | head -n 1 | awk -F '<' '{print $2}' | awk -F '>' '{print $2}')
+
+	chakr=$(curl -k -s https://github.com/chakra-ui/chakra-ui   | tee _gh | grep "css-truncate css-truncate-target text-bold" | awk -F'@'  '{print $3}' | awk -F '<' '{print $1}')
+		chakr_star=$(grep -P "^ +<strong.*</strong>" _gh | head -n 1 | awk -F '<' '{print $2}' | awk -F '>' '{print $2}')
+
+	matrl=$(curl -k -s https://github.com/mui/material-ui       | tee _gh | grep "css-truncate css-truncate-target text-bold" | awk -F'>v' '{print $2}' | awk -F '<' '{print $1}')
+		matrl_star=$(grep -P "^ +<strong.*</strong>" _gh | head -n 1 | awk -F '<' '{print $2}' | awk -F '>' '{print $2}')
+
+	layui=$(curl -k -s https://github.com/layui/layui           | tee _gh | grep "css-truncate css-truncate-target text-bold" | awk -F'>v' '{print $2}' | awk -F '<' '{print $1}')
+		layui_star=$(grep -P "^ +<strong.*</strong>" _gh | head -n 1 | awk -F '<' '{print $2}' | awk -F '>' '{print $2}')
+
+	heron=$(curl -k -s https://github.com/heroui-inc/heroui     | tee _gh | grep "css-truncate css-truncate-target text-bold" | awk -F'@'  '{print $3}' | awk -F '<' '{print $1}')
+		heron_star=$(grep -P "^ +<strong.*</strong>" _gh | head -n 1 | awk -F '<' '{print $2}' | awk -F '>' '{print $2}')
+
+	antdg=$(curl -k -s https://github.com/ant-design/ant-design | tee _gh | grep "css-truncate css-truncate-target text-bold" | awk -F'>'  '{print $2}' | awk -F '<' '{print $1}')
+		antdg_star=$(grep -P "^ +<strong.*</strong>" _gh | head -n 1 | awk -F '<' '{print $2}' | awk -F '>' '{print $2}')
+
+	magic=$(curl -k -s https://github.com/magicuidesign/magicui | tee _gh | grep "css-truncate css-truncate-target text-bold" | awk -F'>'  '{print $2}' | awk -F '<' '{print $1}')
+	magic=0.0
+		magic_star=$(grep -P "^ +<strong.*</strong>" _gh | head -n 1 | awk -F '<' '{print $2}' | awk -F '>' '{print $2}')
+
+	tremr=$(curl -k -s https://github.com/tremorlabs/tremor-npm | tee _gh | grep "css-truncate css-truncate-target text-bold" | awk -F'>v' '{print $2}' | awk -F '<' '{print $1}')
+		tremr_star=$(grep -P "^ +<strong.*</strong>" _gh | head -n 1 | awk -F '<' '{print $2}' | awk -F '>' '{print $2}')
+
+	fluen=$(curl -k -s https://github.com/microsoft/fluentui    | tee _gh | grep "css-truncate css-truncate-target text-bold" | awk -F'>v' '{print $2}' | awk -F '<' '{print $1}')
+	fluen=9.0
+		fluen_star=$(grep -P "^ +<strong.*</strong>" _gh | head -n 1 | awk -F '<' '{print $2}' | awk -F '>' '{print $2}')
+
+	primr=$(curl -k -s https://github.com/primefaces/primereact | tee _gh | grep "css-truncate css-truncate-target text-bold" | awk -F'>'  '{print $2}' | awk -F '<' '{print $1}')
+		primr_star=$(grep -P "^ +<strong.*</strong>" _gh | head -n 1 | awk -F '<' '{print $2}' | awk -F '>' '{print $2}')
+
+	# ----
+	
+	t3app=$(curl -k -s https://github.com/t3-oss/create-t3-app | tee _gh | grep "css-truncate css-truncate-target text-bold" | awk -F'@'  '{print $2}' | awk -F '<' '{print $1}')
+		t3app_star=$(grep -P "^ +<strong.*</strong>" _gh | head -n 1 | awk -F '<' '{print $2}' | awk -F '>' '{print $2}')
+
+	gogin=$(curl -k -s https://github.com/gin-gonic/gin    | tee _gh | grep "css-truncate css-truncate-target text-bold" | awk -F'>v' '{print $2}' | awk -F '<' '{print $1}')	
+	gochi=$(curl -k -s https://github.com/go-chi/chi       | tee _gh | grep "css-truncate css-truncate-target text-bold" | awk -F'>v' '{print $2}' | awk -F '<' '{print $1}')
+
+	# =====
+
+	printf "${BLU}go${NCL}          ${YLW}%10s${NCL}\n"  $gover
+	printf "${BLU}rust${NCL}        ${YLW}%10s${NCL}\n"  $rtver
+	printf "${BLU}node${NCL}        ${YLW}%10s${NCL}\n"  $nodev
+	printf "${BLU}wails${NCL}       ${YLW}%10s  \t%s${NCL}\n"  $wails $wails_star
+	printf "${BLU}tauri${NCL}       ${YLW}%10s  \t%s${NCL}\n"  $tauri $tauri_star
+
+	echo '----'
+	printf "${BCY}react${NCL}       ${YLW}%10s  \t%s${NCL}\n"  $react $react_star
+	printf "${BCY}nextjs${NCL}      ${YLW}%10s  \t%s${NCL}\n"  $nextj $nextj_star
+	printf "${BCY}tailwind${NCL}    ${YLW}%10s  \t%s${NCL}\n"  $tailw $tailw_star
+
+	echo '----'  # gui componet
+	printf "${BCY}material-ui${NCL} ${YLW}%10s  \t%s${NCL}\n"  $matrl $matrl_star
+	printf "${BCY}ant-design${NCL}  ${YLW}%10s  \t%s${NCL}\n"  $antdg $antdg_star
+	printf "${BCY}shadcnui${NCL}    ${YLW}%10s  \t%s${NCL}\n"  $shadu $shadu_star
+	printf "${BCY}chakra-ui${NCL}   ${YLW}%10s  \t%s${NCL}\n"  $chakr $chakr_star
+	printf "${BCY}daisy-ui${NCL}    ${YLW}%10s  \t%s${NCL}\n"  $daisy $daisy_star
+	printf "${BCY}layui${NCL}       ${YLW}%10s  \t%s${NCL}\n"  $layui $layui_star
+	printf "${BCY}heroui-next${NCL} ${YLW}%10s  \t%s${NCL}\n"  $heron $heron_star
+	printf "${BCY}flowbite${NCL}    ${YLW}%10s  \t%s${NCL}\n"  $flowb $flowb_star
+	printf "${BCY}primereact${NCL}  ${YLW}%10s  \t%s${NCL}\n"  $primr $primr_star
+	
+	printf "${BCY}tremor${NCL}      ${YLW}%10s  \t%s${NCL}\n"  $tremr $tremr_star
+	printf "${BCY}fluentui${NCL}    ${YLW}%10s  \t%s${NCL}\n"  $fluen $fluen_star
+	printf "${BCY}magicui${NCL}     ${YLW}%10s  \t%s${NCL}\n"  $magic $magic_star
+
+	echo '----'  # gui template
+	printf "${MAG}create-t3${NCL}   ${YLW}%10s  \t%s${NCL}\n"  $t3app $t3app_star
+
+	echo '----'  # go framework
+	printf "${LYW}go-gin${NCL}      ${YLW}%10s${NCL}\n"  $gogin
+	printf "${LYW}go-chi${NCL}      ${YLW}%10s${NCL}\n"  $gochi
+}
+
+function colorgrid( ){
+    iter=16
+    while [ $iter -lt 52 ]
+    do
+        second=$[$iter+36]
+        third=$[$second+36]
+        four=$[$third+36]
+        five=$[$four+36]
+        six=$[$five+36]
+        seven=$[$six+36]
+        if [ $seven -gt 250 ];then seven=$[$seven-251]; fi
+
+        echo -en "\033[38;5;$(echo $iter)m█ "
+        printf "%03d" $iter
+        echo -en "   \033[38;5;$(echo $second)m█ "
+        printf "%03d" $second
+        echo -en "   \033[38;5;$(echo $third)m█ "
+        printf "%03d" $third
+        echo -en "   \033[38;5;$(echo $four)m█ "
+        printf "%03d" $four
+        echo -en "   \033[38;5;$(echo $five)m█ "
+        printf "%03d" $five
+        echo -en "   \033[38;5;$(echo $six)m█ "
+        printf "%03d" $six
+        echo -en "   \033[38;5;$(echo $seven)m█ "
+        printf "%03d" $seven
+
+        iter=$[$iter+1]
+        printf '\r\n'
+    done
+	printf "${WHT}${NCL}"
+}
+
+# -- main 
+SECONDS=0
+
+get_comp_ver
+
+echo -e "\nversions checked in $SECONDS\n"
+
+rm -rf _gh
+
+# https://medium.com/startup-nextjs/8-top-customizable-ui-libraries-for-next-js-f39ab69ecd59
+# https://github.com/aniftyco/awesome-tailwindcss
+# https://github.com/brillout/awesome-react-components
+# https://github.com/topics/react-components
+# https://github.com/react-bootstrap/react-bootstrap
+#	
