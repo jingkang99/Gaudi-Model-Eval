@@ -1,0 +1,327 @@
+#!/bin/bash
+# This script is provided by Habana Taiwan Software Team
+LOGPATH="$HOME/habana-diag-hl_qual"
+DATESTR=`date +%Y%m%d%H%M`
+# Default setting
+TIME=20
+SERDES=""
+DIS_EXTPORT=""
+TESTMODE="serial"
+# Preset qual command
+POWER_CMD="-gaudi2 -c all -rmod parallel -s -t $TIME"
+F2_CMD="-gaudi2 -c all -rmod parallel -t $TIME -f2 -l extreme -d $SERDES"
+E2E_CMD="-c all -rmod parallel -e2e_concurrency -gaudi2 -t $TIME $DIS_EXTPORT"
+PCI_CMD="-gaudi2 -c all -rmod $TESTMODE -t $TIME -p -b -gen gen4"
+MEMBW_CMD="-gaudi2 -c all -rmod parallel -mb -memOnly"
+QUAL_CMD=$POWER_CMD
+check_hl_packages()
+{
+    echo -e "Kernel Version:"
+    uname -a
+    echo -e "\nOS Version:"
+    cat /etc/os-release 
+    echo -e "\nHabana packages:"
+    dpkg -l | grep -i habana
+    echo -e "\nOpenMPI packages:"
+    dpkg -l | grep -i openmpi
+    echo -e "\nMemory info:"
+    cat /proc/meminfo
+}
+check_hl_smi()
+{
+    echo "Driver status:"
+    for i in {0..7}; do echo  "accel$i: " `cat /sys/class/accel/accel$i/device/status` ; done
+    echo -e "\nOAM map:"
+    hl-smi -Q bus_id,module_id,serial -f csv
+    echo -e "\nFW versions:"
+    hl-smi --fw-version
+    echo -e "\nDetail:"
+    hl-smi -q
+    echo -e "\nInternal port stats:"
+    OAM_ADDR=`lspci | grep accel | awk '{print $1}'`
+    for i in $OAM_ADDR; do
+	echo "OAM $i"
+	hl-smi -n link -i $i
+    done
+    echo -e "\nExternal port stats:"
+    /opt/habanalabs/qual/gaudi2/bin/manage_network_ifs.sh --status
+}
+oam_pci_speed()
+{
+    echo -e "\nOAM PCI Speed:"
+    dev_list=`lspci -d 1da3: | awk -F' ' '{print $1}'`
+    for dev_ in $dev_list; do
+	sts=$(sudo lspci -s $dev_ -vv | grep "LnkSta:" | awk -F ':' '{print $2}')
+	echo "---------------------------------------------------------------------------------"
+	echo "[$dev_] (Habana device) PCIe link status: $sts"
+	echo "parent ports:"
+	tmp_bdf="0000:$dev_"
+	while true; do
+	    port=$(basename $(dirname $(readlink "/sys/bus/pci/devices/$tmp_bdf")))
+	    div=$(echo $port | awk -F ':' '{print $1}' | cut -f1 -d"0")
+	    if [ "$div" == "pci" ]; then
+		break;
+	    fi
+	    sts=$(sudo lspci -s $port -vv | grep "LnkSta:" | awk -F ':' '{print $2}')
+	    echo "[$port] (parent of $tmp_bdf) $sts"
+	    tmp_bdf=$port
+	done
+    done
+}
+check_pci()
+{
+    NUM_OAMS=`lspci | grep accel | wc | awk '{print $1}'`
+    if [ $NUM_OAMS -eq 0 ]; then
+	echo "No OAM found!!"
+	exit
+    fi
+    #oam_pci_speed
+    echo "There are $NUM_OAMS OAMs found in the system"
+    lspci | grep accel
+    lspci -vvv
+}
+start_capture_oam_uart()
+{
+    OAM_ADDR=`lspci | grep accel | awk '{print $1}'`
+    for addr in $OAM_ADDR; do
+        echo "Enable virtual console for $addr"
+	pre=`echo $addr | awk -F: '{print $1}'`
+        if [ $pre == "0000" ]; then
+            hl-smi dmon -i $addr > $LOGPATH/hl-smi-tmp.log &
+        else
+            hl-smi dmon -i 0000:$addr > $LOGPATH/hl-smi-tmp.log &
+        fi
+	sleep 1
+        cat $LOGPATH/hl-smi-tmp.log
+        oam=`hl-smi -Q bus_id,module_id -f csv | grep $addr | awk '{print $2}'`
+        PTS=`cat $LOGPATH/hl-smi-tmp.log | grep "ARC1" | awk -F: '{print $2}'`
+        case $oam in
+            ''|*[!0-9]*)
+                echo "Log $addr virtual console from $PTS"
+                cat $PTS > $LOGPATH/OAM-$addr-UART-$DATESTR.log&
+                ;;
+            *)
+                echo "Log OAM $oam virtual console from $PTS"
+                cat $PTS > $LOGPATH/OAM$oam-$addr-UART-$DATESTR.log&
+                ;;
+        esac
+	rm $LOGPATH/hl-smi-tmp.log
+    done
+    echo "Unload driver to capture OAM UART log"
+    rmmod habanalabs
+    rmmod habanalabs_en
+    rmmod habanalabs_cn
+    rmmod habanalabs_ib
+    echo "Reset OAM to capture OAM UART log"
+    for addr in $OAM_ADDR; do
+	hl-fw-loader -R -y -d $addr
+    done
+    echo "Load driver to capture OAM UART log"
+    modprobe habanalabs_en
+    modprobe habanalabs_cn
+    modprobe habanalabs_ib
+    modprobe habanalabs timeout_locked=0
+    sleep 30
+}
+stop_oam_uart()
+{
+    echo "Stop capturing the OAM UART log"
+    CATS=`ps auxw |grep cat | grep "dev/pts" | awk '{print $2}'`
+    for i in $CATS; do
+	kill -9 $i
+    done
+    killall -9 hl-smi
+}
+hl_qual_cmd()
+{
+    HABANA_SH=`ls /etc/profile.d/habana*.sh`
+    for i in $HABANA_SH; do
+	echo "source $i"
+	source $i
+    done
+    source /etc/profile.d/habana*.sh
+    export ENABLE_CONSOLE=true 
+    export LOG_LEVEL_QUAL=3 
+    export LOG_LEVEL_ALL=4 
+    export __python_cmd=python3
+    chmod -R a+w $HABANA_LOGS
+    cd /opt/habanalabs/qual/gaudi2/bin/
+    echo "CMD: ./hl_qual $QUAL_CMD -dis_mon -dmesg"
+    ./hl_qual $QUAL_CMD -dis_mon -dmesg
+    echo "Collect habana logs"
+    mkdir -p $LOGPATH/habana_logs/qual
+    cp $HABANA_LOGS/qual/*0000* $LOGPATH/habana_logs/qual 
+}
+run()
+{
+    echo "Collecting package information..."
+    check_hl_packages >& $LOGPATH/hl-packages-$DATESTR.log
+    echo "Collecting PCI information..."
+    check_pci >& $LOGPATH/pci-$DATESTR.log
+    echo "Load drivers..."
+    modprobe habanalabs_en
+    modprobe habanalabs_cn
+    modprobe habanalabs_ib
+    modprobe habanalabs timeout_locked=0
+    echo "Start capture OAM UART log and reset the OAM before hl_qual start."
+    echo "This will take a while, please wait..."
+    start_capture_oam_uart >& $LOGPATH/capture-uart-$DATESTR.log
+    echo "Collecting dmeag..."
+    dmesg > $LOGPATH/dmesg-before-hl_qual-$DATESTR.log
+    echo "Collecting hl-smi logs..."
+    check_hl_smi >& $LOGPATH/hl-smi-$DATESTR.log
+    echo "Running hl_qual, this will take a while. Please wait..."
+    echo "CMD: ./hl_qual $QUAL_CMD -dis_mon -dmesg"
+    hl_qual_cmd >& $LOGPATH/hl_qual-$DATESTR.log
+    echo "hl_qual finished! Collecting PCI information..."
+    check_pci >& $LOGPATH/pci-afterqual-$DATESTR.log
+    echo "Collecting hl-smi logs..."
+    check_hl_smi >& $LOGPATH/hl-smi-afterqual-$DATESTR.log
+    dmesg > $LOGPATH/dmesg-after-hl_qual-$DATESTR.log
+    echo "Stop OAM virtual UART..."
+    stop_oam_uart
+}
+select_time()
+{
+    echo -en "\nDuration: [20] "
+    read -r time
+    if [ -z "$time" ]; then
+        time=20
+    fi
+    # Check if the input is a valid number (integer or decimal)
+    if ! [[ "$time" =~ ^-?[0-9]+(\.[0-9]+)?$ ]]; then
+	echo "Input is not a valid number. Use default druation 20."
+        time=20
+    fi
+    TIME=$time
+}
+f2_menu()
+{
+    select_time
+    echo -en "\nWith -serdes (y/n)? [y] "
+    read -r serdes
+    if [ -z "$serdes" ]; then
+	serdes="y"
+    fi
+    if [ $serdes == "y" ]; then
+	SERDES="-serdes"
+    else
+	SERDES=""
+    fi
+    F2_CMD="-gaudi2 -c all -rmod parallel -t $TIME -f2 -l extreme -d $SERDES"
+    QUAL_CMD=$F2_CMD
+}
+e2e_menu()
+{
+    echo -en "\nWith scale-out ports (y/n)? [y] "
+    read -r select
+    if [ -z "$select" ]; then
+	select="y"
+    fi
+    if [ $select == "y" ]; then
+	DIS_EXTPORT=""
+    else
+	DIS_EXTPORT="-disable_ports 8,22,23"
+    fi
+    E2E_CMD="-c all -rmod parallel -e2e_concurrency -gaudi2 $DIS_EXTPORT"
+    QUAL_CMD=$E2E_CMD
+}
+pci_menu()
+{
+    echo -en "\nSerial Mode (y/n)? [y] "
+    read -r select
+    if [ -z "$select" ]; then
+	select="y"
+    fi
+    if [ $select == "n" ]; then
+	TESTMODE="parallel"
+    fi
+    PCI_CMD="-gaudi2 -c all -rmod $TESTMODE -t $TIME -p -b -gen gen4"
+    QUAL_CMD=$PCI_CMD
+}
+main_menu()
+{
+    echo -e "\nWhich QUAL command you want to run?\n"
+    echo "1. Power Stress"
+    echo "2. F2"
+    echo "3. E2E"
+    echo "4. Memory Bandwidth"
+    echo "5. PCI"
+    echo -en "\nSelect: [1] "
+    read -r choice
+    # If the user doesn't enter anything, default to option 1
+    if [ -z "$choice" ]; then
+        choice=1
+    fi
+    case $choice in
+        1)
+            select_time
+	    POWER_CMD="-gaudi2 -c all -rmod parallel -s -t $TIME"
+	    QUAL_CMD=$POWER_CMD
+            ;;
+        2)
+            f2_menu
+            ;;
+	3)
+	    e2e_menu
+	    ;;
+	4)
+	    QUAL_CMD=$MEMBW_CMD
+	    ;;
+	5)
+	    pci_menu
+	    ;;
+        *)
+            # Handle invalid input
+            echo "Invalid option, please try again."
+	    exit 0
+            ;;
+    esac
+}
+rm -rf $LOGPATH
+mkdir -p $LOGPATH
+echo -e "\n********************************************" | tee -a $LOGPATH/myversion-$DATESTR.log
+echo "*" | tee -a $LOGPATH/myversion-$DATESTR.log
+echo "* hl_qual log collector. Version: 20241220" | tee -a $LOGPATH/myversion-$DATESTR.log
+echo "*" | tee -a $LOGPATH/myversion-$DATESTR.log
+echo -e "********************************************\n" | tee -a $LOGPATH/myversion-$DATESTR.log
+if [ "$EUID" -ne 0 ]; then
+    echo "Please run as root"
+    exit
+fi
+if [ $# -eq 1 ]; then
+    if [ $1 == "-menu" ]; then
+	main_menu
+    else
+	echo "Unknown argument: $1"
+	exit 0
+    fi
+elif [ $# -gt 1 ]; then
+    QUAL_CMD=$@
+fi
+run
+qual_result=`awk '/hl qual report/  {getline; print}' $LOGPATH/hl_qual-$DATESTR.log`
+if [ -z "$qual_result" ]; then
+    qual_result="ERROR"
+fi
+echo -e "\n********************************************"
+echo "*"
+echo "* Finished. Result: $qual_result"
+echo "*"
+echo -e "********************************************\n"
+tar jcf $HOME/habana-diag-hl_qual-$DATESTR.tar.bz2 $LOGPATH
+if [ $qual_result == "FAILED" ]; then
+    echo "The hl_qaul result shows FAILED!!"
+    echo "The following cards are FAILED:"
+    awk '/Test result summary/ {found=1} found && $0 ~ /: FAILED/ {print}' $LOGPATH/hl_qual-$DATESTR.log
+    echo -e "Please check $HOME/habana-diag-hl_qual-$DATESTR.tar.bz2 and send it to Habana team for analysis\n\n"
+elif [ $qual_result == "ERROR" ]; then
+    echo "hl_qual fail to start"
+    echo "This usually means you give wrong arguments to hl_qual."
+    echo "Please check $LOGPATH/hl_qual-$DATESTR.log for detail report."
+    echo -e "Logs are also packed at $HOME/habana-diag-hl_qual-$DATESTR.tar.bz2\n\n"
+else
+    echo "The hl_qaul show PASSED."
+    echo "Please check $LOGPATH/hl_qual-$DATESTR.log for detail report"
+    echo -e "Logs are also packed at $HOME/habana-diag-hl_qual-$DATESTR.tar.bz2\n\n"
+fi
