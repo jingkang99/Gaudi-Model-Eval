@@ -40,11 +40,9 @@ alias gg='git log --all --decorate --oneline --graph'
 alias gg='git log --all --decorate --oneline --graph'
 alias gu='git pull'
 alias ga='ls -l | grep drwxr | awk "{print \$9}" | xargs -I{} grep git {}/.git/config 2>/dev/null'
-alias gd='for fd in $( printf "%s\n" */ ) ; do cd $fd; printf "____ %s ____" `pwd` ; echo; git pull; cd - &>/dev/null ; echo ; done'
 alias gh='git checkout HEAD'
 alias gr='grep url .git/config'
 alias gq='git show | grep Date:'
-alias gb='for fd in $( ls -l | grep drwxr | awk '\''{print $9}'\'' ) ; do cd $fd; pwd; git log -1 --format="%at" | xargs -I{} date -d @{} +%Y/%m/%d-%H:%M:%S; cd .. ; echo ; done 2>/dev/null'
 alias gw='git clone --depth=1'
 alias gck="/opt/habanalabs/qual/gaudi2/bin/manage_network_ifs.sh --status"
 alias gup="/opt/habanalabs/qual/gaudi2/bin/manage_network_ifs.sh --up"
@@ -52,6 +50,9 @@ alias pws='ipmitool sdr | grep PW'
 alias hl-='hl-smi -Q timestamp,index,serial,bus_id,memory.used,temperature.aip,utilization.aip,power.draw -f csv,noheader -l 10'
 alias apy='source $PYTHON_LLM_VEN/bin/activate'
 alias jns='jupyter notebook --ip 0.0.0.0 --port 8888 --allow-root'
+
+alias gd='for fd in $( printf "%s\n" */ ) ; do cd $fd; printf "\e[33m____ %-40s ____\e[0m\n" `pwd` ; git pull; cd - &>/dev/null ; echo ; done'
+alias gb='for fd in $( printf "%s\n" */ ) ; do cd $fd; printf "\e[33m____ %-40s --->\e[0m  " `pwd` ; git log -1 --format="%at" | xargs -I{} date -d @{} +%Y/%m/%d-%H:%M:%S; cd .. ; echo ; done 2>/dev/null'
 
 alias upp='nmap -sn 172.24.189.11/27| grep 172'
 alias cls="echo '' > /var/log/syslog; echo '' > /var/log/kern.log; rm -rf /var/log/habana_logs/*"
@@ -62,8 +63,8 @@ alias hkill='hl-smi | grep -A 9 Type | grep == -A 8 | grep -v == | grep -v  N/A 
 MLPERFROOT=/sox/Gaudi-Model-Eval
 
 alias acd='cd /sox/habana-intel/Model-References/MLPERF3.1/Training/benchmarks'
-alias bcd="cd $MLPERFROOT/bert-perf-result/$(  ls -tr $MLPERFROOT/bert-perf-result   | tail -n 1)"
-alias rcd="cd $MLPERFROOT/resnet-perf-result/$(ls -tr $MLPERFROOT/resnet-perf-result | tail -n 1)"
+#alias bcd="cd $MLPERFROOT/bert-perf-result/$(  ls -tr $MLPERFROOT/bert-perf-result   | tail -n 1)"
+#alias rcd="cd $MLPERFROOT/resnet-perf-result/$(ls -tr $MLPERFROOT/resnet-perf-result | tail -n 1)"
 
 alias spi='hl-smi -q | grep SPI'
 alias oam='hl-smi -L | grep "CPLD Version" -B 15 | grep -P "accel|Serial|SPI|CPLD"'
