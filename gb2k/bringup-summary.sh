@@ -59,8 +59,8 @@ do
 	pr -t -m -J _d-${f} _a-${f} _c-${f} _b-${f} | tee -a failed_dut.txt | tee -a bup_report.txt
 done
 
-echo
-awk -F '\t' '{print $4}' failed_dut.txt | sort | uniq -c | sort -n -r 
+echo | tee -a bup_report.txt
+awk -F '\t' '{print $4}' failed_dut.txt | sort | uniq -c | sort -n -r | tee -a bup_report.txt
 
 echo
 CUNT=$(wc -l failed_dut.txt | awk '{print $1}')
