@@ -62,7 +62,7 @@ done
 echo
 awk -F '\t' '{print $4}' failed_dut.txt | sort | uniq -c | sort -n -r | tee -a bup_report.txt
 
-echo
+echo | tee -a bup_report.txt
 CUNT=$(wc -l failed_dut.txt | awk '{print $1}')
 echo -e "total failed count: $CUNT"
 echo
