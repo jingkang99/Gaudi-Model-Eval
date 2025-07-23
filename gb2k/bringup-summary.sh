@@ -51,11 +51,12 @@ done
 
 # gen failure list
 rm -rf failed_dut.txt
+rm -rf bup_report.txt
 
 FILES="0*.html"
 for f in $FILES
 do
-	pr -t -m -J _d-${f} _a-${f} _c-${f} _b-${f} | tee -a failed_dut.txt
+	pr -t -m -J _d-${f} _a-${f} _c-${f} _b-${f} | tee -a failed_dut.txt | tee -a bup_report.txt
 done
 
 echo
@@ -66,8 +67,10 @@ CUNT=$(wc -l failed_dut.txt | awk '{print $1}')
 echo -e "total failed count: $CUNT"
 echo
 
+echo >> bup_report.txt
+
 FILES="0*.html"
-printf "%s\t%s\t%s\t%s\t%s\t%s\t\t%s" "Rack#" "Total" "Update" "Passed" "Failed" "New" "FPYR" 
+printf "%s\t%s\t%s\t%s\t%s\t%s\t\t%s\n" "Rack#" "Total" "Update" "Passed" "Failed" "New" "FPYR" | tee -a bup_report.txt
 for f in $FILES
 do
 	RACK="${f%%.*}"
@@ -79,10 +82,9 @@ do
 
 	TOTL=$(( $PASS+$FAIL+$UPDT+$NEWD ))
 	FPYR=$(echo "scale=2; $PASS / $((PASS+FAIL)) * 100" | bc)
-	
-	echo 
 
-	printf "%s\t\t%s\t\t%s\t\t${CYA}%s${NCL}\t\t${RED}%s${NCL}\t\t%s\t\t%s" $RACK $TOTL $UPDT $PASS $FAIL $NEWD ${FPYR}%
+	echo
+	printf "%s\t\t%s\t\t%s\t\t${CYA}%s${NCL}\t\t${RED}%s${NCL}\t\t%s\t\t%s\n" $RACK $TOTL $UPDT $PASS $FAIL $NEWD ${FPYR}% | tee -a bup_report.txt
 done
 echo
 
@@ -97,7 +99,8 @@ TT_TOTL=$(cat _a-* _e-* _f-* _g-* | wc -l)
 
 FAIL_RT=$(echo "scale=2; $TT_FAIL / $TT_TEST * 100" | bc)
 
-echo
-printf "%s\t%s\t%s\t%s\t%s\t%s\t\t%s\n" "Tested" "Total" "Update" "Passed" "Failed" "New" "FAIL-RATE" 
+echo >> bup_report.txt
+printf "%s\t%s\t%s\t%s\t%s\t%s\t\t%s\n" "Tested" "Total" "Update" "Passed" "Failed" "New" "FAIL-RATE" | tee -a bup_report.txt
 
-printf "%s\t\t%s\t\t%s\t\t${CYA}%s${NCL}\t\t${RED}%s${NCL}\t\t%s\t\t%s\n" $TT_TEST $TT_TOTL $TT_UPDT $TT_PASS $TT_FAIL $TT_NEWD ${FAIL_RT}%
+printf "%s\t\t%s\t\t%s\t\t${CYA}%s${NCL}\t\t${RED}%s${NCL}\t\t%s\t\t%s\n" $TT_TEST $TT_TOTL $TT_UPDT $TT_PASS $TT_FAIL $TT_NEWD ${FAIL_RT}% | tee -a bup_report.txt
+echo
