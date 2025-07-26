@@ -84,7 +84,8 @@ do
 	FPYR=$(echo "scale=2; $PASS / $((PASS+FAIL)) * 100" | bc)
 
 	echo
-	printf "%s\t%s\t%s\t${CYA}%s${NCL}\t${RED}%s${NCL}\t%s\t%s\n" $RACK $TOTL $UPDT $PASS $FAIL $NEWD ${FPYR}% | tee -a bup_report.txt
+	printf "%s\t%s\t%s\t${CYA}%s${NCL}\t${RED}%s${NCL}\t%s\t%s\r" $RACK $TOTL $UPDT $PASS $FAIL $NEWD ${FPYR}%
+	printf "%s\t%s\t%s\t${CYA}%s${NCL}\t${RED}%s${NCL}\t%s\t%s\n" $RACK $TOTL $UPDT $PASS $FAIL $NEWD ${FPYR}% >> bup_report.txt
 done
 echo
 
@@ -97,8 +98,10 @@ TT_NEWD=$(cat _g-* | wc -l)
 TT_TEST=$(cat _a-* _f-* | wc -l)
 TT_TOTL=$(cat _a-* _e-* _f-* _g-* | wc -l)
 
-FAIL_RT=$(echo "scale=2; $TT_FAIL / $TT_TEST * 100" | bc)
+#FAIL_RT=$(echo "scale=2; $TT_FAIL / $TT_TEST * 100" | bc)
+FAIL_RT=$(awk -v i="$TT_FAIL" -v t="$TT_TEST" 'BEGIN { printf "%.2f", (i/t)*100 }')
 
+echo
 echo >> bup_report.txt
 printf "%s\t%s\t%s\t%s\t%s\t%s\t%s\n" "Tested" "Total" "Update" "Passed" "Failed" "New" "FAIL-RATE" | tee -a bup_report.txt
 
