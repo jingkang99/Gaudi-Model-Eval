@@ -40,7 +40,7 @@ for (const [key, value] of racks.entries()) {
 	await page.goto( value );
 	await page.setViewport({width: 1080, height: 1024});
 
-	await sleep(2000);
+	await sleep(5000);
 
 	await page.screenshot({ path: outdir + "/png/" + key + '.png', fullPage: true });
 

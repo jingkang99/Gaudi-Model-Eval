@@ -17,11 +17,15 @@ function parse(){
 	echo
 
 	# get failure reason
-	grep " badge-danger" ${LOG} -A 8 | grep  title | awk -F 'title="' '{print $2}' | awk -F '"' '{print $1}'    | tee _b-$LOG
+	grep " badge-danger" ${LOG} -A 8 | grep  title | awk -F 'data-original-title="' '{print $2}' | awk -F '"' '{print $1}' | tee _b-$LOG
 	echo
 
 	# get MAC
 	grep " badge-danger" ${LOG} -A 8 | grep ext-center\"\>7 | awk -F '>' '{print $2}' | awk -F '<' '{print $1}' | tee _c-$LOG
+	echo
+
+	# get error log url
+	grep " badge-danger" ${LOG} -A 18 | grep '/firmware/' | awk -F '="' '{print $2}' | awk -F '"' '{print $1}'  | tee _u-$LOG
 	echo
 
 	# gen ID
@@ -56,11 +60,11 @@ rm -rf bup_report.txt
 FILES="0*.html"
 for f in $FILES
 do
-	pr -t -m -J _d-${f} _a-${f} _c-${f} _b-${f} | tee -a failed_dut.txt | tee -a bup_report.txt
+	pr -t -m -J _d-${f} _a-${f} _c-${f} _u-${f} _b-${f} | tee -a failed_dut.txt | tee -a bup_report.txt
 done
 
 echo | tee -a bup_report.txt
-awk -F '\t' '{print $4}' failed_dut.txt | sort | uniq -c | sort -n -r | tee -a bup_report.txt
+awk -F '\t' '{print $5}' failed_dut.txt | sort | uniq -c | sort -n -r | tee -a bup_report.txt
 
 echo 
 CUNT=$(wc -l failed_dut.txt | awk '{print $1}')
