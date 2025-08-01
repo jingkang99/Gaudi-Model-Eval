@@ -197,8 +197,7 @@ do
 	RUNN=$(wc -l _i-$f | awk '{print $1}')
 	
 	SCAN=$(grep "fas fa-barcode mr-2" $f -A 1 | tail -1 | awk -F '<|>'  '{print $3}')
-
-	TOTL=$(( $PASS+$FAIL+$RUNN ))
+	TOTL=$(( $PASS + $FAIL + $RUNN + $WARN ))
 
 	echo
 	printf "%s\t%s\t%s\t${CYA}%s${NCL}\t${RED}%s\t%s${NCL}\t%s\r" $RACK $TOTL $RUNN $PASS $FAIL $WARN $SCAN  
@@ -215,7 +214,7 @@ TT_RUNN=$(cat _i-* | wc -l)
 TT_SCAN=$(cat _g-* | wc -l)
 
 TT_TEST=$(cat _a-* _g-* _h-* | wc -l)
-TT_TOTL=$(cat _a-* _g-* _f-* _i-* | wc -l)
+TT_TOTL=$(cat _a-* _g-* _h-* _i-* | wc -l)
 
 TT_BADS=$((TT_FAIL+TT_WARN))
 
