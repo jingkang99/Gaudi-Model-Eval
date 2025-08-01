@@ -93,9 +93,10 @@ function parse(){
 		quo=_${mac}_failure-quoted.txt
 
 		# get the error root cause
-		curl -s "$p" -o $err
+		curl -s "$p" -o _1
+		head -n 20 _1 > $err
 		echo $? >> _curl-$LOG
-		
+
 		grep "404 Not Found" $err
 		if [ "$?" == "0" ] ; then
 			echo "404 Not Found" > $err
@@ -116,7 +117,9 @@ function parse(){
 		quo=_${mac}_failure-quoted.txt
 
 		# get the error root cause
-		curl -s "$p" -o $err
+		curl -s "$p" -o _1
+		head -n 20 _1 > $err
+		rm -rf _1
 		echo $? >> _curl-$LOG
 
 		grep "404 Not Found" $err
