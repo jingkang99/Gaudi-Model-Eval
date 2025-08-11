@@ -115,3 +115,18 @@ printf "%s\t%s\t%s\t%s\t%s\t%s\t%s\n" "Tested" "Total" "Update" "Passed" "Failed
 
 printf "%s\t%s\t%s\t${CYA}%s${NCL}\t${RED}%s${NCL}\t%s\t%s\n" $TT_TEST $TT_TOTL $TT_UPDT $TT_PASS $TT_FAIL $TT_NEWD ${FAIL_RT}% | tee -a bup_report.txt
 echo
+
+# uniq SN test result records
+awk '{print $2}' failed_dut.txt | sort | uniq -c | sort -n | grep '1 ' | awk '{print $2}' | xargs -I {} grep {} failed_dut.txt | sort > _uniq_1.txt
+
+# multi-records SN
+awk '{print $2}' failed_dut.txt | sort | uniq -c | sort -n | grep -v '1 ' > _mult_1.txt
+
+# get latest result for multi-records
+cat _mult_1.txt | awk '{print $2}' | xargs -d $'\n' sh -c 'for arg do grep "$arg" failed_dut.txt | sort -u -k 3 | tail -n 1; done' > _uniq_2.txt
+
+cat _uniq_1.txt _uniq_2.txt | sort > rck_report.txt
+sort -k 4 -r uni_report.txt > dat_report.txt
+
+echo | tee -a dat_report.txt
+awk -F '\t' '{print $6}' rck_report.txt | sort | uniq -c | sort -n -r >> dat_report.txt
