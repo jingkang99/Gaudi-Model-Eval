@@ -1,5 +1,6 @@
 # rack bringup test summary - *.html
 # jk,  7/22/25
+# https://us-rack.supermicro.com/searchportal/search-logs
 
 RED='\033[0;31m'
 YLW='\033[0;33m'
@@ -123,10 +124,108 @@ awk '{print $2}' failed_dut.txt | sort | uniq -c | sort -n | grep '1 ' | awk '{p
 awk '{print $2}' failed_dut.txt | sort | uniq -c | sort -n | grep -v '1 ' > _mult_1.txt
 
 # get latest result for multi-records
-cat _mult_1.txt | awk '{print $2}' | xargs -d $'\n' sh -c 'for arg do grep "$arg" failed_dut.txt | sort -u -k 3 | tail -n 1; done' > _uniq_2.txt
+#cat _mult_1.txt | awk '{print $2}' | xargs -d $'\n' sh -c 'for arg do grep "$arg" failed_dut.txt | sort -u -k 3 | tail -n 1; done' > _uniq_2.txt
+cat _mult_1.txt | awk '{print $2}' | xargs -I {} sh -c 'grep {} failed_dut.txt | sort -u -k 3 | tail -n 1' > _uniq_2.txt
 
 cat _uniq_1.txt _uniq_2.txt | sort > rck_report.txt
-sort -k 4 -r uni_report.txt > dat_report.txt
+sort -k 4 -r rck_report.txt > dat_report.txt
 
-echo | tee -a dat_report.txt
+echo "" >> dat_report.txt
 awk -F '\t' '{print $6}' rck_report.txt | sort | uniq -c | sort -n -r >> dat_report.txt
+
+# update
+UQ_UPDT=$(cat _e-* | sort | uniq -c | wc -l)
+
+# success
+UQ_PASS=$(cat _f-* | sort | uniq -c | wc -l)
+cat _f-* | sort | uniq -c | awk '{print $2}' > _pass.txt
+
+# new
+UQ_NEWD=$(cat _g-* | sort | uniq -c | wc -l)
+
+# fail
+UQ_FAIL=$(cat _a-* | sort | uniq -c | wc -l)
+cat _a-* | sort | uniq -c | awk '{print $2}' > _fail.txt
+
+UQ_TEST=$(cat _a-* _f-* | sort | uniq -c | wc -l)
+UQ_TOTL=$(cat _a-* _e-* _f-* _g-* | sort | uniq -c | wc -l)
+
+FAIL_UQ=$(awk -v i="$UQ_FAIL" -v t="$UQ_TEST" 'BEGIN { printf "%.2f", (i/t)*100 }')
+
+echo "" >> dat_report.txt
+echo -e "${BCY}unique SN test stats${NCL}\n" | tee -a dat_report.txt
+
+printf "%s\t%s\t%s\t%s\t%s\t%s\t%s\n" "Tested" "Total" "Update" "Passed" "Failed" "New" "FAIL-RATE" | tee -a dat_report.txt
+printf "%s\t%s\t%s\t${CYA}%s${NCL}\t${RED}%s${NCL}\t%s\t%s\t%s\n" $UQ_TEST $UQ_TOTL $UQ_UPDT $UQ_PASS $UQ_FAIL $UQ_NEWD ${FAIL_UQ}% "some failed DUT fixed and passed" | tee -a dat_report.txt
+
+rm -rf _fixd.txt _ffal.txt
+while IFS= read -r line; do
+	grep $line _pass.txt >> _fixd.txt
+	[ $? != 0 ] && (echo $line >> _ffal.txt)
+done < "_fail.txt"
+
+NOT_FIX=$(cat _ffal.txt | wc -l)
+FAIL_NF=$(awk -v i="$NOT_FIX" -v t="$UQ_TEST" 'BEGIN { printf "%.2f", (i/t)*100 }')
+
+printf "%s\t%s\t%s\t${CYA}%s${NCL}\t${RED}%s${NCL}\t%s\t%s\t%s\n" $UQ_TEST $UQ_TOTL $UQ_UPDT $UQ_PASS $NOT_FIX $UQ_NEWD ${FAIL_NF}% "don't count fixed DUT" | tee -a dat_report.txt
+
+awk -F '\t' '{print $6}' rck_report.txt | sort | uniq -c | sort -n -r > _rcause.txt
+
+# ---- category mapping 
+
+Script_Exec=0
+Power=0
+BIOS=0
+EGM=0
+Firmware=0
+BMC=0
+Task_No_Run=0
+while IFS= read -r ll; do
+    val=$(echo $ll | awk '{print $1}')
+	msg=$(echo $ll | awk '{ for (i = 2; i <= NF; i++) { printf "%s%s", $i, (i == NF ? "" : OFS) } printf "\n" }')
+
+
+	if   [[ $msg =~ "Error detected in script" ]]; then
+		Script_Exec=$((Script_Exec + val))
+
+	elif [[ $msg =~ "Script execution failed" ]]; then
+		Script_Exec=$((Script_Exec + val))
+
+	elif [[ $msg =~ "Chassis Power still OFF" ]]; then
+		Power=$((Power + val))
+
+	elif [[ $msg =~ "Failed to power" ]]; then
+		Power=$((Power + val))
+
+	elif [[ $msg =~ "BIOS Attributes" ]]; then
+		BIOS=$((BIOS + val))
+
+	elif [[ $msg =~ "Failed to set EGM" ]]; then
+		EGM=$((EGM + val))
+
+	elif [[ $msg =~ "Firmwares are not" ]]; then
+		Firmware=$((Firmware + val))
+
+	elif [[ $msg =~ "Failed to retrieve Firmware" ]]; then
+		Firmware=$((Firmware + val))
+
+	elif [[ $msg =~ "BMC is unreachable" ]]; then
+		BMC=$((BMC + val))
+
+	elif [[ $msg =~ "Task is no longer" ]]; then
+		Task_No_Run=$((Task_No_Run + val))
+
+	else
+		UNKNOWN=$((UNKNOWN + 1))		
+	fi
+done < "_rcause.txt"
+
+echo -e "\n${BCY}failure category stats${NCL}\n" | tee -a dat_report.txt
+
+printf "%s\t%s\n" "Script_Exec"	$Script_Exec | tee -a dat_report.txt
+printf "%s\t%s\n" "Power" 		$Power		 | tee -a dat_report.txt	
+printf "%s\t%s\n" "BIOS"		$BIOS		 | tee -a dat_report.txt
+printf "%s\t%s\n" "EGM" 		$EGM		 | tee -a dat_report.txt
+printf "%s\t%s\n" "Firmware"	$Firmware	 | tee -a dat_report.txt
+printf "%s\t%s\n" "BMC" 		$BMC		 | tee -a dat_report.txt
+printf "%s\t%s\n" "Task_No_Run"	$Task_No_Run | tee -a dat_report.txt
