@@ -220,6 +220,10 @@ while IFS= read -r ll; do
 	fi
 done < "_rcause.txt"
 
+while IFS= read -r sn; do
+	grep $sn dat_report.txt >> unq_report.txt
+done < "_ffal.txt"
+
 echo -e "\n${BCY}failure category stats${NCL}\n" | tee -a dat_report.txt
 
 printf "%s\t%s\n" "Script_Exec"	$Script_Exec | tee -a dat_report.txt
