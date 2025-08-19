@@ -36,7 +36,7 @@ function parse(){
 	yes $RACK | head -n $CUNT > _f-$LOG
 
 	URL_RACK=$URL_RCK1
-	if [ "$RACK" == "005" ] || [ "$RACK" == "012" ]; then
+	if [ "$RACK" == "020" ] || [ "$RACK" == "030" ] || [ "$RACK" == "031" ]; then
 		URL_RACK=$URL_RCK2
 	fi
 
@@ -76,7 +76,7 @@ function parse(){
 	yes $RACK | head -n $CUNT > _n-$LOG
 
 	URL_RACK=$URL_RCK1
-	if [ "$RACK" == "005" ] || [ "$RACK" == "012" ]; then
+	if [ "$RACK" == "020" ] || [ "$RACK" == "030" ] || [ "$RACK" == "031" ]; then
 		URL_RACK=$URL_RCK2
 	fi
 
@@ -87,29 +87,16 @@ function parse(){
 
 	# total: wc -l _a-$LOG  _h-$LOG _g-$LOG
 	rm _curl-$LOG &>/dev/null
-	while read p; do
-		mac=$(echo "$p" | awk -F '/' '{print $12}')
-		err=_${mac}_failure-record.txt
-		quo=_${mac}_failure-quoted.txt
 
-		# get the error root cause
-		curl -s "$p" -o _1
-		head -n 20 _1 > $err
-		echo $? >> _curl-$LOG
+	curl_failure_log _e-$LOG
 
-		grep "404 Not Found" $err
-		if [ "$?" == "0" ] ; then
-			echo "404 Not Found" > $err
-		fi
+	curl_failure_log _m-$LOG
+}
 
-		# add " to the failure for Excel
-		echo -n '"' > ${quo}
-		cat $err | grep . > _1		#remove empty lines
-		truncate -s -1      _1		#remove last newline
-		cat _1      >> ${quo}
-		echo -n '"' >> ${quo}
-		rm -rf _1
-	done <_e-$LOG
+function curl_failure_log(){
+	echo "---->$1"
+	
+
 
 	while read p; do
 		mac=$(echo "$p" | awk -F '/' '{print $12}')
@@ -134,7 +121,7 @@ function parse(){
 		cat _1      >> ${quo}
 		echo -n '"' >> ${quo}
 		rm -rf _1
-	done <_m-$LOG
+	done <"$1"
 }
 
 # save each rack test failure
