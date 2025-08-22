@@ -155,7 +155,7 @@ FAIL_UQ=$(awk -v i="$UQ_FAIL" -v t="$UQ_TEST" 'BEGIN { printf "%.2f", (i/t)*100 
 echo "" >> dat_report.txt
 echo -e "${BCY}unique SN test stats${NCL}\n" | tee -a dat_report.txt
 
-printf "%s\t%s\t%s\t%s\t%s\t%s\t%s\n" "Tested" "Total" "Update" "Passed" "Failed" "New" "FAIL-RATE" | tee -a dat_report.txt
+printf "%s\t%s\t%s\t%s\t%s\t%s\t%s\n" "Tested" "Total" "Update" "Passed" "Failed" "New" "FAIL-RATE" | tee -a dat_report.txt 
 printf "%s\t%s\t%s\t${CYA}%s${NCL}\t${RED}%s${NCL}\t%s\t%s\t%s\n" $UQ_TEST $UQ_TOTL $UQ_UPDT $UQ_PASS $UQ_FAIL $UQ_NEWD ${FAIL_UQ}% "some failed DUT fixed and passed" | tee -a dat_report.txt
 
 rm -rf _fixd.txt _ffal.txt
@@ -167,9 +167,18 @@ done < "_fail.txt"
 NOT_FIX=$(cat _ffal.txt | wc -l)
 FAIL_NF=$(awk -v i="$NOT_FIX" -v t="$UQ_TEST" 'BEGIN { printf "%.2f", (i/t)*100 }')
 
-printf "%s\t%s\t%s\t${CYA}%s${NCL}\t${RED}%s${NCL}\t%s\t%s\t%s\n" $UQ_TEST $UQ_TOTL $UQ_UPDT $UQ_PASS $NOT_FIX $UQ_NEWD ${FAIL_NF}% "don't count fixed DUT" | tee -a dat_report.txt
+#printf "%s\t%s\t%s\t${CYA}%s${NCL}\t${RED}%s${NCL}\t%s\t%s\t%s\n" $UQ_TEST $UQ_TOTL $UQ_UPDT $UQ_PASS $NOT_FIX $UQ_NEWD ${FAIL_NF}% "don't count fixed DUT" | tee -a dat_report.txt 
 
-awk -F '\t' '{print $6}' rck_report.txt | sort | uniq -c | sort -n -r > _rcause.txt
+rm -rf unq_report.txt
+while IFS= read -r sn; do
+	grep $sn dat_report.txt >> unq_report.txt
+done < "_ffal.txt"
+
+awk -F '\t' '{print $6}' unq_report.txt | sort | uniq -c | sort -n -r > _rcause.txt
+
+echo 
+printf "%s\t%s\t%s\t%s\t%s\t%s\t%s\n" "Tested" "Total" "Update" "Passed" "Failed" "New" "FAIL-RATE" | tee -a unq_report.txt
+printf "%s\t%s\t%s\t${CYA}%s${NCL}\t${RED}%s${NCL}\t%s\t%s\t%s\n" $UQ_TEST $UQ_TOTL $UQ_UPDT $UQ_PASS $NOT_FIX $UQ_NEWD ${FAIL_NF}% "don't count fixed DUT" | tee -a unq_report.txt 
 
 # ---- category mapping 
 
@@ -184,7 +193,6 @@ while IFS= read -r ll; do
     val=$(echo $ll | awk '{print $1}')
 	msg=$(echo $ll | awk '{ for (i = 2; i <= NF; i++) { printf "%s%s", $i, (i == NF ? "" : OFS) } printf "\n" }')
 
-
 	if   [[ $msg =~ "Error detected in script" ]]; then
 		Script_Exec=$((Script_Exec + val))
 
@@ -195,6 +203,9 @@ while IFS= read -r ll; do
 		Power=$((Power + val))
 
 	elif [[ $msg =~ "Failed to power" ]]; then
+		Power=$((Power + val))
+
+	elif [[ $msg =~ "Failed to perform AC" ]]; then
 		Power=$((Power + val))
 
 	elif [[ $msg =~ "BIOS Attributes" ]]; then
@@ -220,16 +231,12 @@ while IFS= read -r ll; do
 	fi
 done < "_rcause.txt"
 
-while IFS= read -r sn; do
-	grep $sn dat_report.txt >> unq_report.txt
-done < "_ffal.txt"
+echo -e "\n${BCY}failure category stats${NCL}\n" | tee -a unq_report.txt
 
-echo -e "\n${BCY}failure category stats${NCL}\n" | tee -a dat_report.txt
-
-printf "%s\t%s\n" "Script_Exec"	$Script_Exec | tee -a dat_report.txt
-printf "%s\t%s\n" "Power" 		$Power		 | tee -a dat_report.txt	
-printf "%s\t%s\n" "BIOS"		$BIOS		 | tee -a dat_report.txt
-printf "%s\t%s\n" "EGM" 		$EGM		 | tee -a dat_report.txt
-printf "%s\t%s\n" "Firmware"	$Firmware	 | tee -a dat_report.txt
-printf "%s\t%s\n" "BMC" 		$BMC		 | tee -a dat_report.txt
-printf "%s\t%s\n" "Task_No_Run"	$Task_No_Run | tee -a dat_report.txt
+printf "%s\t%s\n" "Script_Exec"	$Script_Exec | tee -a unq_report.txt
+printf "%s\t%s\n" "Power" 		$Power		 | tee -a unq_report.txt	
+printf "%s\t%s\n" "BIOS"		$BIOS		 | tee -a unq_report.txt
+printf "%s\t%s\n" "EGM" 		$EGM		 | tee -a unq_report.txt
+printf "%s\t%s\n" "Firmware"	$Firmware	 | tee -a unq_report.txt
+printf "%s\t%s\n" "BMC" 		$BMC		 | tee -a unq_report.txt
+printf "%s\t%s\n" "Task_No_Run"	$Task_No_Run | tee -a unq_report.txt
