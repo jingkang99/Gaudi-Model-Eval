@@ -94,10 +94,6 @@ function parse(){
 }
 
 function curl_failure_log(){
-	echo "---->$1"
-	
-
-
 	while read p; do
 		mac=$(echo "$p" | awk -F '/' '{print $12}')
 		err=_${mac}_failure-record.txt
@@ -122,6 +118,92 @@ function curl_failure_log(){
 		echo -n '"' >> ${quo}
 		rm -rf _1
 	done <"$1"
+}
+
+function countsn(){
+	FAIL=0
+	PASS=0
+	WARN=0
+	RUNN=0
+	declare -a arr_f arr_p arr_w arr_r
+
+	BCY='\033[1;36m'
+	NCL='\033[0m'
+	REGEX_SN="(S[0-9]{6}X[0-9]{7})"
+
+	files=$1
+	if [[ $1 =~ "all" ]]; then
+		files="0*.html"
+	fi
+
+	grep -P "badge-danger|badge-success|badge-gray|badge-warning" ""$files"" > _tpms.html
+	while read p; do
+		if [[ "$p" =~ $REGEX_SN ]]; then
+			SN="${BASH_REMATCH[1]}"
+			echo "$SN"
+
+			if   [[ $p =~ "badge-danger" ]]; then
+				FAIL=$((FAIL + 1))
+				arr_f+=("$SN")
+			elif [[ $p =~ "badge-success" ]]; then
+				PASS=$((PASS + 1))
+				arr_p+=("$SN")
+			elif [[ $p =~ "badge-warning" ]]; then
+				WARN=$((WARN + 1))
+				arr_w+=("$SN")
+			elif [[ $p =~ "badge-gray" ]]; then
+				RUNN=$((RUNN + 1))
+				arr_r+=("$SN")
+			fi
+		fi
+	done <_tpms.html
+	rm -rf _tpms.html
+	
+	echo
+	printf "${BCY}RUNN    PASS    FAIL    WARN${NCL}\n"
+	printf "%4s%8s%8s%8s\n" $RUNN $PASS $FAIL $WARN 
+	echo
+	
+	if [[ ${#arr_f[@]} > 0 ]]; then
+		echo "---FAIL"
+		for sn in "${arr_f[@]}"; do
+			echo "  $sn"
+		done
+		echo
+	fi
+
+	if [[ ${#arr_w[@]} > 0 ]]; then
+		echo "---WARN"
+		for sn in "${arr_w[@]}"; do
+			echo "  $sn"
+		done
+		echo
+	fi
+
+	if [[ ${#arr_r[@]} > 0 ]]; then
+		echo "---RUNN"
+		for sn in "${arr_r[@]}"; do
+			echo "  $sn"
+		done
+		echo
+	fi
+
+	if [[ ${#arr_p[@]} > 0 && $2 =~ "succ" ]]; then
+		echo "---Success"
+		for sn in "${arr_p[@]}"; do
+			echo "  $sn"
+		done
+	fi
+}
+
+function statsn(){
+	printf "${BCY}RUNN    PASS    FAIL    WARN${NCL}\n"
+	rm -rf _stats.txt
+	FILES="0*.html"
+	for f in $FILES
+	do
+		countsn "$f" | grep -P "RUNN "  -A 1 | grep -v RUNN | grep -v "\-\-"
+	done
 }
 
 # save each rack test failure
