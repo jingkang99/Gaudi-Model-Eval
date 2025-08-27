@@ -28,8 +28,8 @@ racks.set('017', 'http://10.43.251.42/monitor/Oracle/OC17.html');
 
 racks.set('020', 'http://10.43.251.42/monitor/Oracle/OCMODEL0.html');
 
-racks.set('030', 'http://10.43.251.45/monitor/Oracle/NEWOC05.html');
-racks.set('031', 'http://10.43.251.45/monitor/Oracle/NEWOC12.html');
+//racks.set('030', 'http://10.43.251.45/monitor/Oracle/NEWOC05.html');
+//racks.set('031', 'http://10.43.251.45/monitor/Oracle/NEWOC12.html');
 
 const browser = await puppeteer.launch({
 	args: ['--no-sandbox', '--disable-setuid-sandbox'],

@@ -162,7 +162,6 @@ function countsn(){
 	echo
 	printf "${BCY}RUNN    PASS    FAIL    WARN${NCL}\n"
 	printf "%4s%8s%8s%8s\n" $RUNN $PASS $FAIL $WARN 
-	echo
 	
 	if [[ ${#arr_f[@]} > 0 ]]; then
 		echo "---FAIL"
