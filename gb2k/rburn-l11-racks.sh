@@ -112,12 +112,6 @@ function printsn(){
 	rm -rf _tpms.html
 }
 
-function search_sn(){
-	echo -e "       ${YLW}$1${NCL} in "
-	grep $1 _40-00 _41-00
-	grep $1 _39_06 _39_07 _40-07 _40-08 _41-06 _41-07 _41-08
-}
-
 function countsn(){
 	FAIL=0
 	PASS=0
@@ -193,8 +187,37 @@ function countsn(){
 	fi
 }
 
-# ------------------
+function search_sn(){
+	local rc=$(grep $1 _40-00 _41-00)
+	local ra=$(grep $1 _39_06 _39_07 _40_07 _40_08 _41_06 _41_07 _41_08)
 
+	local fc=$(echo $rc | awk '{print $5}' )
+	local fa=$(echo $ra | awk '{print $5}' )
+	countsn $fc | sort > _c 
+	countsn $fa | sort > _a
+
+	diff _c _a
+	if [[ $? -ne 0 ]]; then
+		echo
+		echo -e "  $1 18 SN is different"
+	fi
+}
+
+function calc_archive_stats (){
+	local ff='_'$1
+	local uu="URL${1}"
+
+	get_archive_index ${!uu} $ff
+
+	local P7=$(grep -P    "Pass 1[0-9] " $ff | wc -l)
+	local W7=$(grep -P -v "Pass 1[0-9] " $ff | wc -l)
+	local T7=$(grep . $ff | wc -l)
+	local R7=0
+	local D7=$(sort -k 5 $ff | tail -n 1 | awk '{print $5}' | awk -F'-' '{print $1 $2 $3}')
+	echo $P7 $W7 $T7 $R7 $D7
+}
+
+# -----	41
 rm -rf _l11_rklist.txt _l11_snlist.txt _*
 
 get_current_index "41"
@@ -204,57 +227,24 @@ R1=$(grep Runn _41-00 | wc -l)
 T1=$(grep .    _41-00 | wc -l)
 echo
 
-[[ ! -e _41-06 ]] && get_archive_index $URL41_06 "_41-06"
-P416=$(grep -P    "Pass 1[0-9] " _41-06 | wc -l)
-W416=$(grep -P -v "Pass 1[0-9] " _41-06 | wc -l)
-T416=$(grep . _41-06 | wc -l)
-R416=0
-
-[[ ! -e _41-07 ]] && get_archive_index $URL41_07 "_41-07"
-P417=$(grep -P    "Pass 1[0-9] " _41-07 | wc -l)
-W417=$(grep -P -v "Pass 1[0-9] " _41-07 | wc -l)
-T417=$(grep . _41-07 | wc -l)
-R417=0
-
-get_archive_index $URL41_08 "_41-08"
-P418=$(grep -P    "Pass 1[0-9] " _41-08 | wc -l)
-W418=$(grep -P -v "Pass 1[0-9] " _41-08 | wc -l)
-T418=$(grep . _41-08 | wc -l)
-R418=0
+IFS=' ' read -r P416 W416 T416 R416 D416 <<< "$(calc_archive_stats '41_06' | tail -n 1)"
+IFS=' ' read -r P417 W417 T417 R417 D417 <<< "$(calc_archive_stats '41_07' | tail -n 1)"
+IFS=' ' read -r P418 W418 T418 R418 D418 <<< "$(calc_archive_stats '41_08' | tail -n 1)"
 
 # -----	40
 get_current_index "40"
-#read -r T0 P0 W0 R0 <<< "$TOTL $PASS $WARN $RUNN"
 P0=$(grep Pass _40-00 | wc -l)
 W0=$(grep Fail _40-00 | wc -l)
 R0=$(grep Runn _40-00 | wc -l)
 T0=$(grep .    _40-00 | wc -l)
 echo
 
-[[ ! -e _40-07 ]] && get_archive_index $URL40_07 "_40-07"
-P407=$(grep -P    "Pass 1[0-9] " _40-07 | wc -l)
-W407=$(grep -P -v "Pass 1[0-9] " _40-07 | wc -l)
-T407=$(grep . _40-07 | wc -l)
-R407=0
-
-get_archive_index $URL40_08 "_40-08"
-P408=$(grep -P    "Pass 1[0-9] " _40-08 | wc -l)
-W408=$(grep -P -v "Pass 1[0-9] " _40-08 | wc -l)
-T408=$(grep . _40-08 | wc -l)
-R408=0
+IFS=' ' read -r P407 W407 T407 R407 D407 <<< "$(calc_archive_stats '40_07' | tail -n 1)"
+IFS=' ' read -r P408 W408 T408 R408 D408 <<< "$(calc_archive_stats '40_08' | tail -n 1)"
 
 # ----- 39
-[[ ! -e _39-06 ]] && get_archive_index $URL39_06 "_39_06"
-P396=$(grep -P    "Pass 1[0-9] " _39_06 | wc -l)
-W396=$(grep -P -v "Pass 1[0-9] " _39_06 | wc -l)
-T396=$(grep . _39_06 | wc -l)
-R396=0
-
-[[ ! -e _39-07 ]] && get_archive_index $URL39_07 "_39_07"
-P397=$(grep -P    "Pass 1[0-9] " _39_07 | wc -l)
-W397=$(grep -P -v "Pass 1[0-9] " _39_07 | wc -l)
-T397=$(grep . _39_07 | wc -l)
-R397=0
+IFS=' ' read -r P396 W396 T396 R396 D396 <<< "$(calc_archive_stats '39_06' | tail -n 1)"
+IFS=' ' read -r P397 W397 T397 R397 D397 <<< "$(calc_archive_stats '39_07' | tail -n 1)"
 
 rm -rf _arch_rk_sv.txt _a_rk.txt _curr_rk_sv.txt _c_rk.txt
 # archived rack and server sn
@@ -280,18 +270,20 @@ do
 done
 
 echo
-printf "${BCY}%s\t%s\t%s\t%s\t%s${NCL}\n" "Site" "Total" "Pass" "Fail" "Runn" | tee -a _l11_statsd.txt
-printf "%s\t%s\t%s\t%s\t%s\n" "41-c" $T1 	$P1   $W1 	$R1 	| tee -a _l11_statsd.txt
-printf "%s\t%s\t%s\t%s\t%s\n" "41-6" $T416 $P416 $W416 $R416	| tee -a _l11_statsd.txt
-printf "%s\t%s\t%s\t%s\t%s\n" "41-7" $T417 $P417 $W417 $R417	| tee -a _l11_statsd.txt
-printf "%s\t%s\t%s\t%s\t%s\n" "41-8" $T418 $P418 $W418 $R418	| tee -a _l11_statsd.txt
+FORMAT="%s\t%s\t%s\t%s\t%s\t%s\n"
+DATE=$(date '+%Y%m%d')
+printf "${BCY}%s\t%s\t%s\t%s\t%s\t%s${NCL}\n" "Site" "Total" "Pass" "Fail" "Runn" "Date" | tee -a _l11_statsd.txt
+printf $FORMAT "41-c" $T1 	$P1   $W1 	$R1		$DATE 	| tee -a _l11_statsd.txt
+printf $FORMAT "41-6" $T416 $P416 $W416 $R416	$D416	| tee -a _l11_statsd.txt
+printf $FORMAT "41-7" $T417 $P417 $W417 $R417	$D417	| tee -a _l11_statsd.txt
+printf $FORMAT "41-8" $T418 $P418 $W418 $R418	$D418	| tee -a _l11_statsd.txt
 echo | tee -a _l11_statsd.txt
-printf "%s\t%s\t%s\t%s\t%s\n" "40-c" $T0 	$P0   $W0 	$R0 	| tee -a _l11_statsd.txt
-printf "%s\t%s\t%s\t%s\t%s\n" "40-7" $T407 $P407 $W407 $R407	| tee -a _l11_statsd.txt
-printf "%s\t%s\t%s\t%s\t%s\n" "40-8" $T408 $P408 $W408 $R408	| tee -a _l11_statsd.txt
+printf $FORMAT "40-c" $T0 	$P0   $W0 	$R0 	$DATE	| tee -a _l11_statsd.txt
+printf $FORMAT "40-7" $T407 $P407 $W407 $R407	$D407	| tee -a _l11_statsd.txt
+printf $FORMAT "40-8" $T408 $P408 $W408 $R408	$D408	| tee -a _l11_statsd.txt
 echo | tee -a _l11_statsd.txt
-printf "%s\t%s\t%s\t%s\t%s\n" "39-6" $T396 $P396 $W396 $R396	| tee -a _l11_statsd.txt
-printf "%s\t%s\t%s\t%s\t%s\n" "39-7" $T397 $P397 $W397 $R397	| tee -a _l11_statsd.txt
+printf $FORMAT "39-6" $T396 $P396 $W396 $R396	$D396	| tee -a _l11_statsd.txt
+printf $FORMAT "39-7" $T397 $P397 $W397 $R397	$D397	| tee -a _l11_statsd.txt
 echo | tee -a _l11_statsd.txt
 
 printf "%s\t%s\t%s\t%s\t%s\n" "TT41" $((T1+T416+T417+T418)) \
@@ -344,3 +336,4 @@ echo
 while read p; do
 	search_sn $p | tee -a _l11_statsd.txt
 done <_c_du.txt
+echo
