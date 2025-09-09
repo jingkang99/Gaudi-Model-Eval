@@ -1,2 +1,5 @@
-sudo rmmod habanalabs; sudo rmmod habanalabs_cn; sudo rmmod habanalabs_ib; sudo rmmod habanalabs_en
-
+modprobe -r habanalabs_ib
+modprobe -r habanalabs_en
+modprobe -r habanalabs_cn
+modprobe -r habanalabs
+modprobe -r habanalabs_compat
