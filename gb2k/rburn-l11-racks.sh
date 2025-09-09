@@ -14,12 +14,14 @@ REGEX_SN="(S[0-9]{6}X[0-9]{7})"	# S959549X5704811
 URL41_06="http://10.43.251.41/monitor/Oracle/backup/2025-06/"
 URL41_07="http://10.43.251.41/monitor/Oracle/backup/2025-07/"
 URL41_08="http://10.43.251.41/monitor/Oracle/backup/2025-08/"
+URL41_09="http://10.43.251.41/monitor/Oracle/backup/2025-09/"
 
 URL40_07="http://10.43.251.40/monitor/Oracle/backup/2025-07/"
 URL40_08="http://10.43.251.40/monitor/Oracle/backup/2025-08/"
-
-URL39_06="http://10.43.251.39/monitor/Oracle/backup/2025-06/"
-URL39_07="http://10.43.251.39/monitor/Oracle/backup/2025-07/"
+URL40_09="http://10.43.251.40/monitor/Oracle/backup/2025-09/"
+ 
+#URL39_06="http://10.43.251.39/monitor/Oracle/backup/2025-06/"
+#URL39_07="http://10.43.251.39/monitor/Oracle/backup/2025-07/"
 
 url_rack1='http://10.43.251.41'
 
@@ -189,7 +191,8 @@ function countsn(){
 
 function search_sn(){
 	local rc=$(grep $1 _40-00 _41-00)
-	local ra=$(grep $1 _39_06 _39_07 _40_07 _40_08 _41_06 _41_07 _41_08)
+	#local ra=$(grep $1 _39_06 _39_07 _40_07 _40_08 _41_06 _41_07 _41_08)
+	local  ra=$(grep $1 _40_07 _40_08 _40_09 _41_06 _41_07 _41_08 _41_09)
 
 	local fc=$(echo $rc | awk '{print $5}' )
 	local fa=$(echo $ra | awk '{print $5}' )
@@ -198,8 +201,9 @@ function search_sn(){
 
 	diff _c _a
 	if [[ $? -ne 0 ]]; then
+		echo $rc
+		echo $ra
 		echo
-		echo -e "  $1 18 SN is different"
 	fi
 }
 
@@ -230,6 +234,7 @@ echo
 IFS=' ' read -r P416 W416 T416 R416 D416 <<< "$(calc_archive_stats '41_06' | tail -n 1)"
 IFS=' ' read -r P417 W417 T417 R417 D417 <<< "$(calc_archive_stats '41_07' | tail -n 1)"
 IFS=' ' read -r P418 W418 T418 R418 D418 <<< "$(calc_archive_stats '41_08' | tail -n 1)"
+IFS=' ' read -r P419 W419 T419 R419 D419 <<< "$(calc_archive_stats '41_09' | tail -n 1)"
 
 # -----	40
 get_current_index "40"
@@ -241,10 +246,11 @@ echo
 
 IFS=' ' read -r P407 W407 T407 R407 D407 <<< "$(calc_archive_stats '40_07' | tail -n 1)"
 IFS=' ' read -r P408 W408 T408 R408 D408 <<< "$(calc_archive_stats '40_08' | tail -n 1)"
+IFS=' ' read -r P409 W409 T409 R409 D409 <<< "$(calc_archive_stats '40_09' | tail -n 1)"
 
 # ----- 39
-IFS=' ' read -r P396 W396 T396 R396 D396 <<< "$(calc_archive_stats '39_06' | tail -n 1)"
-IFS=' ' read -r P397 W397 T397 R397 D397 <<< "$(calc_archive_stats '39_07' | tail -n 1)"
+#IFS=' ' read -r P396 W396 T396 R396 D396 <<< "$(calc_archive_stats '39_06' | tail -n 1)"
+#IFS=' ' read -r P397 W397 T397 R397 D397 <<< "$(calc_archive_stats '39_07' | tail -n 1)"
 
 rm -rf _arch_rk_sv.txt _a_rk.txt _curr_rk_sv.txt _c_rk.txt
 # archived rack and server sn
@@ -277,36 +283,45 @@ printf $FORMAT "41-c" $T1 	$P1   $W1 	$R1		$DATE 	| tee -a _l11_statsd.txt
 printf $FORMAT "41-6" $T416 $P416 $W416 $R416	$D416	| tee -a _l11_statsd.txt
 printf $FORMAT "41-7" $T417 $P417 $W417 $R417	$D417	| tee -a _l11_statsd.txt
 printf $FORMAT "41-8" $T418 $P418 $W418 $R418	$D418	| tee -a _l11_statsd.txt
+printf $FORMAT "41-8" $T419 $P419 $W419 $R419	$D419	| tee -a _l11_statsd.txt
 echo | tee -a _l11_statsd.txt
+
 printf $FORMAT "40-c" $T0 	$P0   $W0 	$R0 	$DATE	| tee -a _l11_statsd.txt
 printf $FORMAT "40-7" $T407 $P407 $W407 $R407	$D407	| tee -a _l11_statsd.txt
 printf $FORMAT "40-8" $T408 $P408 $W408 $R408	$D408	| tee -a _l11_statsd.txt
-echo | tee -a _l11_statsd.txt
-printf $FORMAT "39-6" $T396 $P396 $W396 $R396	$D396	| tee -a _l11_statsd.txt
-printf $FORMAT "39-7" $T397 $P397 $W397 $R397	$D397	| tee -a _l11_statsd.txt
+printf $FORMAT "40-9" $T409 $P409 $W409 $R409	$D409	| tee -a _l11_statsd.txt
 echo | tee -a _l11_statsd.txt
 
-printf "%s\t%s\t%s\t%s\t%s\n" "TT41" $((T1+T416+T417+T418)) \
-									 $((P1+P416+P417+P418)) \
-									 $((W1+W416+W417+W418)) \
-									 $((R1+R416+R417+R418))		| tee -a _l11_statsd.txt
+#printf $FORMAT "39-6" $T396 $P396 $W396 $R396	$D396	| tee -a _l11_statsd.txt
+#printf $FORMAT "39-7" $T397 $P397 $W397 $R397	$D397	| tee -a _l11_statsd.txt
+#echo | tee -a _l11_statsd.txt
+
+printf "%s\t%s\t%s\t%s\t%s\n" "TT41" $((T1+T416+T417+T418+T419)) \
+									 $((P1+P416+P417+P418+P419)) \
+									 $((W1+W416+W417+W418+W419)) \
+									 $((R1+R416+R417+R418+R419))		| tee -a _l11_statsd.txt
 echo | tee -a _l11_statsd.txt
-printf "%s\t%s\t%s\t%s\t%s\n" "TT40" $((T0+T407+T408)) \
-									 $((P0+P407+P408)) \
-									 $((W0+W407+W408)) \
-									 $((R0+R407+R408))			| tee -a _l11_statsd.txt
+printf "%s\t%s\t%s\t%s\t%s\n" "TT40" $((T0+T407+T408+T409)) \
+									 $((P0+P407+P408+P409)) \
+									 $((W0+W407+W408+W409)) \
+									 $((R0+R407+R408+R409))			| tee -a _l11_statsd.txt
 echo | tee -a _l11_statsd.txt
 
-printf "%s\t%s\t%s\t%s\t%s\n" "TT39" $((T396+T397)) \
-									 $((P396+P397)) \
-									 $((W396+W397)) \
-									 $((R396+R397))				| tee -a _l11_statsd.txt
-echo | tee -a _l11_statsd.txt
+#printf "%s\t%s\t%s\t%s\t%s\n" "TT39" $((T396+T397)) \
+#									 $((P396+P397)) \
+#									 $((W396+W397)) \
+#									 $((R396+R397))				| tee -a _l11_statsd.txt
+#echo | tee -a _l11_statsd.txt
 
-TT=$((T1+T416+T417+T418+T0+T407+T408+T396+T397))
-PS=$((P1+P416+P417+P418+P0+P407+P408+P396+P397))
-FA=$((W1+W416+W417+W418+W0+W407+W408+W396+W397))
-RU=$((R1+R416+R417+R418+R0+R407+R408+R396+R397))
+#TT=$((T1+T416+T417+T418+T0+T407+T408+T396+T397))
+#PS=$((P1+P416+P417+P418+P0+P407+P408+P396+P397))
+#FA=$((W1+W416+W417+W418+W0+W407+W408+W396+W397))
+#RU=$((R1+R416+R417+R418+R0+R407+R408+R396+R397))
+
+TT=$((T1+T416+T417+T418+T419+T0+T407+T408+T409))
+PS=$((P1+P416+P417+P418+P419+P0+P407+P408+P409))
+FA=$((W1+W416+W417+W418+W419+W0+W407+W408+W409))
+RU=$((R1+R416+R417+R418+R419+R0+R407+R408+R409))
 
 printf "%s\t%s\t%s\t%s\t%s\n" "TOTL" $TT $PS $FA $RU | tee -a _l11_statsd.txt
 
@@ -316,17 +331,20 @@ dup_fail=$(grep . _l11_rklist.txt | awk '{print $1}' | sort | uniq -c | sort | g
 
 printf "%s\t%s\t%s\t%s\t%s\t%s\n" "FINL" $((TT-dup_rack)) $((PS-dup_rack)) $FA $RU "after dedup Pass $dup_rack, Fail $dup_fail" | tee -a _l11_statsd.txt
 sleep 2
-
-echo -e "\n-- not shipped rack" | tee -a _l11_statsd.txt
-while read p; do
-	grep $p shipped.txt &>/dev/null
-	if [[ $? -ne 0 ]]; then
-		grep $p _l11_rklist.txt
-	fi
-done <_l11_uniqrk.txt | sort -k 2 | tee -a _l11_statsd.txt
 echo
-echo | tee -a _l11_statsd.txt
-sleep 2
+
+if [[ -e shipped.txt ]]; then
+	echo -e "\n-- not shipped rack" | tee -a _l11_statsd.txt
+	while read p; do
+		grep $p shipped.txt &>/dev/null
+		if [[ $? -ne 0 ]]; then
+			grep $p _l11_rklist.txt
+		fi
+	done <_l11_uniqrk.txt | sort -k 2 | tee -a _l11_statsd.txt
+	echo
+	echo | tee -a _l11_statsd.txt
+	sleep 2
+fi
 
 # search current testing rack existing in archive
 echo "-- current testing rack existing in archive:" $(cat _c_rk.txt | xargs -I {} grep {} _a_rk.txt | sort | uniq | wc -l)
@@ -337,3 +355,15 @@ while read p; do
 	search_sn $p | tee -a _l11_statsd.txt
 done <_c_du.txt
 echo
+ln -s _l11_statsd.txt final_report.txt
+
+echo -n "  multi-record rack SN: "
+cat  _l11_rklist.txt | grep .  | awk '{print $1}' | sort | uniq -c | sort | grep -P "(2|3) " | awk '{print $2}' | wc -l
+
+echo " cannot find testing record in log"
+while read p; do
+	grep $p _l11_uniqrk.txt &>/dev/null
+	if [[ $? -ne 0 ]]; then
+		echo $p
+	fi
+done <shipped.txt 
