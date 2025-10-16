@@ -1,0 +1,6 @@
+# set bmc static ip
+
+ipmitool lan set 1 ipsrc  static
+ipmitool lan set 1 ipaddr 	172.24.189.20
+ipmitool lan set 1 defgw ipaddr 172.24.189.1
+ipmitool lan set 1 netmask	255.255.255.224
