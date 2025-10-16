@@ -1,0 +1,7 @@
+# reset ADMIN password
+
+ipmitool user set name 2 ADMIN 
+ipmitool user set password 2 Admin123! 
+ipmitool user enable 2 
+ipmitool channel setaccess 1 2 callin=on ipmi=on link=on privilege=4 
+ipmitool user list 1 
