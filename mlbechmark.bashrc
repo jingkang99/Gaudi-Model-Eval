@@ -82,6 +82,7 @@ alias showlog="/sox/Gaudi-Model-Eval/rack/hl-test.sh log"
 alias showcmd="/sox/Gaudi-Model-Eval/rack/hl-test.sh dry"
 alias mvhllog="/sox/Gaudi-Model-Eval/rack/hl-test.sh mv"
 alias renewip="dhclient -r;dhclient ens1f0;ipp"
+alias defrag='dd if=/dev/zero of=/zero.file bs=1M; sync; rm /zero.file'
 alias bmc='ipmitool lan print | grep -P "IP Address +: "'
 
 RED='\033[0;31m'
