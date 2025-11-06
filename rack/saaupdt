@@ -1,0 +1,7 @@
+saa -i 172.30.130.6 -u ADMIN -p ADMIN -c UpdateBios --file BIOS_X14DBG-1D55_20250509_1.3_STDsp.bin
+saa -i 172.30.130.6 -u ADMIN -p ADMIN -c UpdateBmc  --file BMC_X14AST2600-ROT20-7601MS_20250809_01.03.00.03_STDsp.bin
+
+saa -i 172.30.130.6 -u ADMIN -p ADMIN -c UpdateGpu  --item GAUDI_RETIMER  --file UBB_Retimer_2.12.26.ihx
+
+saa -i 172.30.130.6 -u ADMIN -p ADMIN -c UpdateGpu  --item GAUDI_UBB_CPLD  --file ubb_primary_cpld_0x18.svf
+saa -i 172.30.130.6 -u ADMIN -p ADMIN -c UpdateGpu  --item GAUDI_UBB_CPLD2 --file ubb_secondary_cpld_0x02.svf
