@@ -1,0 +1,4 @@
+HCCL_COMM_ID=172.30.144.14:5555 python3 run_hccl_demo.py --test all_reduce --nranks 16 --loop 1000 --node_id 0 --size 32m --ranks_per_node 8
+
+HCCL_COMM_ID=172.30.144.14:5555 python3 run_hccl_demo.py --test all_reduce --nranks 16 --loop 1000 --node_id 1 --size 32m --ranks_per_node 8
+
