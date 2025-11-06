@@ -171,3 +171,7 @@ function check_hl_qual_log(){
 	echo -e "\n"${SUMMARY}
 }
 
+function fwinfo(){
+	saa -i $1 -u ADMIN -p ADMIN  -c GetFirmwareInventoryInfo
+}
+
