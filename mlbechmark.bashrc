@@ -172,6 +172,12 @@ function check_hl_qual_log(){
 }
 
 function fwinfo(){
-	saa -i $1 -u ADMIN -p ADMIN  -c GetFirmwareInventoryInfo
+	BMC=$1
+	BBB=$(ipmitool lan print | grep -P "IP Address +: " | awk '{print $4}')
+	if [[ -z "$BMC" ]]; then
+		BMC=$BBB
+	fi
+	echo saa -i $BMC -u ADMIN -p ADMIN  -c GetFirmwareInventoryInfo
+	saa -i $BMC -u ADMIN -p ADMIN  -c GetFirmwareInventoryInfo
 }
 
