@@ -1,4 +1,6 @@
 # sda or nvme0n1
+# bash create_partitions.sh sda all
+# bash create_partitions.sh sda # for usb
 
 RED='\033[0;31m'
 YLW='\033[0;33m'
@@ -53,9 +55,17 @@ parted -s ${HD_DEV} mkpart primary fat32 1      200
 echo "  create partition: uefi"
 
 if [[ $HD_NEW =~ "sd" ]]; then
-	# on usb create a 3rd partition for Windows
-	parted -s ${HD_DEV} mkpart primary ext4  200    10240
-	parted -s ${HD_DEV} mkpart primary ntfs  10240  100%
+
+	if [[ $2 =~ "all" ]]; then
+		echo "  use all space left"
+		parted -s ${HD_DEV} mkpart primary ext4  200    100%
+	else
+		# on usb create a 3rd partition for Windows
+		echo "  create a 3rd partition on usb"
+		parted -s ${HD_DEV} mkpart primary ext4  200    10240
+		parted -s ${HD_DEV} mkpart primary ntfs  10240  100%	
+	fi
+
 elif [[ $HD_NEW =~ "nvme" ]]; then
 	parted -s ${HD_DEV} mkpart primary ext4  200    100%
 fi
@@ -74,7 +84,9 @@ mkfs.ext4 /dev/${PT2}
 echo -e  "  mkfs.ext4 /dev/${PT2}"
 sync; sleep 1
 
-[[ $HD_NEW =~ "sd" ]] && mkfs.ntfs /dev/${PT3}
+if  [[ -z  $2 ]]; then
+	[[ $HD_NEW =~ "sd" ]] && mkfs.ntfs /dev/${PT3}
+fi
 
 parted -s ${HD_DEV} print
 echo -e "$NCL"
