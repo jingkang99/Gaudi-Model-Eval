@@ -84,6 +84,7 @@ alias mvhllog="/sox/Gaudi-Model-Eval/rack/hl-test.sh mv"
 alias renewip="dhclient -r;dhclient ens1f0;ipp"
 alias defrag='dd if=/dev/zero of=/zero.file bs=1M; sync; rm /zero.file'
 alias bmc='ipmitool lan print | grep -P "IP Address +: "'
+alias ncc='lspci | grep -i  -P "Infiniband|Eth" | sort -k2'
 
 RED='\033[0;31m'
 YLW='\033[0;33m'
