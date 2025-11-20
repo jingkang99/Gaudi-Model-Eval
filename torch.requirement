@@ -6,3 +6,5 @@ pip install git+https://github.com/mlperf/logging.git
 pip install --upgrade-strategy eager optimum[habana]
 pip install git+https://github.com/HabanaAI/DeepSpeed.git@1.19.0
 
+# hl_qual tests
+pip install paramiko colorama scp 
