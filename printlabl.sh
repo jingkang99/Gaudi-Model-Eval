@@ -41,9 +41,13 @@ ora_pn["8232711"]="672042982653 CBL-PWEX-8232711-OC018"
 ora_pn["8232713"]="672042982660 CBL-PWEX-8232713-OC018"
 
 oracle="${1:-8209200}"	# Oracle PN
-oarray=(${ora_pn["${oracle}"]}); echo 
+oarray=(${ora_pn["${oracle}"]}); 
 
 counts="${2:-3}"
+if [ $counts -gt 999 ]; then
+	echo -e "${RED}limited to print up to 999 labels every hour${NCL}"
+	exit
+fi
 
 upcstr="${oarray[0]}"	# UPC 
 partnm="${oarray[1]}"	# SMC PN
@@ -55,17 +59,23 @@ declare -A mons=([01]=1 [02]=2 [03]=3 [04]=4 [05]=5 [06]=6 [07]=7 [08]=8 [09]=9 
 declare -A days=([01]=1 [02]=2 [03]=3 [04]=4 [05]=5 [06]=6 [07]=7 [08]=8 [09]=9 [10]=A
 				 [11]=B [12]=C [13]=D [14]=E [15]=F [16]=G [17]=H [18]=I [19]=J [20]=K
 				 [21]=L [22]=M [23]=N [24]=O [25]=P [26]=Q [27]=R [28]=S [29]=T [30]=U [31]=V )
+declare -A hour=([01]=1 [02]=2 [03]=3 [04]=4 [05]=5 [06]=6 [07]=7 [08]=8 [09]=9 [10]=A
+				 [11]=B [12]=C [13]=D [14]=E [15]=F [16]=G [17]=H [18]=I [19]=J [20]=K
+				 [21]=L [22]=M [23]=N [24]=O )
+declare -A year=([26]=X [27]=Y [28]=Z [29]=R [30]=S [31]=T)
 
 todaymon=$(date +%m)
 todayday=$(date +%d)
+todayhou=$(date +%H)
+todayyea=$(date +%y)
 
-pre=${upcstr: -5}${mons[$todaymon]}${days[$todayday]}
+pre=${upcstr: -5}${year[$todayyea]}${mons[$todaymon]}${days[$todayday]}${hour[$todayhou]}
 
 echo "  print for:" $inputo $upcstr $partnm $counts $redate $pre
 echo
 
 for (( i=${counts}; i >=1 ; i-- )); do
-	seq=${pre}$(printf "%05d" ${i})
+	seq=${pre}$(printf "%03d" ${i})
 	printf "${BCY}${seq}${NCL}\n"
 
 curl -s 'http://'${printr}':9100/' -m 3 \
