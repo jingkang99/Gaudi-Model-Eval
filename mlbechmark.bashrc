@@ -85,6 +85,7 @@ alias renewip="dhclient -r;dhclient ens1f0;ipp"
 alias defrag='dd if=/dev/zero of=/zero.file bs=1M; sync; rm /zero.file'
 alias bmc='ipmitool lan print | grep -P "IP Address +: "'
 alias ncc='lspci | grep -i  -P "Infiniband|Eth" | sort -k2'
+alias gmu='git submodule update --recursive'
 
 RED='\033[0;31m'
 YLW='\033[0;33m'
@@ -146,18 +147,9 @@ function pir() {
 	awk -F"==" '{print $1}' $REQ | xargs -I{} pip install {}
 }
 
-mkdir -p /root/.postgresql 2>/dev/null
+#mkdir -p /root/.postgresql 2>/dev/null
 #cp tool/root.crt /root/.postgresql/root.crt
 
-function psnic(){
-	mapfile -t aoc < <( lspci | grep Eth | awk '{print $1}' );
-	for nic in "${aoc[@]}" ; do
-		iface=$(dmesg | grep  $nic | grep renamed | awk '{print $5}' | awk -F':' '{print $1}')
-		ifconfig $iface up
-		upord=$(ethtool $iface | grep Link | awk -F':' '{print $2}')
-		echo -e "$nic \t $iface \t $upord"
-	done
-}
 
 function check_hl_qual_log(){
 	SUMMARY=''
@@ -180,5 +172,17 @@ function fwinfo(){
 	fi
 	echo saa -i $BMC -u ADMIN -p ADMIN  -c GetFirmwareInventoryInfo
 	saa -i $BMC -u ADMIN -p ADMIN  -c GetFirmwareInventoryInfo
+}
+
+function psnic(){
+	mapfile -t aoc < <( lspci | grep Eth | awk '{print $1}' );
+	for nic in "${aoc[@]}" ; do
+		iface=$(dmesg | grep $nic | grep renamed | awk '{print $5}' | awk -F':' '{print $1}')
+		dmesg | grep $nic | grep renamed >& /dev/null
+		[ $? -ne 0  ] && continue
+		ifconfig $iface up
+		upord=$(ethtool $iface | grep Link | awk -F':' '{print $2}')
+		echo -e "$nic \t $iface \t $upord"
+	done
 }
 
