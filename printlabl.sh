@@ -6,10 +6,18 @@ printr="172.30.191.54"
 RED='\033[0;31m'
 YLW='\033[0;33m'
 BLU='\033[0;34m'
+BLB='\033[1;34m'
 GRN='\033[0;32m'
 BCY='\033[1;36m'
 CYA='\033[0;36m'
 NCL='\033[0m' 
+
+if [[ ${#1} -ne 7 ]]; then
+	echo -e "\nusage: $0 ${YLW}OraclePN LabelCount${NCL} DateCode"
+	echo -e "\n       $0 ${YLW}8234291 1${NCL}"
+	echo
+	exit 1
+fi 
 
 ora_pn["8209200"]="672042983179 CBL-CDAT-8209200-OC018"
 ora_pn["8232688"]="672042982677 CBL-CDAT-8232688-OC018"
@@ -71,7 +79,7 @@ todayyea=$(date +%y)
 
 pre=${upcstr: -5}${year[$todayyea]}${mons[$todaymon]}${days[$todayday]}${hour[$todayhou]}
 
-echo "  print for:" $inputo $upcstr $partnm $counts $redate $pre
+echo -e "  print for:" ${BLU}${oracle}${NCL} $upcstr $partnm $counts $redate $pre
 echo
 
 for (( i=${counts}; i >=1 ; i-- )); do
