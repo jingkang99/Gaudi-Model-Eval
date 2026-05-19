@@ -175,14 +175,30 @@ function fwinfo(){
 }
 
 function psnic(){
+	lshw -c network -businfo > /tmp/_1
 	mapfile -t aoc < <( lspci | grep Eth | awk '{print $1}' );
 	for nic in "${aoc[@]}" ; do
-		iface=$(dmesg | grep $nic | grep renamed | awk '{print $5}' | awk -F':' '{print $1}')
-		dmesg | grep $nic | grep renamed >& /dev/null
+		iface=$(grep $nic /tmp/_1 | awk '{print $2}')
 		[ $? -ne 0  ] && continue
 		ifconfig $iface up
 		upord=$(ethtool $iface | grep Link | awk -F':' '{print $2}')
 		echo -e "$nic \t $iface \t $upord"
 	done
+}
+
+function mac2ip(){
+	MAC=$1
+	if [[ ! "$MAC" =~ ":" ]]; then
+		AAA=($(echo "$MAC" | grep -o '..'))
+		MAC=$(printf "%s:" "${AAA[@]}")
+		MAC="${MAC:0:-1}"
+	fi
+	html=$(curl -s 'http://172.30.0.3/burnsum/getip.php' --data-raw mac=$MAC)
+	if [[ "$html" =~ "No IP address found" ]]; then
+		echo "No IP Found"
+		exit 1
+	fi
+	echo $html| awk -F 'lease ' '{print $2}' | awk '{print $1}'
+	echo $MAC
 }
 
