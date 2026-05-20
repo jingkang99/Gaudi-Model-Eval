@@ -87,6 +87,10 @@ alias bmc='ipmitool lan print | grep -P "IP Address +: "'
 alias ncc='lspci | grep -i  -P "Infiniband|Eth" | sort -k2'
 alias gmu='git submodule update --recursive'
 
+alias tl='tmux ls'
+alias ta='tmux attach -t '
+alias tp='tmux capture-pane -pt '
+
 RED='\033[0;31m'
 YLW='\033[0;33m'
 BLU='\033[0;34m'
