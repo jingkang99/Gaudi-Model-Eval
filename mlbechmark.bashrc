@@ -3,11 +3,6 @@
 #dpkg --purge linux-modules-extra-5.15.0-94-generic
 #apt  autoremove --purge
 
-# ro
-export HF_TOKEN=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
-
-# rw
-export HF_TOKEN=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
 export HF_HOME=/sox/huggingface
 
 export DATASET=/sox/data-ml
