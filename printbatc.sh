@@ -100,8 +100,25 @@ function separator(){
 
 # --------------- main ---------------
 
+if [ "$1" == "-l" ]; then
+	echo -e "  ${YLW}Oracle     SMC Cable PN               UPC${NCL}"
+
+	for opn in "${!ora_pn[@]}"; do
+		orr=(${ora_pn[$opn]})
+		upc="${orr[0]}"
+		smc="${orr[1]}"
+		printf "  %-10s %-25s  %s \n" $opn $smc $upc
+	done
+	exit
+fi
+
 count=$1
-argpn=("${@:2}") 
+argpn=("${@:2}")
+
+if [ -e printbatc.ini ]; then
+	PRINTER=$(grep PRINTER printbatc.ini | awk -F'=' '{print $2}')
+	echo -e "  use printer:" ${BLB}${PRINTER}${NCL}
+fi
 
 if [ $count -gt 999 ]; then
 	echo -e "${RED}limited to print up to 999 labels${NCL}"
