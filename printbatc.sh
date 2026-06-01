@@ -110,19 +110,22 @@ if [ "$1" == "-l" ]; then
 		printf "  %-10s %-25s  %s \n" $opn $smc $upc
 	done
 	exit
+elif [ "$1" == "-h" ] || [ "$#" -lt 2 ] ; then
+	echo -e "  ${YLW}print_labels${NCL} COUNT PN1 PN2 PN3"
+	exit
 fi
 
 count=$1
 argpn=("${@:2}")
 
-if [ -e printbatc.ini ]; then
-	PRINTER=$(grep PRINTER printbatc.ini | awk -F'=' '{print $2}')
-	echo -e "  use printer:" ${BLB}${PRINTER}${NCL}
-fi
-
 if [ $count -gt 999 ]; then
 	echo -e "${RED}limited to print up to 999 labels${NCL}"
 	exit
+fi
+
+if [ -e printbatc.ini ]; then
+	PRINTER=$(grep PRINTER printbatc.ini | awk -F'=' '{print $2}')
+	echo -e "  use printer:" ${BLB}${PRINTER}${NCL}
 fi
 
 for pn in "${argpn[@]}"; do
