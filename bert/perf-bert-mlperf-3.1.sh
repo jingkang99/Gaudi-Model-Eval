@@ -327,14 +327,12 @@ read -r -d '' MPIRUN_CMD << EOM
 $MPIRUN_CMD \
     --bind-to core \
     --map-by socket:PE=$MPI_MAP_BY_PE \
-    --rank-by core \
     --report-bindings
 EOM
 read -r -d '' MPIRUN_LOCAL_CMD << EOM
 $MPIRUN_LOCAL_CMD \
     --bind-to core \
     --map-by socket:PE=$MPI_MAP_BY_PE \
-    --rank-by core \
     --report-bindings
 EOM
 
@@ -436,9 +434,9 @@ get_test_envn_data "mlperf" "3.1" "bert"
 
 # -------------
 # time to train
-ttt=$(for nn in {0..7} ; do grep 'run_start\|run_stop' $OUTPUT/train.log | grep worker${nn} | awk '{print $5}' | tr -d ',' | paste -sd " " - | awk '{print ($2 - $1) / 1000 / 60}' ; done | awk '{s+=$1}END{print s/NR}')
+ttt=$(for nn in {0..7} ; do grep 'run_start\|run_stop' $OUTPUT/train.log | grep worker${nn} | awk '{print $6}' | tr -d ',' | paste -sd " " - | awk '{print ($2 - $1) / 1000 / 60}' ; done | awk '{s+=$1}END{print s/NR}')
 echo -e "${YLW}Time To Train: ${ttt} min${NCL}, < 16.5 min" | tee -a $TRAIN_LOGF
-arr=$(for nn in {0..7} ; do grep 'run_start\|run_stop' $OUTPUT/train.log | grep worker${nn} | awk '{print $5}' | tr -d ',' | paste -sd " " - | awk '{print ($2 - $1) / 1000 / 60}' ; done)
+arr=$(for nn in {0..7} ; do grep 'run_start\|run_stop' $OUTPUT/train.log | grep worker${nn} | awk '{print $6}' | tr -d ',' | paste -sd " " - | awk '{print ($2 - $1) / 1000 / 60}' ; done)
 i=0; for t in $arr ; do echo "  worker:"${i} ${t} | tee -a $TRAIN_LOGF; let i++; done
 echo
 
@@ -469,16 +467,16 @@ echo -e "  ${CYA}average_training_time_step: ${NCL}${YLW}${avg_tts}${NCL} < 0.16
 
 # training summary
 # grep training_sequences_per_second $OUTPUT/train.log | awk -F ':' '{for (i=5; i<NF; i++) printf $i":"; print $NF}';echo | tee -a $TRAIN_LOGF;
-mapfile -t rst < <( grep e2e_train_time $OUTPUT/train.log | awk '{printf("%s %s %s %s\n", $9, $12, $15, $19);}' | awk '{OFS=RS;$1=$1}1' )
+mapfile -t rst < <( grep e2e_train_time $OUTPUT/train.log | awk '{printf("%s %s %s %s\n", $10, $13, $16, $20);}' | awk '{OFS=RS;$1=$1}1' )
 echo -e "  e2e_train_time      : ${YLW}${rst[0]} ${NCL}" | tee -a $TRAIN_LOGF;
 echo -e "  training_sequences/s: ${YLW}${rst[1]} ${NCL}" | tee -a $TRAIN_LOGF;
 echo -e "  final_loss          : ${YLW}${rst[2]} ${NCL}" | tee -a $TRAIN_LOGF;
 echo -e "  raw_train_time      : ${YLW}${rst[3]} ${NCL}" | tee -a $TRAIN_LOGF;
 
-eval_t=$(grep "eval used time" $TRAIN_LOGF  | grep 1,0 | awk '{print $4}' | cut -c 1-6)
+eval_t=$(grep "eval used time" $TRAIN_LOGF  | grep 1,0 | awk '{print $5}' | cut -c 1-6)
 echo -e "  model eval time     : ${YLW}${eval_t} ${NCL}" | tee -a $TRAIN_LOGF;
 
-intern=$(grep "Iteration: 100%" $TRAIN_LOGF | tail -n 10 | awk '{print $10}' | awk -F'it' '{print $1}' | awk '{s+=$1}END{print s/NR}')
+intern=$(grep "Iteration: 100%" $TRAIN_LOGF | tail -n 10 | awk '{print $11}' | awk -F'it' '{print $1}' | awk '{s+=$1}END{print s/NR}')
 intern=$(printf "%.2f" ${intern} )
 echo -e "  iteration 100% it/s : ${YLW}${intern} ${NCL}" | tee -a $TRAIN_LOGF;
 
