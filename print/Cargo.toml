@@ -1,0 +1,10 @@
+[package]
+name = "print_labels"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+chrono = "0.4.44"
+
+[unstable]
+build-std = ["core", "alloc"]
