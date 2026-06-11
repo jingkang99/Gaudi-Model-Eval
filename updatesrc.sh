@@ -13,7 +13,7 @@ echo "${#src[@]}"
 pwd=`pwd`
 
 for gg in "${src[@]}"; do
-	echo $gg
+	echo -e ${YLW}$gg${NCL}
 	cd $gg
 	for fd in $( ls -l | grep drwxr | awk '{print $9}' ) ; do
 		cd $fd	 &>/dev/null
