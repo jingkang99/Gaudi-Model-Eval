@@ -86,6 +86,8 @@ alias tl='tmux ls'
 alias ta='tmux attach -t '
 alias tp='tmux capture-pane -pt '
 
+alias xskill="loginctl list-sessions | grep -P 'c\d+' | awk '{print \$1}' | xargs -I{} loginctl terminate-session {}"
+
 RED='\033[0;31m'
 YLW='\033[0;33m'
 BLU='\033[0;34m'
@@ -174,15 +176,15 @@ function fwinfo(){
 }
 
 function psnic(){
-	lshw -c network -businfo > /tmp/_1
-	mapfile -t aoc < <( lspci | grep Eth | awk '{print $1}' );
-	for nic in "${aoc[@]}" ; do
-		iface=$(grep $nic /tmp/_1 | awk '{print $2}')
-		[ $? -ne 0  ] && continue
-		ifconfig $iface up
-		upord=$(ethtool $iface | grep Link | awk -F':' '{print $2}')
-		echo -e "$nic \t $iface \t $upord"
-	done
+        lshw -c network -businfo > /tmp/_1
+        mapfile -t aoc < <( lspci | grep Eth | awk '{print $1}' );
+        for nic in "${aoc[@]}" ; do
+                iface=$(grep $nic /tmp/_1 | awk '{print $2}')
+                [ $? -ne 0  ] && continue
+                ifconfig $iface up
+                upord=$(ethtool $iface | grep "Link detected" | awk -F':' '{print $2}')
+                echo -e "$nic \t $iface \t $upord"
+        done
 }
 
 function mac2ip(){
