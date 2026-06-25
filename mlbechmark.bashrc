@@ -81,6 +81,7 @@ alias defrag='dd if=/dev/zero of=/zero.file bs=1M; sync; rm /zero.file'
 alias bmc='ipmitool lan print | grep -P "IP Address +: "'
 alias ncc='lspci | grep -i  -P "Infiniband|Eth" | sort -k2'
 alias gmu='git submodule update --recursive'
+alias mem='dmidecode -t memory | grep -i "serial number"'
 
 alias tl='tmux ls'
 alias ta='tmux attach -t '
