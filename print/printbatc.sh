@@ -57,6 +57,8 @@ function printlabl(){
 
 	todays=$(date +"%m/%y")
 	redate="${3:-${todays}}"
+	
+	revnum='1.0'
 
 	declare -A mons=([01]=1 [02]=2 [03]=3 [04]=4 [05]=5 [06]=6 [07]=7 [08]=8 [09]=9 [10]=A [11]=B [12]=C)
 	declare -A days=([01]=1 [02]=2 [03]=3 [04]=4 [05]=5 [06]=6 [07]=7 [08]=8 [09]=9 [10]=A
@@ -81,13 +83,17 @@ function printlabl(){
 		seq=${pre}$(printf "%03d" ${i})
 		printf "  ${BCY}${seq}${NCL}\n"
 
+		if [[ ${partnm} == "CBL-PWEX-1093-A0-OC018" ]] || [[ ${partnm} == "CBL-PWEX-8232679-OC018" ]] || [[ ${partnm} == "CBL-PWEX-1093-36-OC018" ]] ; then
+			revnum='2.0'
+		fi
+
 		curl -s 'http://'${PRINTER}':9100/' -m 3 \
 		-H 'Accept: */*' \
 		-H 'User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/147.0.0.0 Safari/537.36' \
-		--data-raw $'^XA\n^PW380\n^LL200\n^CF0,19\n^BY1,2.5,24\n^FO28,48^BCN,24,N,N,N^FD'${upcstr}'^FS\n^FO25,82^FDUPC: '${upcstr}'^FS\n^FO25,106^FDSUPER MICRO COO:CHN^FS\n^FO25,130^FD'${partnm}'^FS\n^FO25,154^FDREV 1.0 '"${redate}"'^FS\n^FO25,178^FDSN: '${seq}'^FS\n^BY1,2.5,24\n^FO28,198^BCN,24,N,N,N^FD'${seq}'^FS\n^FO25,232^FDOracle PN: '${oracle}'^FS^XZ'
+		--data-raw $'^XA\n^PW380\n^LL200\n^CF0,19\n^BY1,2.5,24\n^FO28,20^BCN,24,N,N,N^FD'${upcstr}'^FS\n^FO25,54^FDUPC: '${upcstr}'^FS\n^FO25,78^FDSUPER MICRO COO:CHN^FS\n^FO25,102^FD'${partnm}'^FS\n^FO25,126^FDREV '${revnum}' '${redate}'^FS\n^FO25,150^FDSN: '${seq}'^FS\n^BY1,2.5,24\n^FO28,170^BCN,24,N,N,N^FD'${seq}'^FS\n^FO25,204^FDOracle PN: '${oracle}'^FS\n^FO28,228^BCN,24,N,N,N^FD'${oracle}'^FS^XZ'
 	done
 
-	separator $partnm $upcstr $oracle
+	#separator $partnm $upcstr $oracle
 	echo
 }
 
