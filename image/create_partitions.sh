@@ -128,6 +128,10 @@ echo
 echo -e "${NCL}"
 
 UUID_O1=$(grep ^UUID.*efi ${PT2}/etc/fstab | awk '{print $1}' | awk -F= '{print $2}')
+if [[ -z "$UUID_O1" ]]; then
+    UUID_O1=$(grep vfat ${PT2}/etc/fstab | awk -F'/' '{print $5}')
+fi
+
 UUID_O2=$(head -n 1 ${PT1}/EFI/ubuntu/grub.cfg | awk '{print $2}')
 echo -e "  UUID_O1  $UUID_O1"
 echo -e "  UUID_O2  $UUID_O2"
