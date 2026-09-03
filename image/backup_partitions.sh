@@ -50,7 +50,7 @@ if [[ "$2" =~ current ]]; then
 
 	cd /
 	echo -e "  backup /"
-	tar cvzf ${PWW}/${PT2}.tgz /bin /boot/* /etc /lib /lib64 /mnt /opt/* /root/* /sbin /sox/* /usr/* /var/*
+	tar czf ${PWW}/${PT2}.tgz --exclude='sox' --exclude='box' --exclude='dev' --exclude='proc' --exclude='run' --exclude='sys' --exclude='tmp' --exclude='root/images' *
 
 	cd ${PWW}
 else
@@ -71,7 +71,7 @@ else
 	cd -
 	cd ${PT2}
 	echo -e "  backup /dev/${PT2}"
-	tar czf ../${PT2}.tgz *
+	tar czf ../${PT2}.tgz --exclude='sox' *
 	cd -
 fi
 

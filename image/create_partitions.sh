@@ -15,6 +15,14 @@ NCL='\033[0m'
 HD_NEW=$1
 HDSIZE=$(lsblk | grep $HD_NEW | awk '{print $4}' | head -n 1)
 
+cat << 'EOF'
+ ____  _____ ____ _____ ____   _____   __
+|  _ \| ____/ ___|_   _|  _ \ / _ \ \ / /
+| | | |  _| \___ \ | | | |_) | | | \ V /
+| |_| | |___ ___) || | |  _ <| |_| || |
+|____/|_____|____/ |_| |_| \_\\___/ |_|
+EOF
+
 echo -e "$YLW"
 read -r -p "  Confirm to Create Partitions on $HD_NEW - ${HDSIZE} (y/n)?" response
 response=${response,,}
@@ -129,7 +137,7 @@ echo -e "${NCL}"
 
 UUID_O1=$(grep ^UUID.*efi ${PT2}/etc/fstab | awk '{print $1}' | awk -F= '{print $2}')
 if [[ -z "$UUID_O1" ]]; then
-    UUID_O1=$(grep vfat ${PT2}/etc/fstab | awk -F'/' '{print $5}')
+    UUID_O1=$(grep vfat ${PT2}/etc/fstab | awk -F'/' '{print $5}' | tr -s ' ')
 fi
 
 UUID_O2=$(head -n 1 ${PT1}/EFI/ubuntu/grub.cfg | awk '{print $2}')
