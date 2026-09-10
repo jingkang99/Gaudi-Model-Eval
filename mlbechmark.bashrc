@@ -220,3 +220,6 @@ function github_star {
         done < "/tmp/_url.txt"
 }
 
+export GOCACHE=/opt/go-cache
+export GOPATH=/opt/go-path
+
