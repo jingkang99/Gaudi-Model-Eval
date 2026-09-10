@@ -204,3 +204,19 @@ function mac2ip(){
 	echo $MAC
 }
 
+function get_github_star {
+        url=$1
+        tmpfile=$(mktemp) || exit 1
+        wget -q $url -O $tmpfile
+        starcnt=$(grep "js-social-count" "$tmpfile" | awk -F'js-social-count' '{print $2}' | awk -F'>' '{print $2}' | awk -F'<' '{print $1}')
+        rm -f "$tmpfile"
+        printf "  ${BLU}%8s ${BCY}★${NCL}\t%s\n" $starcnt $url
+}
+
+function github_star {
+        ls -l | grep drwxr | awk "{print \$9}" | xargs -I{} grep git {}/.git/config  | awk '{print $3}' > /tmp/_url.txt
+        while IFS= read -r line; do
+                get_github_star "$line"
+        done < "/tmp/_url.txt"
+}
+
