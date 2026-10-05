@@ -88,6 +88,7 @@ alias ta='tmux attach -t '
 alias tp='tmux capture-pane -pt '
 
 alias xskill="loginctl list-sessions | grep -P 'c\d+' | awk '{print \$1}' | xargs -I{} loginctl terminate-session {}"
+alias gpusn="nvidia-smi -q | grep -P 'Serial.*: \d+' | awk -F':' '{print \$2}'"
 
 RED='\033[0;31m'
 YLW='\033[0;33m'
