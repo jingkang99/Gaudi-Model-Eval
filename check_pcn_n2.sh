@@ -5,6 +5,15 @@ BCY='\033[1;36m'
 RED='\033[0;31m'
 NCL='\033[0m'
 
+PARENT_COMMAND=$(ps -o comm= -p $PPID 2>/dev/null | awk '{print $1}')
+if [[ "$PARENT_COMMAND" == *"python"* ]]; then
+    #echo "Executed by a Python script."
+    CYA=''
+    BCY=''
+    RED=''
+    NCL=''
+fi
+
 echo
 echo -e "WO#:" ${CYA}${WO}${NCL}
 echo "PCN: 244-00-20260923-01"
