@@ -50,7 +50,7 @@ for dir in 10.32.0.26/prodfile/FTU/${WO}/S*; do
 
 	echo -n "check $log"
 	MAC=$(grep '#       #     # ### #######' $log -A 12 | grep AMAC | wc -l)
-	AOM=$(grep '#       #     # ### #######' $log -A 12 | grep -E 'HA\w+ 0894.* HA\w+' | awk -F':' '{print $2}' | wc -w)
+	AOM=$(grep '#       #     # ### #######' $log -A 12 | grep -E 'HA\w+ \w{7}.* HA\w+' | awk -F':' '{print $2}' | wc -w)
 
 	PASS=${RED}FAIL${NCL}
 	if [ "$MAC" -eq 9 ] && [ "$AOM" -eq 3 ]; then 
