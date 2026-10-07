@@ -28,7 +28,7 @@ PAGE = """<!doctype html>
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<title>Internal Script Runner</title>
+<title>Check N2 FTU logs</title>
 <style>
   body {{ font-family: sans-serif; margin: 1.5rem; max-width: 720px; }}
   input[type=text] {{ width: 100%; padding: .5rem; font-size: 1rem; box-sizing: border-box; }}
@@ -41,7 +41,7 @@ PAGE = """<!doctype html>
 </style>
 </head>
 <body>
-<h1>Internal Script Runner</h1>
+<h1>Check N2 FTU logs</h1>
 <form method="post">
   <label for="arg">Working Order#</label>
   <input type="text" id="arg" name="arg" autofocus>
