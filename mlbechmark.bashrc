@@ -212,7 +212,7 @@ function get_github_star {
         tmpfile=$(mktemp) || exit 1
         wget -q $url -O $tmpfile
         #starcnt=$(grep "js-social-count" "$tmpfile" | awk -F'js-social-count' '{print $2}' | awk -F'>' '{print $2}' | awk -F'<' '{print $1}')
-	starcnt=$(grep -oP "stargazerCount.{0,10}" "$tmpfile" | head -1 | awk -F':' '{print $2}' | awk -F',' '{print $1}')
+        starcnt=$(grep -oP "stargazerCount.{0,10}" "$tmpfile" | head -1 | awk -F':' '{print $2}' | awk -F',' '{print $1}')
         rm -f "$tmpfile"
         printf "  ${BLU}%8s ${BCY}★${NCL}\t%s\n" $starcnt $url
 }
@@ -227,5 +227,5 @@ function github_star {
 export GOCACHE=/opt/go-cache
 export GOPATH=/opt/go-path
 
-alias gsc="github_star|tee star_count.txt;echo;cat star_count.txt | sort -r -n -k 1"
+alias gsc="github_star|tee star_count.txt;echo;sed 's/\x1b\[[0-9;]*m//g' star_count.txt | sort -h -k 1 -r"
 
