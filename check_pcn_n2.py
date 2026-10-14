@@ -21,7 +21,7 @@ from urllib.parse import parse_qs
 HOST = "0.0.0.0"          # bind to localhost for safety; use "0.0.0.0" to expose on LAN
 PORT = 8000
 EXTERNAL_SCRIPT = ["/usr/bin/env", "bash", "/home/mgx/oracle/check_pcn_n2.sh"]
-EXEC_TIMEOUT_SEC = 10       # kill the external script if it runs too long
+EXEC_TIMEOUT_SEC = 40       # kill the external script if it runs too long
 # --------------------------------------------------------------------------- #
 
 PAGE = """<!doctype html>

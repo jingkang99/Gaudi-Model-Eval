@@ -48,6 +48,7 @@ alias jns='jupyter notebook --ip 0.0.0.0 --port 8888 --allow-root'
 
 alias gd='for fd in $( printf "%s\n" */ ) ; do cd $fd; printf "\e[33m____ %-40s ____\e[0m\n" `pwd` ; git pull; cd - &>/dev/null ; echo ; done'
 alias gb='for fd in $( printf "%s\n" */ ) ; do cd $fd; printf "\e[33m____ %-40s --->\e[0m  " `pwd` ; git log -1 --format="%at" | xargs -I{} date -d @{} +%Y/%m/%d-%H:%M:%S; cd .. ; echo ; done 2>/dev/null'
+alias gf='gb | grep . | sort -k 4 -r'
 
 alias upp='nmap -sn 172.24.189.11/27| grep 172'
 alias cls="echo '' > /var/log/syslog; echo '' > /var/log/kern.log; rm -rf /var/log/habana_logs/*"
@@ -209,7 +210,8 @@ function get_github_star {
         url=$1
         tmpfile=$(mktemp) || exit 1
         wget -q $url -O $tmpfile
-        starcnt=$(grep "js-social-count" "$tmpfile" | awk -F'js-social-count' '{print $2}' | awk -F'>' '{print $2}' | awk -F'<' '{print $1}')
+        #starcnt=$(grep "js-social-count" "$tmpfile" | awk -F'js-social-count' '{print $2}' | awk -F'>' '{print $2}' | awk -F'<' '{print $1}')
+	starcnt=$(grep -oP "stargazerCount.{0,10}" "$tmpfile" | head -1 | awk -F':' '{print $2}' | awk -F',' '{print $1}')
         rm -f "$tmpfile"
         printf "  ${BLU}%8s ${BCY}★${NCL}\t%s\n" $starcnt $url
 }
@@ -223,4 +225,6 @@ function github_star {
 
 export GOCACHE=/opt/go-cache
 export GOPATH=/opt/go-path
+
+alias gsc="github_star|tee star_count.txt;echo;cat star_count.txt | sort -r -n -k 1"
 
