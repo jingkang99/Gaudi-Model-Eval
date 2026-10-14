@@ -40,7 +40,6 @@ alias gr='grep url .git/config'
 alias gq='git show | grep Date:'
 alias gw='git clone --depth=1'
 alias gck="/opt/habanalabs/qual/gaudi2/bin/manage_network_ifs.sh --status"
-alias gup="/opt/habanalabs/qual/gaudi2/bin/manage_network_ifs.sh --up"
 alias pws='ipmitool sdr | grep PW'
 alias hl-='hl-smi -Q timestamp,index,serial,bus_id,memory.used,temperature.aip,utilization.aip,power.draw -f csv,noheader -l 10'
 alias apy='source $PYTHON_LLM_VEN/bin/activate'
