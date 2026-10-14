@@ -48,6 +48,7 @@ alias jns='jupyter notebook --ip 0.0.0.0 --port 8888 --allow-root'
 
 alias gd='for fd in $( printf "%s\n" */ ) ; do cd $fd; printf "\e[33m____ %-40s ____\e[0m\n" `pwd` ; git pull; cd - &>/dev/null ; echo ; done'
 alias gb='for fd in $( printf "%s\n" */ ) ; do cd $fd; printf "\e[33m____ %-40s --->\e[0m  " `pwd` ; git log -1 --format="%at" | xargs -I{} date -d @{} +%Y/%m/%d-%H:%M:%S; cd .. ; echo ; done 2>/dev/null'
+alias gb='for fd in $( printf "%s\n" */ ) ; do cd $fd; printf "\e[33m____ %-40s --->\e[0m  " `pwd` ; printf "%s    " `git log -1 --format="%at" | xargs -I{} date -d @{} +%Y/%m/%d-%H:%M:%S` ; grep url .git/config | head -1 | awk '\''{print $3}'\''| grep . ; cd .. ; done 2>/dev/null'
 alias gf='gb | grep . | sort -k 4 -r'
 
 alias upp='nmap -sn 172.24.189.11/27| grep 172'
