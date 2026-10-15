@@ -109,6 +109,7 @@ function lsg(){
 function dush(){
     du -h --max-depth=1 $1
 }
+alias dss="dush | sort -h -k 1"
 
 function sys_info(){
         echo $M_SIZE'GB' $CPU_CT'Core' $CPU_TP | toilet -f term -F border --gay
@@ -227,5 +228,8 @@ function github_star {
 export GOCACHE=/opt/go-cache
 export GOPATH=/opt/go-path
 
+alias dss="dush | sort -h -k 1"
 alias gsc="github_star|tee star_count.txt;echo;sed 's/\x1b\[[0-9;]*m//g' star_count.txt | sort -h -k 1 -r"
+alias gss='sed '\''s/\x1b\[[0-9;]*m//g'\'' star_count.txt | sort -h -k 1 -r | sed s#https://github.com/##g'
+alias gst='gss | awk '\''{a[NR]=$0} END {n=int((NR+1)/2); for(i=1;i<=n;i++) printf "%-59s %s\n", a[i], a[i+n]}'\'' '
 
