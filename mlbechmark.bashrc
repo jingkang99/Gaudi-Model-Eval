@@ -24,9 +24,6 @@ export PT_HPU_LAZY_MODE=1
 export WANDB_DISABLED=true
 export HF_HOME=/sox/huggingface
 
-# pytorch env, installed with required modules
-[ ! -d "$PYTHON_LLM_VEN" ] && ln -s /sox/python-llm /opt/python-llm
-
 alias ipa="ip a | grep inet | grep metric"
 alias ipp="ifconfig | grep 'inet ' | grep -v 127.0 | awk '{print \$2}'"
 alias nic="ip a | grep MULTICAST"
@@ -228,8 +225,13 @@ function github_star {
 export GOCACHE=/opt/go-cache
 export GOPATH=/opt/go-path
 
+alias gb='ll=$(find . -maxdepth 1 -type d -not -name "." -exec basename {} \; | awk '\''{print length, $0}'\'' | sort -nr | head -n 1 | awk '\''{print $1}'\''); for fd in $( printf "%s\n" */ ) ; do cd $fd; d=$(basename `pwd`); url=$(grep url .git/config | head -1 | awk '\''{print $3}'\''| grep .) ; printf "\e[33m____ %-${ll}s --->  %8s ★ \e[0m  " $d $(grep ${url} ../star_count.txt | sed '\''s/\x1b\[[0-9;]*m//g'\'' | awk '\''{print $1}'\''); printf "\e[36m%s\e[0m    " `git log -1 --format="%at" | xargs -I{} date -d @{} +%Y/%m/%d-%H:%M:%S` ; echo ${url} ; cd .. ; done 2>/dev/null'
+
 alias dss="dush | sort -h -k 1"
 alias gsc="github_star|tee star_count.txt;echo;sed 's/\x1b\[[0-9;]*m//g' star_count.txt | sort -h -k 1 -r"
 alias gss='sed '\''s/\x1b\[[0-9;]*m//g'\'' star_count.txt | sort -h -k 1 -r | sed s#https://github.com/##g'
 alias gst='gss | awk '\''{a[NR]=$0} END {n=int((NR+1)/2); for(i=1;i<=n;i++) printf "%-59s %s\n", a[i], a[i+n]}'\'' '
+
+alias gs='gb | grep . | sort -h -k 4 -r'
+alias gt='gb | grep . | sort    -k 6 -r'
 
