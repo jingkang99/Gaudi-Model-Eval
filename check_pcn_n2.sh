@@ -28,19 +28,21 @@ if [ ! -d "10.32.0.26/prodfile/FTU/${WO}" ]; then
 	wget -r -np http://10.32.0.26/prodfile/FTU/${WO}/ 2>/dev/null
 fi
 
+#wget -r -N -np http://10.32.0.26/prodfile/FTU/${WO}/ 2>/dev/null
+
 #ls -d 10.32.0.26/prodfile/FTU/${WO}/S*
 echo
 
 FIRST=0
 for dir in 10.32.0.26/prodfile/FTU/${WO}/S*; do
 	dir="${dir%/}"
-	log=$(ls $dir/*.txt)
+	log=$(ls -t $dir/*.txt | head -n 1)
 
 	if [ $FIRST -eq 0 ]; then
 		grep "System model" $log
 		grep "BIOS Date"    $log
 		grep "IPMI Rev"     $log
-		grep "CPLD:"         $log
+		grep "CPLD:"        $log
 		echo
 		echo "9 mismatch MAC:  8 CX8,  1 ROT"
 		echo "3 not detected SN: CX8 ROT MG6"
@@ -55,6 +57,9 @@ for dir in 10.32.0.26/prodfile/FTU/${WO}/S*; do
 	PASS=${RED}FAIL${NCL}
 	if [ "$MAC" -eq 9 ] && [ "$AOM" -eq 3 ]; then 
 		PASS=${BCY}PASS${NCL}
+        else
+		echo "  ERROR" $MAC $AOM
+
 	fi
 	echo -e ": $PASS"
 done
